@@ -1,6 +1,6 @@
-# [Project name]
+# Route Events
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Rebuilt Waste Connections "Route Events" web app: district staff pick a hauling district, review camera-captured route events (extras, contamination, etc.), then charge accounts, send emails, add notes, or close events. UI supports English, Spanish, and French and is responsive.
 
 ## Run & Operate
 
@@ -22,11 +22,19 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- Frontend: `artifacts/events` (react-vite, previewPath `/`); i18n dictionaries in `artifacts/events/src/i18n/` (en/es/fr JSON, React context)
+- API routes: `artifacts/api-server/src/routes/events.ts`
+- API contract: `lib/api-spec/openapi.yaml` (source of truth)
+- DB schema: `lib/db/src/schema/` (districts, lookups, routeEvents) — simplified schema derived from the user's attached proposal
+- Event photos (AI-generated mock): `artifacts/events/public/event-photos/`
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Mock data seeded in Postgres (20 districts, 8 events, service codes, actions); actions ("charge", "email", "close", "note") are recorded in `event_actions` and closing sets `event_status=1` on the event.
+- Maps use keyless OpenStreetMap embed iframes (no Google Maps API key).
+- Email "send" is mock: it records an action, no real email is sent.
+- Customer route overview stored as JSONB (`customer_routes`) on the event rather than a separate table.
+- Current user is hardcoded as `Kyle.Patrick` (no auth yet).
 
 ## Product
 

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Route Events"
+description = "A rebuilt Route Events web app for Waste Connections district staff to review route events (extra pickups, contamination, etc.), view event photos and locations, charge accounts, send emails, and close events. Supports English, Spanish, and French, and is responsive across devices."
+version = "1.0.0"
+id = "artifacts/events"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21426
+
+[services.development]
+run = "pnpm --filter @workspace/events run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/events", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/events/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21426"
+BASE_PATH = "/"

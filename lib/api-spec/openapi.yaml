@@ -3,13 +3,17 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Route Events API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: districts
+    description: District operations
+  - name: events
+    description: Route event operations
 paths:
   /healthz:
     get:
@@ -24,6 +28,248 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /districts:
+    get:
+      operationId: listDistricts
+      tags: [districts]
+      summary: List active districts
+      responses:
+        "200":
+          description: Districts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/District"
+  /districts/{districtId}/summary:
+    get:
+      operationId: getDistrictSummary
+      tags: [districts]
+      summary: Event counts and stats for a district
+      parameters:
+        - name: districtId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DistrictSummary"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+  /events:
+    get:
+      operationId: listEvents
+      tags: [events]
+      summary: List route events for a district
+      parameters:
+        - name: districtId
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, closed, all]
+        - name: eventTypeId
+          in: query
+          required: false
+          schema: { type: integer }
+        - name: search
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RouteEventListItem"
+  /districts/{districtId}/service-codes:
+    get:
+      operationId: listDistrictServiceCodes
+      tags: [districts]
+      summary: List active service codes for a district
+      parameters:
+        - name: districtId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Service codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceCode"
+  /event-types:
+    get:
+      operationId: listEventTypes
+      tags: [events]
+      summary: List event types
+      responses:
+        "200":
+          description: Event types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EventType"
+  /events/{eventId}:
+    get:
+      operationId: getEvent
+      tags: [events]
+      summary: Full event detail with routes and actions
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Event detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteEventDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+  /events/{eventId}/notes:
+    post:
+      operationId: addEventNote
+      tags: [events]
+      summary: Add a note to an event
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteInput"
+      responses:
+        "201":
+          description: Created action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventAction"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+  /events/{eventId}/charge:
+    post:
+      operationId: chargeEvent
+      tags: [events]
+      summary: Charge the event to the customer's account
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChargeInput"
+      responses:
+        "201":
+          description: Created action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventAction"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+  /events/{eventId}/email:
+    post:
+      operationId: emailEvent
+      tags: [events]
+      summary: Send an email about this event
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailInput"
+      responses:
+        "201":
+          description: Created action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventAction"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+  /events/{eventId}/close:
+    post:
+      operationId: closeEvent
+      tags: [events]
+      summary: Close the event without charging
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CloseInput"
+      responses:
+        "201":
+          description: Created action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventAction"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +279,162 @@ components:
           type: string
       required:
         - status
-
+    ErrorMessage:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    District:
+      type: object
+      required: [id, number, name, region]
+      properties:
+        id: { type: integer }
+        number: { type: string }
+        name: { type: string }
+        region: { type: string }
+    EventType:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    ServiceCode:
+      type: object
+      required: [id, districtId, code, description, amount]
+      properties:
+        id: { type: integer }
+        districtId: { type: integer }
+        code: { type: string }
+        description: { type: string }
+        amount: { type: number }
+    DistrictSummary:
+      type: object
+      required: [districtId, openCount, closedCount, chargedToday, totalChargedAmount, byEventType]
+      properties:
+        districtId: { type: integer }
+        openCount: { type: integer }
+        closedCount: { type: integer }
+        chargedToday: { type: integer }
+        totalChargedAmount: { type: number }
+        byEventType:
+          type: array
+          items:
+            type: object
+            required: [eventTypeId, eventTypeName, openCount]
+            properties:
+              eventTypeId: { type: integer }
+              eventTypeName: { type: string }
+              openCount: { type: integer }
+    RouteEventListItem:
+      type: object
+      required: [id, districtId, eventTypeId, eventTypeName, eventSourceName, dateOccurred, vehicle, route, customerName, accountNumber, address, eventStatus]
+      properties:
+        id: { type: integer }
+        districtId: { type: integer }
+        eventTypeId: { type: integer }
+        eventTypeName: { type: string }
+        eventSourceName: { type: string }
+        dateOccurred: { type: string }
+        vehicle: { type: string }
+        route: { type: string }
+        customerName: { type: string }
+        accountNumber: { type: string }
+        address: { type: string }
+        quantity: { type: ["number", "null"] }
+        imageUrl: { type: ["string", "null"] }
+        eventStatus: { type: integer, description: "0 = open, 1 = closed" }
+        dateClosed: { type: ["string", "null"] }
+        closedBy: { type: ["string", "null"] }
+    CustomerRoute:
+      type: object
+      required: [code, service, material, day]
+      properties:
+        code: { type: string }
+        service: { type: string }
+        material: { type: string }
+        day: { type: string }
+    EventAction:
+      type: object
+      required: [id, routeEventId, actionType, isFinal, createdBy, dateCreated]
+      properties:
+        id: { type: integer }
+        routeEventId: { type: integer }
+        actionType: { type: string }
+        isFinal: { type: boolean }
+        notes: { type: ["string", "null"] }
+        closeReason: { type: ["string", "null"] }
+        serviceCodeId: { type: ["integer", "null"] }
+        chargeAmount: { type: ["number", "null"] }
+        chargeQuantity: { type: ["number", "null"] }
+        createdBy: { type: string }
+        dateCreated: { type: string }
+    RouteEventDetail:
+      type: object
+      required: [id, districtId, eventTypeId, eventTypeName, eventSourceName, dateOccurred, vehicle, route, customerName, accountNumber, address, eventStatus, latitude, longitude, routes, actions, shareLinks]
+      properties:
+        id: { type: integer }
+        districtId: { type: integer }
+        eventTypeId: { type: integer }
+        eventTypeName: { type: string }
+        eventSourceName: { type: string }
+        externalId: { type: ["string", "null"] }
+        dateOccurred: { type: string }
+        vehicle: { type: string }
+        route: { type: string }
+        customerName: { type: string }
+        accountNumber: { type: string }
+        address: { type: string }
+        billArea: { type: ["string", "null"] }
+        binSerialNumber: { type: ["string", "null"] }
+        lob: { type: ["string", "null"] }
+        rmoStatus: { type: ["string", "null"] }
+        quantity: { type: ["number", "null"] }
+        imageUrl: { type: ["string", "null"] }
+        latitude: { type: number }
+        longitude: { type: number }
+        eventStatus: { type: integer, description: "0 = open, 1 = closed" }
+        dateClosed: { type: ["string", "null"] }
+        closedBy: { type: ["string", "null"] }
+        routes:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerRoute"
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventAction"
+        shareLinks:
+          type: object
+          required: [event, photo, source]
+          properties:
+            event: { type: string }
+            photo: { type: string }
+            source: { type: string }
+    NoteInput:
+      type: object
+      required: [notes]
+      properties:
+        notes: { type: string, minLength: 1 }
+    ChargeInput:
+      type: object
+      required: [serviceCodeId, amount, quantity]
+      properties:
+        serviceCodeId: { type: integer }
+        amount: { type: number }
+        quantity: { type: number }
+        keepOpen: { type: boolean }
+    EmailInput:
+      type: object
+      required: [toType, to, subject]
+      properties:
+        toType: { type: string }
+        to: { type: string }
+        cc: { type: ["string", "null"] }
+        subject: { type: string }
+        body: { type: ["string", "null"] }
+    CloseInput:
+      type: object
+      required: [closeReason]
+      properties:
+        closeReason: { type: string }
+        notes: { type: ["string", "null"] }

@@ -1,0 +1,1 @@
+- [Orval/zod codegen compat](orval-zod-compat.md) — keep number coercion in orval config (zod v3 vs `zod.int()`), and never mix path+query params on one operation (TS2308).

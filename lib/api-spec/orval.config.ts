@@ -60,8 +60,8 @@ export default defineConfig({
           coerce: {
             query: ['boolean', 'number', 'string'],
             param: ['boolean', 'number', 'string'],
-            body: ['bigint', 'date'],
-            response: ['bigint', 'date'],
+            body: ['bigint', 'date', 'number'],
+            response: ['bigint', 'date', 'number'],
           },
         },
         useDates: true,
