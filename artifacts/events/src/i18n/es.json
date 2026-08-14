@@ -115,7 +115,9 @@
     "last_charges": "Últimos 3 Cobros",
     "status_paid": "PAGADO",
     "status_refunded": "REEMBOLSADO",
-    "status_pending": "PENDIENTE"
+    "status_pending": "PENDIENTE",
+    "custom_amount": "Monto de cargo personalizado",
+    "custom_amount_placeholder": "Ingrese un monto personalizado..."
   },
   "email": {
     "title": "Enviar Correo",

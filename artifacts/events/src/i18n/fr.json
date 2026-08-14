@@ -115,7 +115,9 @@
     "last_charges": "3 Dernières Facturations",
     "status_paid": "PAYÉ",
     "status_refunded": "REMBOURSÉ",
-    "status_pending": "EN ATTENTE"
+    "status_pending": "EN ATTENTE",
+    "custom_amount": "Montant personnalisé",
+    "custom_amount_placeholder": "Saisir un montant personnalisé..."
   },
   "email": {
     "title": "Envoyer un E-mail",

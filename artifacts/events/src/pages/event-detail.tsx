@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -543,6 +544,15 @@ function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSucc
   const { t, formatCurrency, formatDate } = useI18n();
   const charge = useChargeEvent();
   const [selectedCodeAmount, setSelectedCodeAmount] = useState<number | null>(null);
+  const [customAmount, setCustomAmount] = useState('');
+
+  const onCustomAmountChange = (value: string) => {
+    setCustomAmount(value);
+    const parsed = parseFloat(value);
+    if (!isNaN(parsed) && parsed >= 0) {
+      form.setValue('amount', parsed as any);
+    }
+  };
   
   const form = useForm({
     resolver: zodResolver(chargeSchema),
@@ -553,6 +563,7 @@ function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSucc
     if (open) {
       form.reset({ serviceCodeId: '', amount: 0, quantity: 1, keepOpen: false });
       setSelectedCodeAmount(null);
+      setCustomAmount('');
     }
   }, [open, form]);
 
@@ -621,6 +632,19 @@ function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSucc
                     <FormMessage />
                   </FormItem>
                 )} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="custom-amount">{t('charge.custom_amount')}</Label>
+                <Input
+                  id="custom-amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder={t('charge.custom_amount_placeholder')}
+                  value={customAmount}
+                  onChange={e => onCustomAmountChange(e.target.value)}
+                  data-testid="input-custom-amount"
+                />
               </div>
             </div>
 
