@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useRoute, useLocation } from 'wouter';
+import { Link, useRoute } from 'wouter';
 import { useI18n, Language } from '@/i18n';
 import { useTheme } from '@/components/theme-provider';
 import logoUrl from '@assets/Waste_Connections_Logo_Symbol_-_2_Color-_12-10-09_-_transparen_1786045458506.png';
@@ -12,7 +12,6 @@ import { TruckDrive } from './TruckDrive';
 
 function DistrictHeaderCenter() {
   const { t } = useI18n();
-  const [, setLocation] = useLocation();
   const [matchesDistrict, params] = useRoute('/districts/:districtId');
   const districtId = matchesDistrict ? Number(params?.districtId) : NaN;
 
@@ -25,22 +24,38 @@ function DistrictHeaderCenter() {
 
   return (
     <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 max-w-[45%] sm:max-w-[50%]">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 shrink-0"
-        onClick={() => setLocation('/?browse=1')}
+      <Link
+        href="/?browse=1"
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         title={t('app.view_all_districts')}
+        aria-label={t('app.view_all_districts')}
       >
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
+        <ChevronLeft className="h-5 w-5" />
+      </Link>
       {district ? (
         <span className="flex items-center gap-2 min-w-0">
-          <span className="font-semibold text-sm truncate">{district.name}</span>
-          <Badge variant="secondary" className="font-mono shrink-0">{district.number}</Badge>
+          <Link
+            href={`/districts/${district.id}`}
+            className="min-w-0 rounded-sm font-bold text-base sm:text-lg leading-none truncate hover:text-primary hover:underline underline-offset-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={district.name}
+          >
+            {district.name}
+          </Link>
+          <Link
+            href={`/districts/${district.id}`}
+            className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`${district.name} ${district.number}`}
+          >
+            <Badge
+              variant="secondary"
+              className="font-mono text-sm px-2.5 py-0.5 hover:bg-secondary/80 transition-colors"
+            >
+              {district.number}
+            </Badge>
+          </Link>
         </span>
       ) : (
-        <Skeleton className="h-5 w-28" />
+        <Skeleton className="h-6 w-32" />
       )}
     </div>
   );
