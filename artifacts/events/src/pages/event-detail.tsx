@@ -326,21 +326,9 @@ export default function EventDetailWorkspace() {
           </div>
         </div>
 
-        {/* Right Column: Map & Timeline */}
+        {/* Right Column: Timeline */}
         <div className="space-y-6">
           <Card className="shadow-sm">
-            <div className="h-48 rounded-t-xl overflow-hidden bg-muted">
-              <iframe
-                width="100%"
-                height="100%"
-                frameBorder="0"
-                scrolling="no"
-                marginHeight={0}
-                marginWidth={0}
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${event.longitude-0.01},${event.latitude-0.01},${event.longitude+0.01},${event.latitude+0.01}&layer=mapnik&marker=${event.latitude},${event.longitude}`}
-                className="border-none"
-              ></iframe>
-            </div>
             <CardContent className="p-4 bg-muted/10">
               <div className="text-xs text-muted-foreground flex justify-between items-center">
                 <span className="font-mono">{event.latitude.toFixed(5)}, {event.longitude.toFixed(5)}</span>
