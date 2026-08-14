@@ -310,7 +310,16 @@ export default function EventDetailWorkspace() {
         <div className="space-y-6">
           <Card className="shadow-sm">
             <CardContent className="p-4 bg-muted/10">
-              <div className="text-xs text-muted-foreground flex justify-end items-center">
+              <div className="text-xs text-muted-foreground flex justify-between items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => triggerTruckDrive()}
+                  data-testid="button-simulate-charge"
+                >
+                  {t('event.simulate_charge')}
+                </Button>
                 <div className="flex gap-2">
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyLink(event.shareLinks?.photo)} title={t('event.copy_link')}>
                     <Camera className="h-3 w-3" />

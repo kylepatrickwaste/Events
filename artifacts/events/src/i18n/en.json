@@ -110,7 +110,8 @@
       "offset_sec_before": "{{s}}s before",
       "offset_min_after": "{{m}}m after",
       "offset_min_before": "{{m}}m before"
-    }
+    },
+    "simulate_charge": "Simulate $1000 charged for the day"
   },
   "charge": {
     "title": "Charge Account",

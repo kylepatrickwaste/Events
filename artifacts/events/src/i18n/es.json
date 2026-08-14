@@ -110,7 +110,8 @@
       "offset_sec_before": "{{s}}s antes",
       "offset_min_after": "{{m}}m después",
       "offset_min_before": "{{m}}m antes"
-    }
+    },
+    "simulate_charge": "Simular $1000 cobrados en el día"
   },
   "charge": {
     "title": "Cobrar a Cuenta",

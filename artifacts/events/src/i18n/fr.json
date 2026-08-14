@@ -110,7 +110,8 @@
       "offset_sec_before": "{{s}}s avant",
       "offset_min_after": "{{m}}m après",
       "offset_min_before": "{{m}}m avant"
-    }
+    },
+    "simulate_charge": "Simuler 1000 $ facturés pour la journée"
   },
   "charge": {
     "title": "Facturer le Compte",
