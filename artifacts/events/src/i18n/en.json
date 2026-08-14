@@ -174,7 +174,9 @@
   },
   "preview": {
     "close": "Close",
-    "charge": "Charge"
+    "charge": "Charge",
+    "charge_customer": "Charge Customer",
+    "dismiss_event": "Dismiss Event"
   },
   "contract_accounts": {
     "title": "Contract Accounts",

@@ -174,7 +174,9 @@
   },
   "preview": {
     "close": "Fermer",
-    "charge": "Facturer"
+    "charge": "Facturer",
+    "charge_customer": "Facturer le client",
+    "dismiss_event": "Rejeter l’événement"
   },
   "contract_accounts": {
     "title": "Comptes sous contrat",

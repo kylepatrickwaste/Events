@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X } from 'lucide-react';
+import { Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, DoorOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -627,51 +627,67 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWi
             onClick={e => e.stopPropagation()}
             className="fixed left-1/2 top-1/2 z-50 w-[min(56rem,calc(100vw-2rem))] max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border bg-background p-4 shadow-lg space-y-3 animate-in fade-in-0 zoom-in-95"
           >
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="absolute right-3 top-3 z-10 rounded-sm bg-background/80 p-1 opacity-70 transition-opacity hover:opacity-100"
-              aria-label="Close preview"
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <div className="bg-muted rounded-lg overflow-hidden aspect-video flex items-center justify-center">
-              <img
-                src={selectedImage}
-                alt="Event preview"
-                className="object-contain w-full h-full"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
+            <div className="flex gap-3">
+              <div className="flex-1 bg-muted rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+                <img
+                  src={selectedImage}
+                  alt="Event preview"
+                  className="object-contain w-full h-full"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
+              {/* Right rail: close, actions, thumbnails */}
+              <div className="flex flex-col items-center gap-2 w-20 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="self-end rounded-sm bg-background/80 p-1 opacity-70 transition-opacity hover:opacity-100"
+                  aria-label="Close preview"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                {isOpen && (
+                  <div className="flex gap-2">
+                    <Button
+                      size="icon"
+                      className="h-8 w-8 bg-success text-success-foreground hover:bg-success/90"
+                      onClick={onCharge}
+                      title={t('preview.charge_customer')}
+                      aria-label={t('preview.charge_customer')}
+                    >
+                      <DollarSign className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="destructive"
+                      className="h-8 w-8"
+                      onClick={onClose}
+                      title={t('preview.dismiss_event')}
+                      aria-label={t('preview.dismiss_event')}
+                    >
+                      <DoorOpen className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                {images.length > 1 && (
+                  <div className="flex flex-col gap-2 overflow-y-auto max-h-[50vh] pt-1">
+                    {images.map((url, i) => (
+                      <button
+                        key={i}
+                        onMouseEnter={() => setSelectedImage(url)}
+                        onClick={() => setSelectedImage(url)}
+                        className={cn(
+                          'h-12 w-16 shrink-0 rounded overflow-hidden border-2 transition-colors',
+                          selectedImage === url ? 'border-primary' : 'border-transparent hover:border-muted-foreground/40'
+                        )}
+                      >
+                        <img src={url} alt={`Thumbnail ${i + 1}`} className="h-full w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-            {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto">
-                {images.map((url, i) => (
-                  <button
-                    key={i}
-                    onMouseEnter={() => setSelectedImage(url)}
-                    onClick={() => setSelectedImage(url)}
-                    className={cn(
-                      'h-12 w-16 shrink-0 rounded overflow-hidden border-2 transition-colors',
-                      selectedImage === url ? 'border-primary' : 'border-transparent hover:border-muted-foreground/40'
-                    )}
-                  >
-                    <img src={url} alt={`Thumbnail ${i + 1}`} className="h-full w-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-            {isOpen && (
-              <div className="flex gap-2">
-                <Button size="sm" className="flex-1 bg-success text-success-foreground hover:bg-success/90" onClick={onCharge}>
-                  <DollarSign className="h-4 w-4 mr-1" />
-                  {t('preview.charge')}
-                </Button>
-                <Button size="sm" variant="destructive" className="flex-1" onClick={onClose}>
-                  <XCircle className="h-4 w-4 mr-1" />
-                  {t('preview.close')}
-                </Button>
-              </div>
-            )}
             {/* Nearby events cluster */}
             <div className="pt-1">
               <h4 className="text-sm font-semibold mb-2">{t('event.nearby.title')}</h4>

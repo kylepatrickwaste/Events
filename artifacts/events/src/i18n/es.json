@@ -174,7 +174,9 @@
   },
   "preview": {
     "close": "Cerrar",
-    "charge": "Cobrar"
+    "charge": "Cobrar",
+    "charge_customer": "Cobrar al cliente",
+    "dismiss_event": "Descartar evento"
   },
   "contract_accounts": {
     "title": "Cuentas con contrato",
