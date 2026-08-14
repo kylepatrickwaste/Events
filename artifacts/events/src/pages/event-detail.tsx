@@ -330,8 +330,7 @@ export default function EventDetailWorkspace() {
         <div className="space-y-6">
           <Card className="shadow-sm">
             <CardContent className="p-4 bg-muted/10">
-              <div className="text-xs text-muted-foreground flex justify-between items-center">
-                <span className="font-mono">{event.latitude.toFixed(5)}, {event.longitude.toFixed(5)}</span>
+              <div className="text-xs text-muted-foreground flex justify-end items-center">
                 <div className="flex gap-2">
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyLink(event.shareLinks?.photo)} title={t('event.copy_link')}>
                     <Camera className="h-3 w-3" />
