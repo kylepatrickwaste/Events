@@ -1,1 +1,2 @@
 - [Orval/zod codegen compat](orval-zod-compat.md) — keep number coercion in orval config (zod v3 vs `zod.int()`), and never mix path+query params on one operation (TS2308).
+- [Post-merge seed scripts](post-merge-seeds.md) — merged seed-data tasks need their `lib/db` seed script run manually or users see empty data.

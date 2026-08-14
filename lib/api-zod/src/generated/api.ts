@@ -24,7 +24,8 @@ export const ListDistrictsResponseItem = zod.object({
   "id": zod.coerce.number().int(),
   "number": zod.string(),
   "name": zod.string(),
-  "region": zod.string()
+  "region": zod.string(),
+  "eventsCount": zod.coerce.number().int()
 })
 export const ListDistrictsResponse = zod.array(ListDistrictsResponseItem)
 

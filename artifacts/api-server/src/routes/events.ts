@@ -127,9 +127,20 @@ function serializeListItem(
 
 router.get("/districts", async (_req, res): Promise<void> => {
   const districts = await db
-    .select()
+    .select({
+      id: districtsTable.id,
+      number: districtsTable.number,
+      name: districtsTable.name,
+      region: districtsTable.region,
+      eventsCount: sql<number>`count(${routeEventsTable.id})::int`,
+    })
     .from(districtsTable)
+    .leftJoin(
+      routeEventsTable,
+      eq(routeEventsTable.districtId, districtsTable.id),
+    )
     .where(eq(districtsTable.active, true))
+    .groupBy(districtsTable.id)
     .orderBy(asc(districtsTable.number));
   res.json(ListDistrictsResponse.parse(districts));
 });

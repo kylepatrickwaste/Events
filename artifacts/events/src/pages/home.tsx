@@ -35,9 +35,10 @@ export default function Home() {
 
   const filteredDistricts = useMemo(() => {
     if (!districts) return [];
-    if (!search) return districts;
+    const withData = districts.filter(d => d.eventsCount > 0);
+    if (!search) return withData;
     const lowerSearch = search.toLowerCase();
-    return districts.filter(d =>
+    return withData.filter(d =>
       d.name.toLowerCase().includes(lowerSearch) ||
       d.number.toLowerCase().includes(lowerSearch) ||
       d.region.toLowerCase().includes(lowerSearch)

@@ -11,4 +11,5 @@ export interface District {
   number: string;
   name: string;
   region: string;
+  eventsCount: number;
 }

@@ -362,12 +362,13 @@ components:
         dateCreated: { type: string }
     District:
       type: object
-      required: [id, number, name, region]
+      required: [id, number, name, region, eventsCount]
       properties:
         id: { type: integer }
         number: { type: string }
         name: { type: string }
         region: { type: string }
+        eventsCount: { type: integer }
     EventType:
       type: object
       required: [id, name]
