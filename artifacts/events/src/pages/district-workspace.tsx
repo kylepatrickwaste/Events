@@ -547,6 +547,14 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onNavigat
     closeTimer.current = setTimeout(() => setOpen(false), 200);
   };
 
+  // Leaving the thumbnail: if the popup is already open, keep it open (the
+  // popup's own mouse-leave / Escape / backdrop / X handle dismissal). If the
+  // popup hasn't opened yet, just cancel the pending open so quick pass-over
+  // hovers don't trigger it.
+  const handleThumbnailLeave = () => {
+    if (openTimer.current) { clearTimeout(openTimer.current); openTimer.current = null; }
+  };
+
   const cancelClose = () => {
     if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
   };
@@ -586,7 +594,7 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onNavigat
       <div
         onClick={onNavigate}
         onMouseEnter={scheduleOpen}
-        onMouseLeave={scheduleClose}
+        onMouseLeave={handleThumbnailLeave}
         className="h-10 w-16 rounded overflow-hidden border bg-muted/50 cursor-pointer"
       >
         <img
