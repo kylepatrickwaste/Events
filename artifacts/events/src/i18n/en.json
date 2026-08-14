@@ -4,7 +4,9 @@
     "welcome": "Welcome back",
     "select_district": "Select a district to begin",
     "search_districts": "Search districts...",
-    "no_districts_found": "No districts found."
+    "no_districts_found": "No districts found.",
+    "last_district": "Taking you to your last district…",
+    "view_all_districts": "View all districts"
   },
   "nav": {
     "home": "Home",
@@ -31,7 +33,14 @@
     "customer": "Customer",
     "address": "Address",
     "no_events": "No events found.",
-    "clear_filters": "Clear filters"
+    "clear_filters": "Clear filters",
+    "switch_district": "Switch district…",
+    "search_district": "Search district…",
+    "no_district_found": "No district found.",
+    "select_all": "Select all",
+    "close_selected": "Close selected",
+    "selected_count": "{{count}} selected",
+    "all_districts": "All districts"
   },
   "event": {
     "detail": "Event Detail",
@@ -139,5 +148,15 @@
       "new_customer": "New Customer",
       "duplicate": "Duplicate"
     }
+  },
+
+  "bulk_close": {
+    "title": "Close selected events",
+    "description": "Close {{count}} selected events with a shared reason.",
+    "success": "{{count}} events closed"
+  },
+  "preview": {
+    "close": "Close",
+    "charge": "Charge"
   }
 }

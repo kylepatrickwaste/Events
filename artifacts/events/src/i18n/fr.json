@@ -4,7 +4,9 @@
     "welcome": "Bon retour",
     "select_district": "Sélectionnez un district pour commencer",
     "search_districts": "Rechercher des districts...",
-    "no_districts_found": "Aucun district trouvé."
+    "no_districts_found": "Aucun district trouvé.",
+    "last_district": "Redirection vers votre dernier district…",
+    "view_all_districts": "Voir tous les districts"
   },
   "nav": {
     "home": "Accueil",
@@ -31,7 +33,14 @@
     "customer": "Client",
     "address": "Adresse",
     "no_events": "Aucun événement trouvé.",
-    "clear_filters": "Effacer les filtres"
+    "clear_filters": "Effacer les filtres",
+    "switch_district": "Changer de district…",
+    "search_district": "Rechercher un district…",
+    "no_district_found": "Aucun district trouvé.",
+    "select_all": "Tout sélectionner",
+    "close_selected": "Fermer la sélection",
+    "selected_count": "{{count}} sélectionnés",
+    "all_districts": "Tous les districts"
   },
   "event": {
     "detail": "Détail de l'Événement",
@@ -139,5 +148,15 @@
       "new_customer": "Nouveau Client",
       "duplicate": "Doublon"
     }
+  },
+
+  "bulk_close": {
+    "title": "Fermer les événements sélectionnés",
+    "description": "Fermer {{count}} événements sélectionnés avec un motif commun.",
+    "success": "{{count}} événements fermés"
+  },
+  "preview": {
+    "close": "Fermer",
+    "charge": "Facturer"
   }
 }

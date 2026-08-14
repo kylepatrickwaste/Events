@@ -4,7 +4,9 @@
     "welcome": "Bienvenido de nuevo",
     "select_district": "Seleccione un distrito para comenzar",
     "search_districts": "Buscar distritos...",
-    "no_districts_found": "No se encontraron distritos."
+    "no_districts_found": "No se encontraron distritos.",
+    "last_district": "Llevándote a tu último distrito…",
+    "view_all_districts": "Ver todos los distritos"
   },
   "nav": {
     "home": "Inicio",
@@ -31,7 +33,14 @@
     "customer": "Cliente",
     "address": "Dirección",
     "no_events": "No se encontraron eventos.",
-    "clear_filters": "Limpiar filtros"
+    "clear_filters": "Limpiar filtros",
+    "switch_district": "Cambiar de distrito…",
+    "search_district": "Buscar distrito…",
+    "no_district_found": "No se encontró el distrito.",
+    "select_all": "Seleccionar todo",
+    "close_selected": "Cerrar seleccionados",
+    "selected_count": "{{count}} seleccionados",
+    "all_districts": "Todos los distritos"
   },
   "event": {
     "detail": "Detalle del Evento",
@@ -139,5 +148,15 @@
       "new_customer": "Cliente Nuevo",
       "duplicate": "Duplicado"
     }
+  },
+
+  "bulk_close": {
+    "title": "Cerrar eventos seleccionados",
+    "description": "Cerrar {{count}} eventos seleccionados con un motivo común.",
+    "success": "{{count}} eventos cerrados"
+  },
+  "preview": {
+    "close": "Cerrar",
+    "charge": "Cobrar"
   }
 }
