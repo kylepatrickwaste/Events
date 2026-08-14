@@ -8,6 +8,7 @@ import {
   serviceCodesTable,
   routeEventsTable,
   eventActionsTable,
+  accountFlagsTable,
 } from "@workspace/db";
 import {
   ListDistrictsResponse,
@@ -35,11 +36,30 @@ import {
   BulkCloseEventsBody,
   BulkCloseEventsResponse,
 } from "@workspace/api-zod";
-import { inArray, gte, ne } from "drizzle-orm";
+import { inArray, gte, ne, notExists } from "drizzle-orm";
 
 const router: IRouter = Router();
 
 const CURRENT_USER = "Kyle.Patrick";
+
+// Close reason that flags the account so its overages are hidden from queues
+const CONTRACT_CLOSE_REASON = "Contract - No Overages";
+
+/** SQL condition: the event's account is not flagged as contract/no-overages. */
+function accountNotFlagged() {
+  return notExists(
+    db
+      .select({ id: accountFlagsTable.id })
+      .from(accountFlagsTable)
+      .where(
+        and(
+          eq(accountFlagsTable.districtId, routeEventsTable.districtId),
+          eq(accountFlagsTable.accountNumber, routeEventsTable.accountNumber),
+          eq(accountFlagsTable.flag, "contract_no_overages"),
+        ),
+      ),
+  );
+}
 
 function serializeAction(a: typeof eventActionsTable.$inferSelect) {
   return {
@@ -144,7 +164,9 @@ router.get(
         closedCount: sql<number>`count(*) filter (where ${routeEventsTable.eventStatus} = 1)`,
       })
       .from(routeEventsTable)
-      .where(eq(routeEventsTable.districtId, districtId));
+      .where(
+        and(eq(routeEventsTable.districtId, districtId), accountNotFlagged()),
+      );
 
     const [charges] = await db
       .select({
@@ -156,7 +178,9 @@ router.get(
         routeEventsTable,
         eq(eventActionsTable.routeEventId, routeEventsTable.id),
       )
-      .where(eq(routeEventsTable.districtId, districtId));
+      .where(
+        and(eq(routeEventsTable.districtId, districtId), accountNotFlagged()),
+      );
 
     const byEventType = await db
       .select({
@@ -169,7 +193,9 @@ router.get(
         eventTypesTable,
         eq(routeEventsTable.eventTypeId, eventTypesTable.id),
       )
-      .where(eq(routeEventsTable.districtId, districtId))
+      .where(
+        and(eq(routeEventsTable.districtId, districtId), accountNotFlagged()),
+      )
       .groupBy(eventTypesTable.id, eventTypesTable.name)
       .orderBy(asc(eventTypesTable.name));
 
@@ -224,7 +250,10 @@ router.get("/events", async (req, res): Promise<void> => {
   }
   const { districtId, status, eventTypeId, search } = query.data;
 
-  const conditions = [eq(routeEventsTable.districtId, districtId)];
+  const conditions = [
+    eq(routeEventsTable.districtId, districtId),
+    accountNotFlagged(),
+  ];
   if (status === "open" || status === undefined) {
     conditions.push(eq(routeEventsTable.eventStatus, 0));
   } else if (status === "closed") {
@@ -352,6 +381,18 @@ async function loadEventDetail(eventId: number) {
     .orderBy(desc(eventActionsTable.dateCreated))
     .limit(3);
 
+  // Events for this account in the last 90 days (for per-window event counts)
+  const accountEventDates = await db
+    .select({ dateOccurred: routeEventsTable.dateOccurred })
+    .from(routeEventsTable)
+    .where(
+      and(
+        eq(routeEventsTable.accountNumber, e.accountNumber),
+        eq(routeEventsTable.districtId, e.districtId),
+        gte(routeEventsTable.dateOccurred, cutoff90),
+      ),
+    );
+
   const windows = [30, 60, 90].map((days) => {
     const cutoff = new Date(now.getTime() - days * 86400000);
     const inWindow = accountCharges.filter(
@@ -359,6 +400,9 @@ async function loadEventDetail(eventId: number) {
     );
     const paid = inWindow.filter(
       ({ action }) => action.paymentStatus === "PAID",
+    );
+    const refunded = inWindow.filter(
+      ({ action }) => action.paymentStatus === "REFUNDED",
     );
     const sum = (rows: typeof inWindow) =>
       rows.reduce(
@@ -370,10 +414,13 @@ async function loadEventDetail(eventId: number) {
       );
     return {
       days,
+      eventsCount: accountEventDates.filter((r) => r.dateOccurred >= cutoff)
+        .length,
       chargedCount: inWindow.length,
       chargedAmount: sum(inWindow),
-      paidCount: paid.length,
-      paidAmount: sum(paid),
+      refundedCount: refunded.length,
+      refundedAmount: sum(refunded),
+      netPaid: sum(paid) - sum(refunded),
     };
   });
 
@@ -519,30 +566,59 @@ router.post("/events/:eventId/charge", async (req, res): Promise<void> => {
     return;
   }
   const keepOpen = body.data.keepOpen ?? false;
-  const [action] = await db
-    .insert(eventActionsTable)
-    .values({
-      routeEventId: event.id,
-      actionType: "charge",
-      isFinal: !keepOpen,
-      serviceCodeId: body.data.serviceCodeId,
-      chargeAmount: body.data.amount.toFixed(4),
-      chargeQuantity: body.data.quantity.toFixed(2),
-      createdBy: CURRENT_USER,
-    })
-    .returning();
-  if (!keepOpen) {
-    await db
-      .update(routeEventsTable)
-      .set({ eventStatus: 1, dateClosed: new Date(), closedBy: CURRENT_USER })
+  const action = await db.transaction(async (tx) => {
+    // Block charges for contract-flagged accounts, atomically with the insert
+    const [flag] = await tx
+      .select({ id: accountFlagsTable.id })
+      .from(accountFlagsTable)
       .where(
         and(
-          eq(routeEventsTable.id, event.id),
-          eq(routeEventsTable.eventStatus, 0),
+          eq(accountFlagsTable.districtId, event.districtId),
+          eq(accountFlagsTable.accountNumber, event.accountNumber),
+          eq(accountFlagsTable.flag, "contract_no_overages"),
         ),
       );
+    if (flag) return "flagged" as const;
+
+    // Re-check open status inside the transaction to avoid racing a close
+    const [current] = await tx
+      .select({ eventStatus: routeEventsTable.eventStatus })
+      .from(routeEventsTable)
+      .where(eq(routeEventsTable.id, event.id))
+      .for("update");
+    if (!current || current.eventStatus !== 0) return "closed" as const;
+
+    const [inserted] = await tx
+      .insert(eventActionsTable)
+      .values({
+        routeEventId: event.id,
+        actionType: "charge",
+        isFinal: !keepOpen,
+        serviceCodeId: body.data.serviceCodeId,
+        chargeAmount: body.data.amount.toFixed(4),
+        chargeQuantity: body.data.quantity.toFixed(2),
+        createdBy: CURRENT_USER,
+      })
+      .returning();
+    if (!keepOpen) {
+      await tx
+        .update(routeEventsTable)
+        .set({ eventStatus: 1, dateClosed: new Date(), closedBy: CURRENT_USER })
+        .where(eq(routeEventsTable.id, event.id));
+    }
+    return inserted!;
+  });
+  if (action === "flagged") {
+    res.status(409).json({
+      error: "Account is under contract; overages cannot be charged",
+    });
+    return;
   }
-  res.status(201).json(ChargeEventResponse.parse(serializeAction(action!)));
+  if (action === "closed") {
+    res.status(409).json({ error: "Event is already closed" });
+    return;
+  }
+  res.status(201).json(ChargeEventResponse.parse(serializeAction(action)));
 });
 
 router.post("/events/:eventId/email", async (req, res): Promise<void> => {
@@ -632,6 +708,19 @@ router.post("/events/:eventId/close", async (req, res): Promise<void> => {
       })
       .returning();
 
+    // Contract close: flag the account so its overages stop appearing
+    if (body.data.closeReason === CONTRACT_CLOSE_REASON) {
+      await tx
+        .insert(accountFlagsTable)
+        .values({
+          districtId: event.districtId,
+          accountNumber: event.accountNumber,
+          flag: "contract_no_overages",
+          createdBy: CURRENT_USER,
+        })
+        .onConflictDoNothing();
+    }
+
     if (duplicateIds.length > 0) {
       const closedDupes = await tx
         .update(routeEventsTable)
@@ -677,7 +766,11 @@ router.post("/events/bulk-close", async (req, res): Promise<void> => {
 
   // All events must belong to a single district
   const targets = await db
-    .select({ id: routeEventsTable.id, districtId: routeEventsTable.districtId })
+    .select({
+      id: routeEventsTable.id,
+      districtId: routeEventsTable.districtId,
+      accountNumber: routeEventsTable.accountNumber,
+    })
     .from(routeEventsTable)
     .where(inArray(routeEventsTable.id, eventIds));
   const districts = new Set(targets.map((t) => t.districtId));
@@ -710,6 +803,36 @@ router.post("/events/bulk-close", async (req, res): Promise<void> => {
           createdBy: CURRENT_USER,
         })),
       );
+
+      // Contract close: flag each distinct account among the closed events
+      if (closeReason === CONTRACT_CLOSE_REASON) {
+        const closedIds = new Set(closedRows.map((r) => r.id));
+        const flagged = new Map<
+          string,
+          { districtId: number; accountNumber: string }
+        >();
+        for (const t of targets) {
+          if (closedIds.has(t.id)) {
+            flagged.set(`${t.districtId}:${t.accountNumber}`, {
+              districtId: t.districtId,
+              accountNumber: t.accountNumber,
+            });
+          }
+        }
+        if (flagged.size > 0) {
+          await tx
+            .insert(accountFlagsTable)
+            .values(
+              [...flagged.values()].map((f) => ({
+                districtId: f.districtId,
+                accountNumber: f.accountNumber,
+                flag: "contract_no_overages",
+                createdBy: CURRENT_USER,
+              })),
+            )
+            .onConflictDoNothing();
+        }
+      }
     }
     return closedRows.length;
   });

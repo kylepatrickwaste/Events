@@ -111,10 +111,12 @@ export interface EventAction {
 
 export type OverageStatisticsWindowsItem = {
   days: number;
+  eventsCount: number;
   chargedCount: number;
   chargedAmount: number;
-  paidCount: number;
-  paidAmount: number;
+  refundedCount: number;
+  refundedAmount: number;
+  netPaid: number;
 };
 
 export interface OverageStatistics {

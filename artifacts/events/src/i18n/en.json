@@ -88,7 +88,10 @@
       "paid": "Paid",
       "months": "{{count}} mos",
       "years_months": "{{years}}y {{months}}m",
-      "never": "Never"
+      "never": "Never",
+      "events": "Events",
+      "refunded": "Refunded",
+      "net_paid": "Net Paid"
     },
     "nearby": {
       "title": "Nearby Overages",
@@ -148,10 +151,10 @@
       "not_overfill": "Not an Overfill",
       "district_declined": "District Declined to Charge",
       "new_customer": "New Customer",
-      "duplicate": "Duplicate"
+      "duplicate": "Duplicate",
+      "contract_no_overages": "Contract - No Overages Can Be Charged"
     }
   },
-
   "bulk_close": {
     "title": "Close selected events",
     "description": "Close {{count}} selected events with a shared reason.",

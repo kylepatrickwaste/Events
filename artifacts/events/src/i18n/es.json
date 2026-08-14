@@ -88,7 +88,10 @@
       "paid": "Pagado",
       "months": "{{count}} mes",
       "years_months": "{{years}}a {{months}}m",
-      "never": "Nunca"
+      "never": "Nunca",
+      "events": "Eventos",
+      "refunded": "Reembolsado",
+      "net_paid": "Pago Neto"
     },
     "nearby": {
       "title": "Excesos Cercanos",
@@ -148,10 +151,10 @@
       "not_overfill": "No es un Exceso",
       "district_declined": "Distrito Declinó Cobrar",
       "new_customer": "Cliente Nuevo",
-      "duplicate": "Duplicado"
+      "duplicate": "Duplicado",
+      "contract_no_overages": "Contrato - No Se Pueden Cobrar Excesos"
     }
   },
-
   "bulk_close": {
     "title": "Cerrar eventos seleccionados",
     "description": "Cerrar {{count}} eventos seleccionados con un motivo común.",

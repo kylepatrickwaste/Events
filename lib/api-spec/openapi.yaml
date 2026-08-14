@@ -403,13 +403,15 @@ components:
           type: array
           items:
             type: object
-            required: [days, chargedCount, chargedAmount, paidCount, paidAmount]
+            required: [days, eventsCount, chargedCount, chargedAmount, refundedCount, refundedAmount, netPaid]
             properties:
               days: { type: integer }
+              eventsCount: { type: integer }
               chargedCount: { type: integer }
               chargedAmount: { type: number }
-              paidCount: { type: integer }
-              paidAmount: { type: number }
+              refundedCount: { type: integer }
+              refundedAmount: { type: number }
+              netPaid: { type: number }
     NearbyEvent:
       type: object
       required: [id, dateOccurred, secondsOffset, eventStatus, status]

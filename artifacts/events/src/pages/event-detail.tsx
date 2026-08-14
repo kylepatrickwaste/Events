@@ -456,11 +456,16 @@ function OverageStatisticsTile({ stats, t, formatCurrency, formatDate }: any) {
               <span className="font-mono text-sm">{stats.lastChargeDate ? formatDate(stats.lastChargeDate) : t('event.statistics.never')}</span>
            </div>
         </div>
-        <div className="grid grid-cols-3 divide-x bg-card">
+        <div className="divide-y bg-card">
            {stats.windows.map((w: any) => (
-             <div key={w.days} className="p-4 flex flex-col items-center justify-center text-center">
-               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-3">{t(`event.statistics.days_${w.days}` as any)}</span>
-               <div className="flex gap-4 w-full justify-center">
+             <div key={w.days} className="px-4 py-3 flex items-center gap-4">
+               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest w-16 shrink-0">{t(`event.statistics.days_${w.days}` as any)}</span>
+               <div className="flex gap-6 w-full justify-evenly">
+                 <div className="flex flex-col items-center">
+                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('event.statistics.events')}</span>
+                   <span className="text-destructive font-bold text-lg leading-none">{w.eventsCount}</span>
+                 </div>
+                 <div className="w-px h-8 bg-border/50" />
                  <div className="flex flex-col items-center">
                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('event.statistics.charged')}</span>
                    <div className="flex items-baseline gap-1">
@@ -471,12 +476,17 @@ function OverageStatisticsTile({ stats, t, formatCurrency, formatDate }: any) {
                  </div>
                  <div className="w-px h-8 bg-border/50" />
                  <div className="flex flex-col items-center">
-                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('event.statistics.paid')}</span>
+                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('event.statistics.refunded')}</span>
                    <div className="flex items-baseline gap-1">
-                     <span className="text-destructive font-bold text-lg leading-none">{w.paidCount}</span>
+                     <span className="text-destructive font-bold text-lg leading-none">{w.refundedCount}</span>
                      <span className="text-muted-foreground/50 text-xs">/</span>
-                     <span className="text-success font-bold text-base leading-none">{formatCurrency(w.paidAmount)}</span>
+                     <span className="text-success font-bold text-base leading-none">{formatCurrency(w.refundedAmount)}</span>
                    </div>
+                 </div>
+                 <div className="w-px h-8 bg-border/50" />
+                 <div className="flex flex-col items-center">
+                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('event.statistics.net_paid')}</span>
+                   <span className="text-success font-bold text-lg leading-none">{formatCurrency(w.netPaid)}</span>
                  </div>
                </div>
              </div>
@@ -836,6 +846,7 @@ function CloseDialog({ open, onOpenChange, eventId, checkedNearby, onSuccess }: 
                     <SelectItem value="District Declined to Charge">{t('close.reasons.district_declined')}</SelectItem>
                     <SelectItem value="New Customer">{t('close.reasons.new_customer')}</SelectItem>
                     <SelectItem value="Duplicate">{t('close.reasons.duplicate')}</SelectItem>
+                    <SelectItem value="Contract - No Overages">{t('close.reasons.contract_no_overages')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

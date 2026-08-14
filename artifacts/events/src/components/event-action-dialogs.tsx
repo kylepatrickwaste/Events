@@ -17,6 +17,7 @@ const CLOSE_REASONS = [
   { value: 'District Declined to Charge', key: 'close.reasons.district_declined' },
   { value: 'New Customer', key: 'close.reasons.new_customer' },
   { value: 'Duplicate', key: 'close.reasons.duplicate' },
+  { value: 'Contract - No Overages', key: 'close.reasons.contract_no_overages' },
 ];
 
 const closeSchema = z.object({

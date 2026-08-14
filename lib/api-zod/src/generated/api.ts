@@ -187,10 +187,12 @@ export const GetEventResponse = zod.object({
   "lastChargeDate": zod.string().nullable(),
   "windows": zod.array(zod.object({
   "days": zod.coerce.number().int(),
+  "eventsCount": zod.coerce.number().int(),
   "chargedCount": zod.coerce.number().int(),
   "chargedAmount": zod.coerce.number(),
-  "paidCount": zod.coerce.number().int(),
-  "paidAmount": zod.coerce.number()
+  "refundedCount": zod.coerce.number().int(),
+  "refundedAmount": zod.coerce.number(),
+  "netPaid": zod.coerce.number()
 }))
 }),
   "nearbyEvents": zod.array(zod.object({

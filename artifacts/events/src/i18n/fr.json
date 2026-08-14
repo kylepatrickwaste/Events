@@ -88,7 +88,10 @@
       "paid": "Payé",
       "months": "{{count}} mois",
       "years_months": "{{years}}a {{months}}m",
-      "never": "Jamais"
+      "never": "Jamais",
+      "events": "Événements",
+      "refunded": "Remboursé",
+      "net_paid": "Net Payé"
     },
     "nearby": {
       "title": "Dépassements à Proximité",
@@ -148,10 +151,10 @@
       "not_overfill": "Pas un Dépassement",
       "district_declined": "District a Refusé de Facturer",
       "new_customer": "Nouveau Client",
-      "duplicate": "Doublon"
+      "duplicate": "Doublon",
+      "contract_no_overages": "Contrat - Aucun Dépassement Facturable"
     }
   },
-
   "bulk_close": {
     "title": "Fermer les événements sélectionnés",
     "description": "Fermer {{count}} événements sélectionnés avec un motif commun.",
