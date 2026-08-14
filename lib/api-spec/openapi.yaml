@@ -472,7 +472,7 @@ components:
               netPaid: { type: number }
     NearbyEvent:
       type: object
-      required: [id, dateOccurred, secondsOffset, eventStatus, status]
+      required: [id, dateOccurred, secondsOffset, eventStatus, status, distanceMeters, isSuggestedDuplicate]
       properties:
         id: { type: integer }
         imageUrl: { type: ["string", "null"] }
@@ -480,6 +480,9 @@ components:
         secondsOffset: { type: integer, description: "seconds relative to the main event (negative = earlier)" }
         eventStatus: { type: integer, description: "0 = open, 1 = closed" }
         status: { type: string, description: "Open | Charged | Dismissed" }
+        distanceMeters: { type: number, description: "great-circle distance from the main event in meters" }
+        isSuggestedDuplicate: { type: boolean, description: "true when open and close enough in time/space to look like the same physical overage" }
+        eventSourceName: { type: ["string", "null"] }
         address: { type: ["string", "null"] }
         customerName: { type: ["string", "null"] }
         accountNumber: { type: ["string", "null"] }
@@ -562,6 +565,10 @@ components:
         amount: { type: number }
         quantity: { type: number }
         keepOpen: { type: boolean }
+        duplicateEventIds:
+          type: array
+          items: { type: integer }
+          description: "Nearby event IDs to dismiss as duplicates of the charged event"
     EmailInput:
       type: object
       required: [toType, to, subject]

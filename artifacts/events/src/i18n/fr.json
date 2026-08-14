@@ -115,6 +115,12 @@
     },
     "simulate_charge": "Simuler 1000 $ facturés pour la journée"
   },
+
+  "nearby_picker": {
+    "label": "Doublons à proximité — cochez pour les rejeter avec cette action",
+    "suggested": "Doublon probable",
+    "distance_m": "{{m}} m"
+  },
   "charge": {
     "title": "Facturer le Compte",
     "service_code": "Code de Service",

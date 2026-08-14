@@ -17,6 +17,12 @@ export interface NearbyEvent {
   eventStatus: number;
   /** Open | Charged | Dismissed */
   status: string;
+  /** great-circle distance from the main event in meters */
+  distanceMeters: number;
+  /** true when open and close enough in time/space to look like the same physical overage */
+  isSuggestedDuplicate: boolean;
+  /** @nullable */
+  eventSourceName?: string | null;
   /** @nullable */
   address?: string | null;
   /** @nullable */

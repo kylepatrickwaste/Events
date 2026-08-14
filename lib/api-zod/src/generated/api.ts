@@ -238,6 +238,9 @@ export const GetEventResponse = zod.object({
   "secondsOffset": zod.coerce.number().int().describe('seconds relative to the main event (negative = earlier)'),
   "eventStatus": zod.coerce.number().int().describe('0 = open, 1 = closed'),
   "status": zod.string().describe('Open | Charged | Dismissed'),
+  "distanceMeters": zod.coerce.number().describe('great-circle distance from the main event in meters'),
+  "isSuggestedDuplicate": zod.boolean().describe('true when open and close enough in time\/space to look like the same physical overage'),
+  "eventSourceName": zod.string().nullish(),
   "address": zod.string().nullish(),
   "customerName": zod.string().nullish(),
   "accountNumber": zod.string().nullish(),
@@ -299,7 +302,8 @@ export const ChargeEventBody = zod.object({
   "serviceCodeId": zod.coerce.number().int(),
   "amount": zod.coerce.number(),
   "quantity": zod.coerce.number(),
-  "keepOpen": zod.boolean().optional()
+  "keepOpen": zod.boolean().optional(),
+  "duplicateEventIds": zod.array(zod.coerce.number().int()).optional().describe('Nearby event IDs to dismiss as duplicates of the charged event')
 })
 
 export const ChargeEventResponse = zod.object({

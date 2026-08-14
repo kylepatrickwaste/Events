@@ -115,6 +115,12 @@
     },
     "simulate_charge": "Simular $1000 cobrados en el día"
   },
+
+  "nearby_picker": {
+    "label": "Duplicados cercanos — marque para descartar con esta acción",
+    "suggested": "Posible duplicado",
+    "distance_m": "{{m}} m"
+  },
   "charge": {
     "title": "Cobrar a Cuenta",
     "service_code": "Código de Servicio",

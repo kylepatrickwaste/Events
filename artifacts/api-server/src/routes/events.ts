@@ -362,6 +362,10 @@ const NEARBY_RADIUS_METERS = 300;
 const NEARBY_WINDOW_MINUTES = 60;
 /** Max number of nearby events returned. */
 const NEARBY_MAX_RESULTS = 10;
+/** Distance (meters) under which an open nearby event is suggested as a duplicate. */
+const SUGGESTED_DUPLICATE_RADIUS_METERS = 75;
+/** Time window (± minutes) under which an open nearby event is suggested as a duplicate. */
+const SUGGESTED_DUPLICATE_WINDOW_MINUTES = 5;
 
 /**
  * Nearby overages: same district within ±NEARBY_WINDOW_MINUTES and a true
@@ -382,8 +386,16 @@ async function queryNearbyRows(e: typeof routeEventsTable.$inferSelect) {
     )
   )`;
   return db
-    .select()
+    .select({
+      event: routeEventsTable,
+      distanceMeters,
+      eventSourceName: eventSourcesTable.name,
+    })
     .from(routeEventsTable)
+    .innerJoin(
+      eventSourcesTable,
+      eq(routeEventsTable.eventSourceId, eventSourcesTable.id),
+    )
     .where(
       and(
         eq(routeEventsTable.districtId, e.districtId),
@@ -398,6 +410,24 @@ async function queryNearbyRows(e: typeof routeEventsTable.$inferSelect) {
     )
     .orderBy(sql`${distanceMeters} asc`, asc(routeEventsTable.dateOccurred))
     .limit(NEARBY_MAX_RESULTS);
+}
+
+/**
+ * Open nearby events close enough in time and space to look like the same
+ * physical overage (reported by multiple vendors minutes apart).
+ */
+function isSuggestedDuplicate(
+  anchor: typeof routeEventsTable.$inferSelect,
+  n: { event: typeof routeEventsTable.$inferSelect; distanceMeters: number },
+): boolean {
+  if (n.event.eventStatus !== 0) return false;
+  const offsetMs = Math.abs(
+    n.event.dateOccurred.getTime() - anchor.dateOccurred.getTime(),
+  );
+  return (
+    Number(n.distanceMeters) <= SUGGESTED_DUPLICATE_RADIUS_METERS &&
+    offsetMs <= SUGGESTED_DUPLICATE_WINDOW_MINUTES * 60000
+  );
 }
 
 async function loadEventDetail(eventId: number) {
@@ -521,7 +551,7 @@ async function loadEventDetail(eventId: number) {
 
   const nearbyRows = await queryNearbyRows(e);
 
-  const nearbyIds = nearbyRows.map((n) => n.id);
+  const nearbyIds = nearbyRows.map((n) => n.event.id);
   const chargedNearbyIds = new Set<number>();
   if (nearbyIds.length > 0) {
     const chargeActions = await db
@@ -537,24 +567,27 @@ async function loadEventDetail(eventId: number) {
   }
 
   const nearbyEvents = nearbyRows.map((n) => ({
-    id: n.id,
-    imageUrl: n.imageUrl,
-    dateOccurred: n.dateOccurred.toISOString(),
+    id: n.event.id,
+    imageUrl: n.event.imageUrl,
+    dateOccurred: n.event.dateOccurred.toISOString(),
     secondsOffset: Math.round(
-      (n.dateOccurred.getTime() - e.dateOccurred.getTime()) / 1000,
+      (n.event.dateOccurred.getTime() - e.dateOccurred.getTime()) / 1000,
     ),
-    eventStatus: n.eventStatus,
+    eventStatus: n.event.eventStatus,
     status:
-      n.eventStatus === 0
+      n.event.eventStatus === 0
         ? "Open"
-        : chargedNearbyIds.has(n.id)
+        : chargedNearbyIds.has(n.event.id)
           ? "Charged"
           : "Dismissed",
-    address: n.address,
-    customerName: n.customerName,
-    accountNumber: n.accountNumber,
-    binSerialNumber: n.binSerialNumber,
-    vehicle: n.vehicle,
+    distanceMeters: Math.round(Number(n.distanceMeters)),
+    isSuggestedDuplicate: isSuggestedDuplicate(e, n),
+    eventSourceName: n.eventSourceName,
+    address: n.event.address,
+    customerName: n.event.customerName,
+    accountNumber: n.event.accountNumber,
+    binSerialNumber: n.event.binSerialNumber,
+    vehicle: n.event.vehicle,
   }));
 
   return {
@@ -647,6 +680,26 @@ router.post("/events/:eventId/charge", async (req, res): Promise<void> => {
     return;
   }
   const keepOpen = body.data.keepOpen ?? false;
+
+  // Validate duplicate IDs against the server-computed nearby set only
+  const requestedChargeDuplicates = [
+    ...new Set(body.data.duplicateEventIds ?? []),
+  ];
+  let chargeDuplicateIds: number[] = [];
+  if (requestedChargeDuplicates.length > 0) {
+    const nearby = await queryNearbyRows(event);
+    const nearbySet = new Set(nearby.map((n) => n.event.id));
+    chargeDuplicateIds = requestedChargeDuplicates.filter((id) =>
+      nearbySet.has(id),
+    );
+    if (chargeDuplicateIds.length !== requestedChargeDuplicates.length) {
+      res.status(400).json({
+        error: "duplicateEventIds must be nearby overages of this event",
+      });
+      return;
+    }
+  }
+
   const action = await db.transaction(async (tx) => {
     // Block charges for contract-flagged accounts, atomically with the insert
     const [flag] = await tx
@@ -686,6 +739,32 @@ router.post("/events/:eventId/charge", async (req, res): Promise<void> => {
         .update(routeEventsTable)
         .set({ eventStatus: 1, dateClosed: new Date(), closedBy: CURRENT_USER })
         .where(eq(routeEventsTable.id, event.id));
+    }
+
+    // Dismiss linked duplicates and record the link in each one's history
+    if (chargeDuplicateIds.length > 0) {
+      const closedDupes = await tx
+        .update(routeEventsTable)
+        .set({ eventStatus: 1, dateClosed: new Date(), closedBy: CURRENT_USER })
+        .where(
+          and(
+            inArray(routeEventsTable.id, chargeDuplicateIds),
+            eq(routeEventsTable.eventStatus, 0),
+          ),
+        )
+        .returning({ id: routeEventsTable.id });
+      if (closedDupes.length > 0) {
+        await tx.insert(eventActionsTable).values(
+          closedDupes.map((d) => ({
+            routeEventId: d.id,
+            actionType: "close",
+            isFinal: true,
+            closeReason: "Duplicate",
+            notes: `Dismissed as duplicate of charged event #${event.id}`,
+            createdBy: CURRENT_USER,
+          })),
+        );
+      }
     }
     return inserted!;
   });
@@ -753,7 +832,7 @@ router.post("/events/:eventId/close", async (req, res): Promise<void> => {
   let duplicateIds: number[] = [];
   if (requestedDuplicates.length > 0) {
     const nearby = await queryNearbyRows(event);
-    const nearbySet = new Set(nearby.map((n) => n.id));
+    const nearbySet = new Set(nearby.map((n) => n.event.id));
     duplicateIds = requestedDuplicates.filter((id) => nearbySet.has(id));
     if (duplicateIds.length !== requestedDuplicates.length) {
       res
@@ -820,7 +899,7 @@ router.post("/events/:eventId/close", async (req, res): Promise<void> => {
             actionType: "close",
             isFinal: true,
             closeReason: "Duplicate",
-            notes: `Closed as duplicate of event #${event.id}`,
+            notes: `Dismissed as duplicate of closed event #${event.id}`,
             createdBy: CURRENT_USER,
           })),
         );

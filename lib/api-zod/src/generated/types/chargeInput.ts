@@ -11,4 +11,6 @@ export interface ChargeInput {
   amount: number;
   quantity: number;
   keepOpen?: boolean;
+  /** Nearby event IDs to dismiss as duplicates of the charged event */
+  duplicateEventIds?: number[];
 }

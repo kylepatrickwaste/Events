@@ -149,6 +149,12 @@ export interface NearbyEvent {
   eventStatus: number;
   /** Open | Charged | Dismissed */
   status: string;
+  /** great-circle distance from the main event in meters */
+  distanceMeters: number;
+  /** true when open and close enough in time/space to look like the same physical overage */
+  isSuggestedDuplicate: boolean;
+  /** @nullable */
+  eventSourceName?: string | null;
   /** @nullable */
   address?: string | null;
   /** @nullable */
@@ -236,6 +242,8 @@ export interface ChargeInput {
   amount: number;
   quantity: number;
   keepOpen?: boolean;
+  /** Nearby event IDs to dismiss as duplicates of the charged event */
+  duplicateEventIds?: number[];
 }
 
 export interface EmailInput {

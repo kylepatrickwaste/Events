@@ -41,6 +41,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { NearbyClusterPicker, suggestedDuplicateIds } from '@/components/nearby-cluster-picker';
 
 export default function EventDetailWorkspace() {
   const [, params] = useRoute('/districts/:districtId/events/:eventId');
@@ -394,6 +395,7 @@ export default function EventDetailWorkspace() {
         open={closeOpen} 
         onOpenChange={setCloseOpen} 
         eventId={eventId} 
+        event={event}
         checkedNearby={checkedNearby}
         onSuccess={handleActionSuccess} 
       />
@@ -510,6 +512,15 @@ function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSucc
   const charge = useChargeEvent();
   const [selectedCodeAmount, setSelectedCodeAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState('');
+  const [checkedNearby, setCheckedNearby] = useState<Set<number>>(new Set());
+
+  const toggleNearby = (id: number) => {
+    setCheckedNearby(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const onCustomAmountChange = (value: string) => {
     setCustomAmount(value);
@@ -529,7 +540,9 @@ function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSucc
       form.reset({ serviceCodeId: '', amount: 0, quantity: 1 });
       setSelectedCodeAmount(null);
       setCustomAmount('');
+      setCheckedNearby(new Set(suggestedDuplicateIds(event?.nearbyEvents)));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, form]);
 
   const onSelectCode = (idStr: string) => {
@@ -544,7 +557,7 @@ function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSucc
 
   const submit = (data: any) => {
     triggerTruckDrive();
-    charge.mutate({ eventId, data }, {
+    charge.mutate({ eventId, data: { ...data, duplicateEventIds: Array.from(checkedNearby) } }, {
       onSuccess: () => {
         onSuccess();
       }
@@ -613,6 +626,13 @@ function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSucc
                 />
               </div>
             </div>
+
+            <NearbyClusterPicker
+              nearby={event?.nearbyEvents ?? []}
+              checked={checkedNearby}
+              onToggle={toggleNearby}
+              anchorAccountNumber={event?.accountNumber}
+            />
 
             {event.lastCharges?.length > 0 && (
               <div className="mt-6 pt-4 border-t border-border/50">
@@ -746,27 +766,42 @@ function EmailDialog({ open, onOpenChange, eventId, event, onSuccess }: any) {
 
 const closeSchema = z.object({
   closeReason: z.string().min(1, 'Required'),
-  notes: z.string().optional(),
-  duplicateEventIds: z.array(z.number()).optional()
+  notes: z.string().optional()
 });
 
-function CloseDialog({ open, onOpenChange, eventId, checkedNearby, onSuccess }: any) {
+function CloseDialog({ open, onOpenChange, eventId, event, checkedNearby, onSuccess }: any) {
   const { t } = useI18n();
   const closeMutation = useCloseEvent();
-  
+  const [checkedDuplicates, setCheckedDuplicates] = useState<Set<number>>(new Set());
+
+  const toggleDuplicate = (id: number) => {
+    setCheckedDuplicates(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   const form = useForm({
     resolver: zodResolver(closeSchema),
-    defaultValues: { closeReason: '', notes: '', duplicateEventIds: [] }
+    defaultValues: { closeReason: '', notes: '' }
   });
 
   useEffect(() => {
     if (open) {
-      form.reset({ closeReason: '', notes: '', duplicateEventIds: Array.from(checkedNearby) });
+      form.reset({ closeReason: '', notes: '' });
+      // Seed from the page's checked nearby rows, else the server suggestions
+      setCheckedDuplicates(
+        checkedNearby?.size > 0
+          ? new Set<number>(checkedNearby)
+          : new Set(suggestedDuplicateIds(event?.nearbyEvents))
+      );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, checkedNearby, form]);
 
   const submit = (data: any) => {
-    closeMutation.mutate({ eventId, data }, {
+    closeMutation.mutate({ eventId, data: { ...data, duplicateEventIds: Array.from(checkedDuplicates) } }, {
       onSuccess: () => {
         onSuccess();
       }
@@ -800,21 +835,14 @@ function CloseDialog({ open, onOpenChange, eventId, checkedNearby, onSuccess }: 
               </FormItem>
             )} />
 
-            {checkedNearby.size > 0 && (
-              <FormField control={form.control} name="duplicateEventIds" render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 p-4 border rounded-md bg-muted/10">
-                  <FormControl>
-                    <Checkbox 
-                      checked={field.value?.length > 0} 
-                      onCheckedChange={(c) => field.onChange(c ? Array.from(checkedNearby) : [])} 
-                    />
-                  </FormControl>
-                  <FormLabel className="font-normal text-sm leading-none pt-0.5">
-                    {t('close.close_duplicates', { count: checkedNearby.size })}
-                  </FormLabel>
-                </FormItem>
-              )} />
-            )}
+            <NearbyClusterPicker
+              nearby={event?.nearbyEvents ?? []}
+              checked={checkedDuplicates}
+              onToggle={toggleDuplicate}
+              anchorAccountNumber={event?.accountNumber}
+              title={t('close.dismiss_these')}
+            />
+
 
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem>

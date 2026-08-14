@@ -115,6 +115,12 @@
     },
     "simulate_charge": "Simulate $1000 charged for the day"
   },
+
+  "nearby_picker": {
+    "label": "Nearby duplicates — check to dismiss with this action",
+    "suggested": "Likely duplicate",
+    "distance_m": "{{m}} m"
+  },
   "charge": {
     "title": "Charge Account",
     "service_code": "Service Code",
