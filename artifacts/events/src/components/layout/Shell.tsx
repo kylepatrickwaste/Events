@@ -14,7 +14,7 @@ export function Header() {
   const langRef = React.useRef<HTMLDivElement>(null);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
+    <header className="sticky top-0 z-50 w-full border-b bg-background shadow-sm">
       <TruckDrive startRef={titleRef} endRef={langRef} />
       <div className="container flex h-14 items-center justify-between">
         <Link href="/" ref={titleRef} className="flex items-center gap-2 mr-6 hover:opacity-90 transition-opacity">
