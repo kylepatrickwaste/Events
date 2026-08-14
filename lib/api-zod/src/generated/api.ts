@@ -57,6 +57,7 @@ export const ListEventsQueryParams = zod.object({
   "districtId": zod.coerce.number().int(),
   "status": zod.enum(['open', 'closed', 'all']).optional(),
   "eventTypeId": zod.coerce.number().int().optional(),
+  "severity": zod.enum(['all', 'severe', 'minimal']).optional(),
   "search": zod.coerce.string().optional()
 })
 

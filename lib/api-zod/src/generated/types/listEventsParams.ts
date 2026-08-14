@@ -5,11 +5,13 @@
  * Route Events API
  * OpenAPI spec version: 0.1.0
  */
+import type { ListEventsSeverity } from './listEventsSeverity';
 import type { ListEventsStatus } from './listEventsStatus';
 
 export type ListEventsParams = {
 districtId: number;
 status?: ListEventsStatus;
 eventTypeId?: number;
+severity?: ListEventsSeverity;
 search?: string;
 };

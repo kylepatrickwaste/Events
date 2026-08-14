@@ -85,6 +85,12 @@ paths:
           in: query
           required: false
           schema: { type: integer }
+        - name: severity
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, severe, minimal]
         - name: search
           in: query
           required: false

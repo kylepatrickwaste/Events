@@ -297,7 +297,7 @@ router.get("/events", async (req, res): Promise<void> => {
     res.status(400).json({ error: query.error.message });
     return;
   }
-  const { districtId, status, eventTypeId, search } = query.data;
+  const { districtId, status, eventTypeId, severity, search } = query.data;
 
   const conditions = [
     eq(routeEventsTable.districtId, districtId),
@@ -310,6 +310,11 @@ router.get("/events", async (req, res): Promise<void> => {
   }
   if (eventTypeId !== undefined) {
     conditions.push(eq(routeEventsTable.eventTypeId, eventTypeId));
+  }
+  if (severity !== undefined && severity !== "all") {
+    conditions.push(
+      sql`lower(${routeEventsTable.severity}) = ${severity.toLowerCase()}`,
+    );
   }
   if (search) {
     const pattern = `%${search}%`;

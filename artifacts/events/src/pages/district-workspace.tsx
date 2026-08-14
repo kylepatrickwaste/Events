@@ -75,6 +75,7 @@ export default function DistrictWorkspace() {
   const [statusFilter, setStatusFilter] = useState<'open' | 'closed' | 'all'>('all');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [severityFilter, setSeverityFilter] = useState<'all' | 'severe' | 'minimal'>('all');
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkCloseOpen, setBulkCloseOpen] = useState(false);
@@ -101,7 +102,7 @@ export default function DistrictWorkspace() {
   // Reset selection when district or filters change
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [districtId, statusFilter, typeFilter, search]);
+  }, [districtId, statusFilter, typeFilter, severityFilter, search]);
 
   const { data: districts } = useListDistricts({ query: { queryKey: getListDistrictsQueryKey() }});
   const district = districts?.find(d => d.id === districtId);
@@ -115,6 +116,7 @@ export default function DistrictWorkspace() {
     status: statusFilter === 'all' ? undefined : statusFilter,
     search: search || undefined,
     eventTypeId: typeFilter === 'all' ? undefined : Number(typeFilter),
+    severity: severityFilter === 'all' ? undefined : severityFilter,
   };
   const { data: events, isLoading: isLoadingEvents } = useListEvents(
     eventsQueryParams,
@@ -316,6 +318,17 @@ export default function DistrictWorkspace() {
               className="pl-9 bg-background"
             />
           </div>
+
+          <Select value={severityFilter} onValueChange={(v) => setSeverityFilter(v as 'all' | 'severe' | 'minimal')}>
+            <SelectTrigger className="w-full sm:w-40 bg-background">
+              <SelectValue placeholder="Severity" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('district.filter_all')} Severities</SelectItem>
+              <SelectItem value="severe">Severe</SelectItem>
+              <SelectItem value="minimal">Minimal</SelectItem>
+            </SelectContent>
+          </Select>
 
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="w-full sm:w-48 bg-background">

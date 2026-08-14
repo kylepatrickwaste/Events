@@ -273,6 +273,7 @@ export type ListEventsParams = {
 districtId: number;
 status?: ListEventsStatus;
 eventTypeId?: number;
+severity?: ListEventsSeverity;
 search?: string;
 };
 
@@ -283,5 +284,14 @@ export const ListEventsStatus = {
   open: 'open',
   closed: 'closed',
   all: 'all',
+} as const;
+
+export type ListEventsSeverity = typeof ListEventsSeverity[keyof typeof ListEventsSeverity];
+
+
+export const ListEventsSeverity = {
+  all: 'all',
+  severe: 'severe',
+  minimal: 'minimal',
 } as const;
 

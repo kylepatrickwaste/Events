@@ -21,6 +21,7 @@ export * from './eventAction';
 export * from './eventType';
 export * from './healthStatus';
 export * from './listEventsParams';
+export * from './listEventsSeverity';
 export * from './listEventsStatus';
 export * from './nearbyEvent';
 export * from './noteInput';
