@@ -57,11 +57,12 @@ function CloseReasonFields({ form }: { form: any }) {
   );
 }
 
-export function CloseEventDialog({ open, onOpenChange, eventId, onSuccess }: {
+export function CloseEventDialog({ open, onOpenChange, eventId, onSuccess, initialCheckedNearby }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   eventId: number;
   onSuccess: () => void;
+  initialCheckedNearby?: number[];
 }) {
   const { t, formatDate } = useI18n();
   const closeMutation = useCloseEvent();
@@ -74,6 +75,8 @@ export function CloseEventDialog({ open, onOpenChange, eventId, onSuccess }: {
 
   useEffect(() => {
     if (!open) setCheckedNearby(new Set());
+    else if (initialCheckedNearby?.length) setCheckedNearby(new Set(initialCheckedNearby));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const form = useForm({

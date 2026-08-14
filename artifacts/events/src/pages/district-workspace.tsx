@@ -81,6 +81,7 @@ export default function DistrictWorkspace() {
   const [bulkCloseOpen, setBulkCloseOpen] = useState(false);
   const [chargeEventId, setChargeEventId] = useState<number | null>(null);
   const [closeEventId, setCloseEventId] = useState<number | null>(null);
+  const [closeNearbyPreset, setCloseNearbyPreset] = useState<number[]>([]);
   const [contractAccountsOpen, setContractAccountsOpen] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -191,6 +192,7 @@ export default function DistrictWorkspace() {
   const handleActionSuccess = () => {
     setChargeEventId(null);
     setCloseEventId(null);
+    setCloseNearbyPreset([]);
     refreshQueue();
   };
 
@@ -461,7 +463,8 @@ export default function DistrictWorkspace() {
                       event={event}
                       districtId={districtId}
                       onCharge={() => setChargeEventId(event.id)}
-                      onClose={() => setCloseEventId(event.id)}
+                      onClose={() => { setCloseNearbyPreset([]); setCloseEventId(event.id); }}
+                      onCloseWithDuplicates={(ids) => { setCloseNearbyPreset(ids); setCloseEventId(event.id); }}
                       onNavigate={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
                     />
                   ) : (
@@ -498,8 +501,9 @@ export default function DistrictWorkspace() {
       {closeEventId !== null && (
         <CloseEventDialog
           open={closeEventId !== null}
-          onOpenChange={(o) => { if (!o) setCloseEventId(null); }}
+          onOpenChange={(o) => { if (!o) { setCloseEventId(null); setCloseNearbyPreset([]); } }}
           eventId={closeEventId}
+          initialCheckedNearby={closeNearbyPreset}
           onSuccess={handleActionSuccess}
         />
       )}
@@ -507,16 +511,31 @@ export default function DistrictWorkspace() {
   );
 }
 
-function EventThumbnailPreview({ event, districtId, onCharge, onClose, onNavigate }: {
+function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWithDuplicates, onNavigate }: {
   event: any;
   districtId: number;
   onCharge: () => void;
   onClose: () => void;
+  onCloseWithDuplicates: (ids: number[]) => void;
   onNavigate: () => void;
 }) {
   const { t, formatDate } = useI18n();
   const [selectedImage, setSelectedImage] = useState<string>(event.imageUrl);
   const [open, setOpen] = useState(false);
+  const [checkedNearby, setCheckedNearby] = useState<Set<number>>(new Set());
+
+  const toggleNearby = (id: number, checked: boolean) => {
+    setCheckedNearby(prev => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+
+  // Clear the checkbox selection whenever the preview closes
+  useEffect(() => {
+    if (!open) setCheckedNearby(new Set());
+  }, [open]);
   const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -668,6 +687,7 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onNavigat
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50 border-b">
                       <tr>
+                        <th className="px-3 py-2 w-8"></th>
                         <th className="px-2 py-2 w-12"></th>
                         <th className="px-3 py-2 text-left font-medium">{t('event.nearby.business')}</th>
                         <th className="px-3 py-2 text-left font-medium">{t('event.nearby.account')}</th>
@@ -684,6 +704,17 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onNavigat
                             key={nearby.id}
                             className={`transition-colors ${accountMismatch ? 'bg-destructive/10 hover:bg-destructive/15 text-destructive' : 'hover:bg-muted/30'}`}
                           >
+                            <td className="px-3 py-2">
+                              {nearby.status === 'Open' ? (
+                                <Checkbox
+                                  checked={checkedNearby.has(nearby.id)}
+                                  onCheckedChange={(c) => toggleNearby(nearby.id, c === true)}
+                                  aria-label={`Select nearby event ${nearby.id}`}
+                                />
+                              ) : (
+                                <span className="block w-4" />
+                              )}
+                            </td>
                             <td className="px-2 py-2">
                               <Link href={`/districts/${districtId}/events/${nearby.id}`}>
                                 {nearby.imageUrl ? (
@@ -719,6 +750,17 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onNavigat
                     </tbody>
                   </table>
                 </div>
+              )}
+              {checkedNearby.size > 0 && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="mt-2 w-full"
+                  onClick={() => onCloseWithDuplicates(Array.from(checkedNearby))}
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  {t('close.close_duplicates', { count: checkedNearby.size })}
+                </Button>
               )}
             </div>
           </div>
