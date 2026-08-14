@@ -111,6 +111,41 @@ export const ListEventTypesResponse = zod.array(ListEventTypesResponseItem)
 
 
 /**
+ * @summary List flagged (contract) accounts for a district
+ */
+export const ListDistrictAccountFlagsParams = zod.object({
+  "districtId": zod.coerce.number().int()
+})
+
+export const ListDistrictAccountFlagsResponseItem = zod.object({
+  "id": zod.coerce.number().int(),
+  "districtId": zod.coerce.number().int(),
+  "accountNumber": zod.string(),
+  "flag": zod.string(),
+  "createdBy": zod.string(),
+  "dateCreated": zod.string()
+})
+export const ListDistrictAccountFlagsResponse = zod.array(ListDistrictAccountFlagsResponseItem)
+
+
+/**
+ * @summary Remove an account flag so its events reappear in the queue
+ */
+export const DeleteAccountFlagParams = zod.object({
+  "flagId": zod.coerce.number().int()
+})
+
+export const DeleteAccountFlagResponse = zod.object({
+  "id": zod.coerce.number().int(),
+  "districtId": zod.coerce.number().int(),
+  "accountNumber": zod.string(),
+  "flag": zod.string(),
+  "createdBy": zod.string(),
+  "dateCreated": zod.string()
+})
+
+
+/**
  * @summary Close multiple events at once
  */
 

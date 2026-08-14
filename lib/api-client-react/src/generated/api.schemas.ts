@@ -13,6 +13,15 @@ export interface ErrorMessage {
   error: string;
 }
 
+export interface AccountFlag {
+  id: number;
+  districtId: number;
+  accountNumber: string;
+  flag: string;
+  createdBy: string;
+  dateCreated: string;
+}
+
 export interface District {
   id: number;
   number: string;

@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccountFlag,
   BulkCloseInput,
   BulkCloseResult,
   ChargeInput,
@@ -534,6 +535,154 @@ export function useListEventTypes<TData = Awaited<ReturnType<typeof listEventTyp
 
 
 
+
+export const getListDistrictAccountFlagsUrl = (districtId: number,) => {
+
+
+
+
+  return `/api/districts/${districtId}/account-flags`
+}
+
+/**
+ * @summary List flagged (contract) accounts for a district
+ */
+export const listDistrictAccountFlags = async (districtId: number, options?: Parameters<typeof customFetch>[1]): Promise<AccountFlag[]> => {
+
+  return customFetch<AccountFlag[]>(getListDistrictAccountFlagsUrl(districtId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDistrictAccountFlagsQueryKey = (districtId: number,) => {
+    return [
+    `/api/districts/${districtId}/account-flags`
+    ] as const;
+    }
+
+
+export const getListDistrictAccountFlagsQueryOptions = <TData = Awaited<ReturnType<typeof listDistrictAccountFlags>>, TError = ErrorType<unknown>>(districtId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDistrictAccountFlags>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDistrictAccountFlagsQueryKey(districtId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDistrictAccountFlags>>> = ({ signal }) => listDistrictAccountFlags(districtId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: districtId !== null && districtId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDistrictAccountFlags>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDistrictAccountFlagsQueryResult = NonNullable<Awaited<ReturnType<typeof listDistrictAccountFlags>>>
+export type ListDistrictAccountFlagsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List flagged (contract) accounts for a district
+ */
+
+export function useListDistrictAccountFlags<TData = Awaited<ReturnType<typeof listDistrictAccountFlags>>, TError = ErrorType<unknown>>(
+ districtId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDistrictAccountFlags>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDistrictAccountFlagsQueryOptions(districtId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteAccountFlagUrl = (flagId: number,) => {
+
+
+
+
+  return `/api/account-flags/${flagId}`
+}
+
+/**
+ * @summary Remove an account flag so its events reappear in the queue
+ */
+export const deleteAccountFlag = async (flagId: number, options?: Parameters<typeof customFetch>[1]): Promise<AccountFlag> => {
+
+  return customFetch<AccountFlag>(getDeleteAccountFlagUrl(flagId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAccountFlagMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAccountFlag>>, TError,{flagId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAccountFlag>>, TError,{flagId: number}, TContext> => {
+
+const mutationKey = ['deleteAccountFlag'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAccountFlag>>, {flagId: number}> = (props) => {
+          const {flagId} = props ?? {};
+
+          return  deleteAccountFlag(flagId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAccountFlagMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAccountFlag>>>
+
+    export type DeleteAccountFlagMutationError = ErrorType<ErrorMessage>
+
+    /**
+ * @summary Remove an account flag so its events reappear in the queue
+ */
+export const useDeleteAccountFlag = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAccountFlag>>, TError,{flagId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAccountFlag>>,
+        TError,
+        {flagId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteAccountFlagMutationOptions(options));
+    }
 
 export const getBulkCloseEventsUrl = () => {
 

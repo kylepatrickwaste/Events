@@ -35,6 +35,10 @@ import {
   CloseEventResponse,
   BulkCloseEventsBody,
   BulkCloseEventsResponse,
+  ListDistrictAccountFlagsParams,
+  ListDistrictAccountFlagsResponse,
+  DeleteAccountFlagParams,
+  DeleteAccountFlagResponse,
 } from "@workspace/api-zod";
 import { inArray, gte, ne, notExists } from "drizzle-orm";
 
@@ -241,6 +245,51 @@ router.get(
     );
   },
 );
+
+function serializeFlag(f: typeof accountFlagsTable.$inferSelect) {
+  return {
+    id: f.id,
+    districtId: f.districtId,
+    accountNumber: f.accountNumber,
+    flag: f.flag,
+    createdBy: f.createdBy,
+    dateCreated: f.dateCreated.toISOString(),
+  };
+}
+
+router.get(
+  "/districts/:districtId/account-flags",
+  async (req, res): Promise<void> => {
+    const params = ListDistrictAccountFlagsParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const flags = await db
+      .select()
+      .from(accountFlagsTable)
+      .where(eq(accountFlagsTable.districtId, params.data.districtId))
+      .orderBy(desc(accountFlagsTable.dateCreated));
+    res.json(ListDistrictAccountFlagsResponse.parse(flags.map(serializeFlag)));
+  },
+);
+
+router.delete("/account-flags/:flagId", async (req, res): Promise<void> => {
+  const params = DeleteAccountFlagParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [deleted] = await db
+    .delete(accountFlagsTable)
+    .where(eq(accountFlagsTable.id, params.data.flagId))
+    .returning();
+  if (!deleted) {
+    res.status(404).json({ error: "Account flag not found" });
+    return;
+  }
+  res.json(DeleteAccountFlagResponse.parse(serializeFlag(deleted)));
+});
 
 router.get("/events", async (req, res): Promise<void> => {
   const query = ListEventsQueryParams.safeParse(req.query);

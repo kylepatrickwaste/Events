@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './accountFlag';
 export * from './bulkCloseInput';
 export * from './bulkCloseResult';
 export * from './chargeInput';

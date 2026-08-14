@@ -18,11 +18,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronLeft, Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera } from 'lucide-react';
+import { ChevronLeft, Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ChargeEventDialog, CloseEventDialog, BulkCloseDialog } from '@/components/event-action-dialogs';
+import { ContractAccountsDialog } from '@/components/contract-accounts-dialog';
 import { LAST_DISTRICT_KEY } from '@/pages/home';
 
 export default function DistrictWorkspace() {
@@ -41,6 +42,7 @@ export default function DistrictWorkspace() {
   const [bulkCloseOpen, setBulkCloseOpen] = useState(false);
   const [chargeEventId, setChargeEventId] = useState<number | null>(null);
   const [closeEventId, setCloseEventId] = useState<number | null>(null);
+  const [contractAccountsOpen, setContractAccountsOpen] = useState(false);
 
   // Remember this district as the last one visited
   useEffect(() => {
@@ -224,6 +226,10 @@ export default function DistrictWorkspace() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => setContractAccountsOpen(true)}>
+            <FileX2 className="h-4 w-4 mr-2" />
+            {t('contract_accounts.button')}
+          </Button>
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -368,6 +374,12 @@ export default function DistrictWorkspace() {
         )}
       </div>
 
+      <ContractAccountsDialog
+        open={contractAccountsOpen}
+        onOpenChange={setContractAccountsOpen}
+        districtId={districtId}
+        onUnflagged={refreshQueue}
+      />
       <BulkCloseDialog
         open={bulkCloseOpen}
         onOpenChange={setBulkCloseOpen}

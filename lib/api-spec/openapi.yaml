@@ -131,6 +131,48 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/EventType"
+  /districts/{districtId}/account-flags:
+    get:
+      operationId: listDistrictAccountFlags
+      tags: [districts]
+      summary: List flagged (contract) accounts for a district
+      parameters:
+        - name: districtId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Account flags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AccountFlag"
+  /account-flags/{flagId}:
+    delete:
+      operationId: deleteAccountFlag
+      tags: [districts]
+      summary: Remove an account flag so its events reappear in the queue
+      parameters:
+        - name: flagId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted flag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountFlag"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
   /events/bulk-close:
     post:
       operationId: bulkCloseEvents
@@ -302,6 +344,16 @@ components:
       properties:
         error: { type: string }
       required: [error]
+    AccountFlag:
+      type: object
+      required: [id, districtId, accountNumber, flag, createdBy, dateCreated]
+      properties:
+        id: { type: integer }
+        districtId: { type: integer }
+        accountNumber: { type: string }
+        flag: { type: string }
+        createdBy: { type: string }
+        dateCreated: { type: string }
     District:
       type: object
       required: [id, number, name, region]

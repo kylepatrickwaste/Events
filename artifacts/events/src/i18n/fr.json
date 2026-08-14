@@ -163,5 +163,15 @@
   "preview": {
     "close": "Fermer",
     "charge": "Facturer"
+  },
+  "contract_accounts": {
+    "title": "Comptes sous contrat",
+    "description": "Comptes marqués « Contrat - Sans dépassements ». Leurs événements de dépassement sont masqués de la file. Supprimez un marquage pour faire réapparaître les événements du compte.",
+    "empty": "Aucun compte marqué sous contrat dans ce district",
+    "flagged_by": "Marqué par {{user}} le {{date}}",
+    "remove": "Retirer le marquage",
+    "removed": "Marquage retiré — les événements du compte {{account}} sont de retour dans la file",
+    "remove_failed": "Impossible de retirer le marquage. Veuillez réessayer.",
+    "button": "Comptes sous contrat"
   }
 }

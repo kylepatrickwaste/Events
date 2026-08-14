@@ -163,5 +163,15 @@
   "preview": {
     "close": "Cerrar",
     "charge": "Cobrar"
+  },
+  "contract_accounts": {
+    "title": "Cuentas con contrato",
+    "description": "Cuentas marcadas como \"Contrato - Sin excedentes\". Sus eventos de excedente están ocultos de la cola. Elimine una marca para que los eventos de la cuenta vuelvan a aparecer.",
+    "empty": "No hay cuentas marcadas por contrato en este distrito",
+    "flagged_by": "Marcada por {{user}} el {{date}}",
+    "remove": "Quitar marca",
+    "removed": "Marca eliminada — los eventos de la cuenta {{account}} vuelven a la cola",
+    "remove_failed": "No se pudo quitar la marca. Inténtelo de nuevo.",
+    "button": "Cuentas con contrato"
   }
 }
