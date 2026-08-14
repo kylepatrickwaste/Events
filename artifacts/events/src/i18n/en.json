@@ -101,7 +101,15 @@
       "status_charged": "Charged",
       "status_dismissed": "Dismissed",
       "empty": "No nearby overages",
-      "offset": "Offset"
+      "offset": "Offset",
+      "business": "Business",
+      "account": "Account #",
+      "bin_serial": "Bin Serial #",
+      "truck": "Truck #",
+      "offset_sec_after": "{{s}}s after",
+      "offset_sec_before": "{{s}}s before",
+      "offset_min_after": "{{m}}m after",
+      "offset_min_before": "{{m}}m before"
     }
   },
   "charge": {

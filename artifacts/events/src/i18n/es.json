@@ -101,7 +101,15 @@
       "status_charged": "Cobrado",
       "status_dismissed": "Desestimado",
       "empty": "Sin excesos cercanos",
-      "offset": "Desfase"
+      "offset": "Desfase",
+      "business": "Negocio",
+      "account": "N.º de Cuenta",
+      "bin_serial": "N.º de Serie del Contenedor",
+      "truck": "N.º de Camión",
+      "offset_sec_after": "{{s}}s después",
+      "offset_sec_before": "{{s}}s antes",
+      "offset_min_after": "{{m}}m después",
+      "offset_min_before": "{{m}}m antes"
     }
   },
   "charge": {

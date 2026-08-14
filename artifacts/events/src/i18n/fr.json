@@ -101,7 +101,15 @@
       "status_charged": "Facturé",
       "status_dismissed": "Rejeté",
       "empty": "Aucun dépassement à proximité",
-      "offset": "Décalage"
+      "offset": "Décalage",
+      "business": "Entreprise",
+      "account": "N° de Compte",
+      "bin_serial": "N° de Série du Bac",
+      "truck": "N° de Camion",
+      "offset_sec_after": "{{s}}s après",
+      "offset_sec_before": "{{s}}s avant",
+      "offset_min_after": "{{m}}m après",
+      "offset_min_before": "{{m}}m avant"
     }
   },
   "charge": {

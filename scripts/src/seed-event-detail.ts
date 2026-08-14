@@ -52,21 +52,58 @@ async function main() {
       .where(eq(routeEventsTable.id, e.id));
   }
 
-  const main = events.find((e) => e.eventStatus === 0) ?? events[0]!;
+  // Deterministic anchor: lowest-id open, non-seeded event (fallback: lowest id).
+  const candidates = events
+    .filter((e) => !e.externalId?.startsWith(SEED_TAG))
+    .sort((a, b) => a.id - b.id);
+  const main =
+    candidates.find((e) => e.eventStatus === 0) ?? candidates[0] ?? events[0]!;
 
   // 2. Nearby overages around the main event (same district, close in time & location).
+  // Upserted per-spec by externalId so re-runs never duplicate rows and
+  // existing seeded rows pick up newer field values.
   const existingNearby = await db
     .select()
     .from(routeEventsTable)
     .where(like(routeEventsTable.externalId, `${SEED_TAG}%`));
+  const existingByExternalId = new Map(
+    existingNearby.map((r) => [r.externalId, r]),
+  );
 
-  if (existingNearby.length === 0) {
+  {
     const nearbySpecs = [
-      { offsetSec: -540, dLat: 0.0009, dLng: -0.0012, img: PHOTOS[1]!, status: 0, charged: false, suffix: "A" },
-      { offsetSec: 320, dLat: -0.0014, dLng: 0.0008, img: PHOTOS[2]!, status: 1, charged: true, suffix: "B" },
-      { offsetSec: 1150, dLat: 0.0021, dLng: 0.0017, img: PHOTOS[3]!, status: 1, charged: false, suffix: "C" },
+      {
+        offsetSec: -540, dLat: 0.0009, dLng: -0.0012, img: PHOTOS[1]!, status: 0, charged: false, suffix: "A",
+        customerName: "Cascade Coffee Roasters", accountNumber: "7-41255-33002", binSerialNumber: "BIN-88213",
+      },
+      {
+        offsetSec: 30, dLat: -0.0003, dLng: 0.0002, img: PHOTOS[4]!, status: 0, charged: false, suffix: "D",
+        customerName: main.customerName, accountNumber: main.accountNumber, binSerialNumber: main.binSerialNumber,
+      },
+      {
+        offsetSec: 320, dLat: -0.0014, dLng: 0.0008, img: PHOTOS[2]!, status: 1, charged: true, suffix: "B",
+        customerName: "Harborview Deli & Market", accountNumber: "7-58990-11407", binSerialNumber: "BIN-90441",
+      },
+      {
+        offsetSec: 1150, dLat: 0.0021, dLng: 0.0017, img: PHOTOS[3]!, status: 1, charged: false, suffix: "C",
+        customerName: main.customerName, accountNumber: main.accountNumber, binSerialNumber: main.binSerialNumber,
+      },
     ];
     for (const s of nearbySpecs) {
+      const externalId = `${SEED_TAG}-nearby-${s.suffix}`;
+      const existing = existingByExternalId.get(externalId);
+      if (existing) {
+        await db
+          .update(routeEventsTable)
+          .set({
+            vehicle: main.vehicle,
+            customerName: s.customerName,
+            accountNumber: s.accountNumber,
+            binSerialNumber: s.binSerialNumber,
+          })
+          .where(eq(routeEventsTable.id, existing.id));
+        continue;
+      }
       const [inserted] = await db
         .insert(routeEventsTable)
         .values({
@@ -80,9 +117,9 @@ async function main() {
           latitude: main.latitude + s.dLat,
           longitude: main.longitude + s.dLng,
           address: main.address,
-          customerName: main.customerName,
-          accountNumber: main.accountNumber,
-          binSerialNumber: main.binSerialNumber,
+          customerName: s.customerName,
+          accountNumber: s.accountNumber,
+          binSerialNumber: s.binSerialNumber,
           lob: main.lob,
           imageUrl: s.img,
           imageUrls: [s.img],
@@ -109,9 +146,7 @@ async function main() {
         });
       }
     }
-    console.log("Inserted nearby overages for event", main.id);
-  } else {
-    console.log("Nearby overages already seeded, skipping.");
+    console.log("Upserted nearby overages for event", main.id);
   }
 
   // 3. Charge/payment history for the main event's account (last 30/60/90 days).

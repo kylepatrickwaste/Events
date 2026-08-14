@@ -107,9 +107,9 @@ export default function EventDetailWorkspace() {
 
   const formatOffset = (seconds: number) => {
     const abs = Math.abs(seconds);
-    const sign = seconds < 0 ? '-' : '+';
-    if (abs < 60) return sign + t('event.nearby.offset_sec', { s: abs });
-    return sign + t('event.nearby.offset_min', { m: Math.floor(abs / 60) });
+    const dir = seconds < 0 ? 'before' : 'after';
+    if (abs < 60) return t(`event.nearby.offset_sec_${dir}` as any, { s: abs });
+    return t(`event.nearby.offset_min_${dir}` as any, { m: Math.floor(abs / 60) });
   };
 
   return (
@@ -228,63 +228,36 @@ export default function EventDetailWorkspace() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-lg">{t('event.customer_routes')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {event.routes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">{t('event.no_routes')}</p>
-                ) : (
-                  <div className="border rounded-md overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50 border-b">
-                        <tr>
-                          <th className="px-4 py-2 text-left font-medium">{t('event.code')}</th>
-                          <th className="px-4 py-2 text-left font-medium">{t('event.service')}</th>
-                          <th className="px-4 py-2 text-left font-medium">{t('event.material')}</th>
-                          <th className="px-4 py-2 text-left font-medium">{t('event.day')}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {event.routes.map((route, i) => (
-                          <tr key={i}>
-                            <td className="px-4 py-2 font-mono">{route.code}</td>
-                            <td className="px-4 py-2">{route.service}</td>
-                            <td className="px-4 py-2">{route.material}</td>
-                            <td className="px-4 py-2">{route.day}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-lg">{t('event.nearby.title')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {event.nearbyEvents?.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">{t('event.nearby.empty')}</p>
-                ) : (
-                  <div className="border rounded-md overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50 border-b">
-                        <tr>
-                          <th className="px-3 py-2 w-8"></th>
-                          <th className="px-2 py-2 w-12"></th>
-                          <th className="px-3 py-2 text-left font-medium">{t('district.date')}</th>
-                          <th className="px-3 py-2 text-right font-medium">{t('event.nearby.offset')}</th>
-                          <th className="px-3 py-2 text-right font-medium">{t('district.status')}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {event.nearbyEvents?.map(nearby => (
-                          <tr key={nearby.id} className="hover:bg-muted/30 transition-colors">
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">{t('event.nearby.title')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {event.nearbyEvents?.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">{t('event.nearby.empty')}</p>
+              ) : (
+                <div className="border rounded-md overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 border-b">
+                      <tr>
+                        <th className="px-3 py-2 w-8"></th>
+                        <th className="px-2 py-2 w-12"></th>
+                        <th className="px-3 py-2 text-left font-medium">{t('event.nearby.business')}</th>
+                        <th className="px-3 py-2 text-left font-medium">{t('event.nearby.account')}</th>
+                        <th className="px-3 py-2 text-left font-medium">{t('event.nearby.bin_serial')}</th>
+                        <th className="px-3 py-2 text-left font-medium">{t('event.nearby.truck')}</th>
+                        <th className="px-3 py-2 text-left font-medium">{t('district.date')}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t('district.status')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {event.nearbyEvents?.map(nearby => {
+                        const accountMismatch = !!nearby.accountNumber && nearby.accountNumber !== event.accountNumber;
+                        return (
+                          <tr
+                            key={nearby.id}
+                            className={`transition-colors ${accountMismatch ? 'bg-destructive/10 hover:bg-destructive/15 text-destructive' : 'hover:bg-muted/30'}`}
+                          >
                             <td className="px-3 py-2">
                               <Checkbox 
                                 checked={checkedNearby.has(nearby.id)} 
@@ -302,13 +275,19 @@ export default function EventDetailWorkspace() {
                                 )}
                               </Link>
                             </td>
-                            <td className="px-3 py-2">
-                              <Link href={`/districts/${districtId}/events/${nearby.id}`} className="hover:underline text-primary">
+                            <td className="px-3 py-2">{nearby.customerName ?? '—'}</td>
+                            <td className={`px-3 py-2 font-mono text-xs ${accountMismatch ? 'font-bold' : ''}`}>
+                              {nearby.accountNumber ?? '—'}
+                            </td>
+                            <td className="px-3 py-2 font-mono text-xs">{nearby.binSerialNumber ?? '—'}</td>
+                            <td className="px-3 py-2 font-mono text-xs">{nearby.vehicle ?? '—'}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              <Link href={`/districts/${districtId}/events/${nearby.id}`} className={`hover:underline ${accountMismatch ? 'text-destructive' : 'text-primary'}`}>
                                 {formatDate(nearby.dateOccurred, { hour: 'numeric', minute: '2-digit' })}
                               </Link>
-                            </td>
-                            <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">
-                              {formatOffset(nearby.secondsOffset)}
+                              <span className={`ml-2 font-mono text-xs ${accountMismatch ? 'text-destructive/80' : 'text-muted-foreground'}`}>
+                                {formatOffset(nearby.secondsOffset)}
+                              </span>
                             </td>
                             <td className="px-3 py-2 text-right">
                               <Badge variant="outline" className="text-[10px]">
@@ -316,14 +295,14 @@ export default function EventDetailWorkspace() {
                               </Badge>
                             </td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Column: Timeline */}

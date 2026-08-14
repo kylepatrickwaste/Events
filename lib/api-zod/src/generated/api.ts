@@ -238,7 +238,10 @@ export const GetEventResponse = zod.object({
   "eventStatus": zod.coerce.number().int().describe('0 = open, 1 = closed'),
   "status": zod.string().describe('Open | Charged | Dismissed'),
   "address": zod.string().nullish(),
-  "customerName": zod.string().nullish()
+  "customerName": zod.string().nullish(),
+  "accountNumber": zod.string().nullish(),
+  "binSerialNumber": zod.string().nullish(),
+  "vehicle": zod.string().nullish()
 })),
   "lastCharges": zod.array(zod.object({
   "id": zod.coerce.number().int(),

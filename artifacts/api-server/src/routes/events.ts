@@ -547,6 +547,9 @@ async function loadEventDetail(eventId: number) {
           : "Dismissed",
     address: n.address,
     customerName: n.customerName,
+    accountNumber: n.accountNumber,
+    binSerialNumber: n.binSerialNumber,
+    vehicle: n.vehicle,
   }));
 
   return {

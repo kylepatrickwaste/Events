@@ -476,6 +476,9 @@ components:
         status: { type: string, description: "Open | Charged | Dismissed" }
         address: { type: ["string", "null"] }
         customerName: { type: ["string", "null"] }
+        accountNumber: { type: ["string", "null"] }
+        binSerialNumber: { type: ["string", "null"] }
+        vehicle: { type: ["string", "null"] }
     RecentCharge:
       type: object
       required: [id, dateCreated, amount, paymentStatus]

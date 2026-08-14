@@ -21,4 +21,10 @@ export interface NearbyEvent {
   address?: string | null;
   /** @nullable */
   customerName?: string | null;
+  /** @nullable */
+  accountNumber?: string | null;
+  /** @nullable */
+  binSerialNumber?: string | null;
+  /** @nullable */
+  vehicle?: string | null;
 }
