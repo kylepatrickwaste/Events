@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ChargeEventDialog, CloseEventDialog, BulkCloseDialog } from '@/components/event-action-dialogs';
+import { OPEN_EXCLUDED_ACCOUNTS_EVENT } from '@/components/layout/Shell';
 import { ContractAccountsDialog } from '@/components/contract-accounts-dialog';
 import { LAST_DISTRICT_KEY } from '@/pages/home';
 import { NearbyClusterPicker, suggestedDuplicateIds } from '@/components/nearby-cluster-picker';
@@ -85,6 +86,12 @@ export default function DistrictWorkspace() {
   const [closeEventId, setCloseEventId] = useState<number | null>(null);
   const [closeNearbyPreset, setCloseNearbyPreset] = useState<number[]>([]);
   const [contractAccountsOpen, setContractAccountsOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setContractAccountsOpen(true);
+    window.addEventListener(OPEN_EXCLUDED_ACCOUNTS_EVENT, handler);
+    return () => window.removeEventListener(OPEN_EXCLUDED_ACCOUNTS_EVENT, handler);
+  }, []);
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -267,10 +274,6 @@ export default function DistrictWorkspace() {
             </TabsList>
           </Tabs>
 
-          <Button variant="outline" size="sm" className="w-full sm:w-auto sm:ml-auto" onClick={() => setContractAccountsOpen(true)}>
-            <FileX2 className="h-4 w-4 mr-2" />
-            {t('contract_accounts.button')}
-          </Button>
           {someSelected && (
             <Button variant="destructive" size="sm" onClick={() => setBulkCloseOpen(true)}>
               <XCircle className="h-4 w-4 mr-2" />

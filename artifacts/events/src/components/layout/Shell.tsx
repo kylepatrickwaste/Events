@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useRoute, useLocation } from 'wouter';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronsUpDown, FileX2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n, Language } from '@/i18n';
 import { useTheme } from '@/components/theme-provider';
@@ -95,6 +95,27 @@ function EventHeaderCenter() {
   );
 }
 
+export const OPEN_EXCLUDED_ACCOUNTS_EVENT = 'open-excluded-accounts';
+
+function HeaderExcludedAccountsButton() {
+  const { t } = useI18n();
+  const [matchesDistrict] = useRoute('/districts/:districtId');
+
+  if (!matchesDistrict) return null;
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="h-8"
+      onClick={() => window.dispatchEvent(new CustomEvent(OPEN_EXCLUDED_ACCOUNTS_EVENT))}
+    >
+      <FileX2 className="h-4 w-4 mr-2" />
+      {t('contract_accounts.button')}
+    </Button>
+  );
+}
+
 function HeaderDistrictSwitcher() {
   const { t } = useI18n();
   const [, setLocation] = useLocation();
@@ -168,6 +189,7 @@ export function Header() {
           </span>
         </Link>
         <div className="flex flex-1 items-center justify-end space-x-4">
+          <HeaderExcludedAccountsButton />
           <HeaderDistrictSwitcher />
           <div ref={langRef} className="flex items-center space-x-1 text-sm text-muted-foreground">
             <button 
