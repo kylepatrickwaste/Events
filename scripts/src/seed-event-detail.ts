@@ -6,7 +6,7 @@
  * Idempotent: safe to run multiple times.
  */
 import { db, routeEventsTable, eventActionsTable } from "@workspace/db";
-import { eq, and, like } from "drizzle-orm";
+import { eq, and, like, inArray } from "drizzle-orm";
 
 const PHOTOS = [
   "/event-photos/truck-cam-1.jpg",
@@ -71,22 +71,65 @@ async function main() {
   );
 
   {
+    // Remove stale untagged demo leftovers from earlier seed versions so
+    // re-running converges on exactly the tagged cluster below.
+    const staleLeftovers = await db
+      .select({ id: routeEventsTable.id })
+      .from(routeEventsTable)
+      .where(like(routeEventsTable.externalId, "WV-9031%"));
+    const staleIds = staleLeftovers
+      .map((r) => r.id)
+      .filter((id) => id !== main.id);
+    if (staleIds.length > 0) {
+      await db
+        .delete(eventActionsTable)
+        .where(inArray(eventActionsTable.routeEventId, staleIds));
+      await db
+        .delete(routeEventsTable)
+        .where(inArray(routeEventsTable.id, staleIds));
+      console.log("Removed stale demo leftovers:", staleIds.join(", "));
+    }
+
+    // Remove obsolete *tagged* nearby rows from earlier seed versions whose
+    // suffixes are no longer in the desired set (e.g. the old "-nearby-D").
+    const desiredExternalIds = new Set(
+      ["A", "B", "C", "X"].map((s) => `${SEED_TAG}-nearby-${s}`),
+    );
+    const obsoleteTaggedIds = existingNearby
+      .filter((r) => r.externalId && !desiredExternalIds.has(r.externalId))
+      .map((r) => r.id);
+    if (obsoleteTaggedIds.length > 0) {
+      await db
+        .delete(eventActionsTable)
+        .where(inArray(eventActionsTable.routeEventId, obsoleteTaggedIds));
+      await db
+        .delete(routeEventsTable)
+        .where(inArray(routeEventsTable.id, obsoleteTaggedIds));
+      console.log(
+        "Removed obsolete tagged nearby rows:",
+        obsoleteTaggedIds.join(", "),
+      );
+    }
+
+    // Offsets at ~30°N: 1e-4 deg lat ≈ 11.1 m, 1e-4 deg lng ≈ 9.6 m.
+    // A: ~110 m Open, B: ~175 m Charged, C: ~288 m Dismissed (just inside
+    // the 300 m radius), X: ~335 m Open (just OUTSIDE — must not appear).
     const nearbySpecs = [
       {
-        offsetSec: -540, dLat: 0.0009, dLng: -0.0012, img: PHOTOS[1]!, status: 0, charged: false, suffix: "A",
+        offsetSec: -540, dLat: 0.0009, dLng: -0.0005, img: PHOTOS[1]!, status: 0, charged: false, suffix: "A",
         customerName: "Cascade Coffee Roasters", accountNumber: "7-41255-33002", binSerialNumber: "BIN-88213",
-      },
-      {
-        offsetSec: 30, dLat: -0.0003, dLng: 0.0002, img: PHOTOS[4]!, status: 0, charged: false, suffix: "D",
-        customerName: main.customerName, accountNumber: main.accountNumber, binSerialNumber: main.binSerialNumber,
       },
       {
         offsetSec: 320, dLat: -0.0014, dLng: 0.0008, img: PHOTOS[2]!, status: 1, charged: true, suffix: "B",
         customerName: "Harborview Deli & Market", accountNumber: "7-58990-11407", binSerialNumber: "BIN-90441",
       },
       {
-        offsetSec: 1150, dLat: 0.0021, dLng: 0.0017, img: PHOTOS[3]!, status: 1, charged: false, suffix: "C",
+        offsetSec: 1150, dLat: 0.002, dLng: 0.0019, img: PHOTOS[3]!, status: 1, charged: false, suffix: "C",
         customerName: main.customerName, accountNumber: main.accountNumber, binSerialNumber: main.binSerialNumber,
+      },
+      {
+        offsetSec: 600, dLat: 0.0024, dLng: 0.0021, img: PHOTOS[4]!, status: 0, charged: false, suffix: "X",
+        customerName: "Pinecrest Auto Body", accountNumber: "7-33208-55910", binSerialNumber: "BIN-77120",
       },
     ];
     for (const s of nearbySpecs) {
@@ -97,6 +140,15 @@ async function main() {
           .update(routeEventsTable)
           .set({
             vehicle: main.vehicle,
+            route: main.route,
+            dateOccurred: new Date(
+              main.dateOccurred.getTime() + s.offsetSec * 1000,
+            ),
+            latitude: main.latitude + s.dLat,
+            longitude: main.longitude + s.dLng,
+            eventStatus: s.status,
+            dateClosed: s.status === 1 ? (existing.dateClosed ?? daysAgo(1)) : null,
+            closedBy: s.status === 1 ? (existing.closedBy ?? "Kyle.Patrick") : null,
             customerName: s.customerName,
             accountNumber: s.accountNumber,
             binSerialNumber: s.binSerialNumber,
