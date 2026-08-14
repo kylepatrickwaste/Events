@@ -165,11 +165,6 @@ export default function EventDetailWorkspace() {
         {/* Left Column: Image, Stats, Details */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* Overage Statistics */}
-          {event.statistics && (
-            <OverageStatisticsTile stats={event.statistics} t={t} formatCurrency={formatCurrency} formatDate={formatDate} />
-          )}
-
           {/* Image Gallery */}
           <Card className="overflow-hidden shadow-sm">
             <div className="bg-muted aspect-video relative flex items-center justify-center bg-black/5">
@@ -196,6 +191,11 @@ export default function EventDetailWorkspace() {
               </div>
             )}
           </Card>
+
+          {/* Overage Statistics */}
+          {event.statistics && (
+            <OverageStatisticsTile stats={event.statistics} t={t} formatCurrency={formatCurrency} formatDate={formatDate} />
+          )}
 
           <Card className="shadow-sm">
             <CardHeader>
