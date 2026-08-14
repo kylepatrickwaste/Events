@@ -105,8 +105,8 @@ export default function DistrictWorkspace() {
   const [visibleCols, setVisibleCols] = useState<Set<string>>(() => {
     try {
       const raw = localStorage.getItem('grid-columns');
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set<string>();
-    } catch { return new Set<string>(); }
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set(OPTIONAL_COLUMNS.map(c => c.key));
+    } catch { return new Set(OPTIONAL_COLUMNS.map(c => c.key)); }
   });
   const toggleCol = (key: string) => {
     setVisibleCols(prev => {
@@ -245,7 +245,7 @@ export default function DistrictWorkspace() {
   };
 
   return (
-    <div className="container mx-auto py-3 px-4 max-w-7xl">
+    <div className="w-full py-3 px-4">
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <div className="flex items-center gap-2 rounded-lg border bg-primary/5 border-primary/20 px-3 py-1.5">
           <AlertTriangle className="h-4 w-4 text-primary" />
