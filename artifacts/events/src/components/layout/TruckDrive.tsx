@@ -44,7 +44,7 @@ export function TruckDrive({ startRef, endRef }: {
         { transform: `translateX(${Math.max(distance - 24, 0)}px)`, opacity: 1, offset: 0.94 },
         { transform: `translateX(${Math.max(distance, 0)}px)`, opacity: 0 },
       ],
-      { duration: 2400, easing: 'linear' },
+      { duration: 9600, easing: 'linear' },
     );
     anim.onfinish = () => { el.style.display = 'none'; };
     return () => anim.cancel();
