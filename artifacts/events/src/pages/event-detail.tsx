@@ -118,14 +118,7 @@ export default function EventDetailWorkspace() {
     <div className="container mx-auto py-6 px-4 max-w-7xl">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setLocation(`/districts/${districtId}`)}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight">{event.customerName}</h1>
-        </div>
-
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 md:ml-auto">
           {!isClosed && (
             <>
               <Button onClick={() => setChargeOpen(true)} className="bg-success text-success-foreground hover:bg-success/90">

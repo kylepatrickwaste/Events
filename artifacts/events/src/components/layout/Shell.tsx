@@ -7,7 +7,7 @@ import { Moon, Sun, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useListDistricts, getListDistrictsQueryKey } from '@workspace/api-client-react';
+import { useListDistricts, getListDistrictsQueryKey, useGetEvent, getGetEventQueryKey } from '@workspace/api-client-react';
 import { TruckDrive } from './TruckDrive';
 
 function DistrictHeaderCenter() {
@@ -61,6 +61,36 @@ function DistrictHeaderCenter() {
   );
 }
 
+function EventHeaderCenter() {
+  const [matchesEvent, params] = useRoute('/districts/:districtId/events/:eventId');
+  const eventId = matchesEvent ? Number(params?.eventId) : 0;
+
+  const { data: event } = useGetEvent(eventId, {
+    query: { enabled: matchesEvent && eventId > 0, queryKey: getGetEventQueryKey(eventId) },
+  });
+
+  if (!matchesEvent) return null;
+
+  return (
+    <div className="absolute left-1/2 -translate-x-1/2 max-w-[45%] sm:max-w-[50%]">
+      {event ? (
+        <Link
+          href={`/districts/${params?.districtId}`}
+          className="flex items-center gap-1 min-w-0 rounded-sm hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group"
+          aria-label={event.customerName ?? undefined}
+        >
+          <ChevronLeft className="h-5 w-5 shrink-0" />
+          <span className="min-w-0 font-bold text-base sm:text-lg leading-none truncate group-hover:underline underline-offset-4">
+            {event.customerName}
+          </span>
+        </Link>
+      ) : (
+        <Skeleton className="h-6 w-32" />
+      )}
+    </div>
+  );
+}
+
 export function Header() {
   const { t, language, setLanguage } = useI18n();
   const { theme, setTheme } = useTheme();
@@ -72,6 +102,7 @@ export function Header() {
       <TruckDrive startRef={titleRef} endRef={langRef} />
       <div className="container relative flex h-14 items-center justify-between">
         <DistrictHeaderCenter />
+        <EventHeaderCenter />
         <Link href="/" ref={titleRef} className="flex items-center gap-2 mr-6 hover:opacity-90 transition-opacity">
           <img src={logoUrl} alt="Waste Connections" className="h-8 w-auto object-contain" />
           <span className="font-bold hidden sm:inline-block text-primary">

@@ -527,7 +527,6 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWi
   const [selectedImage, setSelectedImage] = useState<string>(event.imageUrl);
   const [open, setOpen] = useState(false);
   const [checkedNearby, setCheckedNearby] = useState<Set<number>>(new Set());
-  const [preChecked, setPreChecked] = useState(false);
 
   const toggleNearby = (id: number) => {
     setCheckedNearby(prev => {
@@ -541,7 +540,6 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWi
   useEffect(() => {
     if (!open) {
       setCheckedNearby(new Set());
-      setPreChecked(false);
     }
   }, [open]);
   const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -589,14 +587,6 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWi
     query: { enabled: open, queryKey: getGetEventQueryKey(event.id) }
   });
   const nearbyEvents = detail?.nearbyEvents;
-
-  // Pre-check server-suggested same-cluster duplicates once the detail loads
-  useEffect(() => {
-    if (!open || preChecked || !detail) return;
-    setCheckedNearby(new Set(suggestedDuplicateIds(detail.nearbyEvents)));
-    setPreChecked(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, detail]);
 
   // Forward-compatible with a multi-image data model (Task on detail page):
   // if the API exposes an image list use it, otherwise fall back to the single image.
