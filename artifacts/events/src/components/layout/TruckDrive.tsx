@@ -44,7 +44,7 @@ export function TruckDrive({ startRef, endRef }: {
         { transform: `translateX(${Math.max(distance - 24, 0)}px)`, opacity: 1, offset: 0.94 },
         { transform: `translateX(${Math.max(distance, 0)}px)`, opacity: 0 },
       ],
-      { duration: 9600, easing: 'linear' },
+      { duration: 9600, easing: 'linear', fill: 'forwards' },
     );
     anim.onfinish = () => { el.style.display = 'none'; };
     return () => anim.cancel();
@@ -59,7 +59,7 @@ export function TruckDrive({ startRef, endRef }: {
       alt=""
       aria-hidden="true"
       className="pointer-events-none fixed z-[100] h-12 w-auto"
-      style={{ display: 'none', left: coords.from, top: 4 }}
+      style={{ display: 'none', opacity: 0, left: coords.from, top: 4 }}
     />
   );
 }
