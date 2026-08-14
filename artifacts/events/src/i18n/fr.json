@@ -43,7 +43,10 @@
     "selected_count": "{{count}} sélectionnés",
     "all_districts": "Tous les districts",
     "page_info": "{{from}}–{{to}} sur {{total}}",
-    "per_page": "{{n}} / page"
+    "per_page": "{{n}} / page",
+    "stat_open": "Ouverts",
+    "stat_closed": "Fermés",
+    "stat_charged": "Facturé"
   },
   "event": {
     "detail": "Détail de l'Événement",

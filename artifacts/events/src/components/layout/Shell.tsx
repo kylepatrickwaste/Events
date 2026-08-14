@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useRoute, useLocation } from 'wouter';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Check, ChevronsUpDown, FileX2 } from 'lucide-react';
+import { Check, ChevronsUpDown, FileX2, AlertTriangle, CheckCircle2, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n, Language } from '@/i18n';
 import { useTheme } from '@/components/theme-provider';
@@ -11,8 +11,40 @@ import { Moon, Sun, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useListDistricts, getListDistrictsQueryKey, useGetEvent, getGetEventQueryKey } from '@workspace/api-client-react';
+import { useListDistricts, getListDistrictsQueryKey, useGetEvent, getGetEventQueryKey, useGetDistrictSummary, getGetDistrictSummaryQueryKey } from '@workspace/api-client-react';
 import { TruckDrive } from './TruckDrive';
+
+function HeaderDistrictStats() {
+  const { t, formatCurrency } = useI18n();
+  const [matchesDistrict, params] = useRoute('/districts/:districtId');
+  const districtId = matchesDistrict ? Number(params?.districtId) : 0;
+
+  const { data: summary } = useGetDistrictSummary(districtId, {
+    query: { enabled: matchesDistrict && districtId > 0, queryKey: getGetDistrictSummaryQueryKey(districtId) },
+  });
+
+  if (!matchesDistrict || !summary) return null;
+
+  return (
+    <div className="hidden md:flex items-center gap-2 shrink-0 text-xs">
+      <span className="flex items-center gap-1 rounded-md border bg-primary/5 border-primary/20 px-2 py-1">
+        <AlertTriangle className="h-3.5 w-3.5 text-primary" />
+        <span className="text-muted-foreground">{t('district.stat_open')}</span>
+        <span className="font-bold">{summary.openCount}</span>
+      </span>
+      <span className="flex items-center gap-1 rounded-md border px-2 py-1">
+        <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-muted-foreground">{t('district.stat_closed')}</span>
+        <span className="font-bold">{summary.closedCount}</span>
+      </span>
+      <span className="flex items-center gap-1 rounded-md border px-2 py-1">
+        <DollarSign className="h-3.5 w-3.5 text-success" />
+        <span className="text-muted-foreground">{t('district.stat_charged')}</span>
+        <span className="font-bold">{formatCurrency(summary.chargedToday || 0)}</span>
+      </span>
+    </div>
+  );
+}
 
 function DistrictHeaderCenter() {
   const { t } = useI18n();
@@ -186,6 +218,7 @@ export function Header() {
             {t('app.title')}
           </span>
         </Link>
+        <HeaderDistrictStats />
         <div className="flex flex-1 items-center justify-center min-w-0">
           <DistrictHeaderCenter />
           <EventHeaderCenter />

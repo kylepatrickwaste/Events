@@ -43,7 +43,10 @@
     "selected_count": "{{count}} seleccionados",
     "all_districts": "Todos los distritos",
     "page_info": "{{from}}–{{to}} de {{total}}",
-    "per_page": "{{n}} / página"
+    "per_page": "{{n}} / página",
+    "stat_open": "Abiertos",
+    "stat_closed": "Cerrados",
+    "stat_charged": "Cobrado"
   },
   "event": {
     "detail": "Detalle del Evento",

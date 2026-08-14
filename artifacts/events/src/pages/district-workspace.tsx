@@ -26,7 +26,7 @@ import { ChargeEventDialog, CloseEventDialog, BulkCloseDialog } from '@/componen
 import { OPEN_EXCLUDED_ACCOUNTS_EVENT } from '@/components/layout/Shell';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-const OPTIONAL_COLUMNS: Array<{ key: string; label: string }> = [
+const OPTIONAL_COLUMNS: Array<{ key: SortColumn; label: string }> = [
   { key: 'qty', label: 'Qty' },
   { key: 'binSerial', label: 'Serial#' },
   { key: 'stop', label: 'Stop' },
@@ -42,10 +42,18 @@ import { ContractAccountsDialog } from '@/components/contract-accounts-dialog';
 import { LAST_DISTRICT_KEY } from '@/pages/home';
 import { NearbyClusterPicker, suggestedDuplicateIds } from '@/components/nearby-cluster-picker';
 
-type SortColumn = 'status' | 'customer' | 'type' | 'severity' | 'date' | 'route';
+type SortColumn = 'status' | 'customer' | 'type' | 'severity' | 'date' | 'route' | 'qty' | 'binSerial' | 'stop' | 'wo' | 'address' | 'lob' | 'tabletNotes' | 'chgAmt' | 'prevChg' | 'prevTotal';
 
 // Higher rank = more severe; unknown/missing severities sort last
 const SEVERITY_RANK: Record<string, number> = { severe: 2, minimal: 1 };
+const sourceColor = (name: string | null | undefined) => {
+  const n = (name ?? '').toLowerCase().replace(/\s/g, '');
+  if (n.includes('3rdeye')) return 'text-red-600 dark:text-red-400';
+  if (n.includes('wastevision')) return 'text-blue-600 dark:text-blue-400';
+  if (n.includes('samsara')) return 'text-green-600 dark:text-green-400';
+  return 'text-muted-foreground';
+};
+
 const severityRank = (s: string | null | undefined) =>
   s ? (SEVERITY_RANK[s.toLowerCase()] ?? 0) : 0;
 
@@ -196,6 +204,26 @@ export default function DistrictWorkspace() {
           const byRoute = (a.route ?? '').localeCompare(b.route ?? '', undefined, { numeric: true });
           return byRoute !== 0 ? byRoute : (a.vehicle ?? '').localeCompare(b.vehicle ?? '', undefined, { numeric: true });
         }
+        case 'qty':
+          return (a.quantity ?? 0) - (b.quantity ?? 0);
+        case 'binSerial':
+          return (a.binSerialNumber ?? '').localeCompare(b.binSerialNumber ?? '', undefined, { numeric: true });
+        case 'stop':
+          return (a.stop ?? '').localeCompare(b.stop ?? '', undefined, { numeric: true });
+        case 'wo':
+          return (a.workOrderNumber ?? '').localeCompare(b.workOrderNumber ?? '', undefined, { numeric: true });
+        case 'address':
+          return (a.address ?? '').localeCompare(b.address ?? '');
+        case 'lob':
+          return (a.lob ?? '').localeCompare(b.lob ?? '');
+        case 'tabletNotes':
+          return (a.tabletNotes ?? '').localeCompare(b.tabletNotes ?? '');
+        case 'chgAmt':
+          return (a.chargedAmount ?? 0) - (b.chargedAmount ?? 0);
+        case 'prevChg':
+          return a.prevChargeCount - b.prevChargeCount;
+        case 'prevTotal':
+          return a.prevChargeTotal - b.prevChargeTotal;
       }
     };
     return [...events].sort((a, b) => dir * cmp(a, b));
@@ -246,30 +274,6 @@ export default function DistrictWorkspace() {
 
   return (
     <div className="w-full py-3 px-4">
-      <div className="flex flex-wrap items-center gap-3 mb-3">
-        <div className="flex items-center gap-2 rounded-lg border bg-primary/5 border-primary/20 px-3 py-1.5">
-          <AlertTriangle className="h-4 w-4 text-primary" />
-          <span className="text-xs font-medium text-muted-foreground">{t('district.open_events')}</span>
-          <span className="text-base font-bold text-foreground">
-            {isLoadingSummary ? <Skeleton className="h-5 w-8" /> : summary?.openCount || 0}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 rounded-lg border px-3 py-1.5">
-          <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground">{t('district.closed_events')}</span>
-          <span className="text-base font-bold text-foreground">
-            {isLoadingSummary ? <Skeleton className="h-5 w-8" /> : summary?.closedCount || 0}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 rounded-lg border px-3 py-1.5">
-          <DollarSign className="h-4 w-4 text-success" />
-          <span className="text-xs font-medium text-muted-foreground">{t('district.charged_today')}</span>
-          <span className="text-base font-bold text-foreground">
-            {isLoadingSummary ? <Skeleton className="h-5 w-8" /> : formatCurrency(summary?.chargedToday || 0)}
-          </span>
-        </div>
-      </div>
-
       <div className="flex flex-col sm:flex-row items-center gap-2 mb-3 w-full">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -363,9 +367,12 @@ export default function DistrictWorkspace() {
               <th className="px-3 py-2 text-left"><SortHeader label="Date Occurred" column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} /></th>
               <th className="px-3 py-2 text-left"><SortHeader label="Vehicle" column="route" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} /></th>
               {OPTIONAL_COLUMNS.filter(c => visibleCols.has(c.key)).map(c => (
-                <th key={c.key} className="px-3 py-2 text-left whitespace-nowrap">{c.label}</th>
+                <th key={c.key} className="px-3 py-2 text-left whitespace-nowrap">
+                  <SortHeader label={c.label} column={c.key} sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
+                </th>
               ))}
-              <th className="px-3 py-2 text-right">Photo</th>
+              <th className="sticky right-[124px] z-10 bg-background border-l px-2 py-2"></th>
+              <th className="sticky right-0 z-10 bg-background px-3 py-2 text-right w-[124px]">Photo</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -396,23 +403,23 @@ export default function DistrictWorkspace() {
                         onCheckedChange={(c) => toggleOne(event.id, c === true)}
                         aria-label={`Select ${event.customerName}`}
                       />
-                      <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20 border-0">{t('event.status_open')}</Badge>
+                      <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20 border-0 text-xs">{t('event.status_open')}</Badge>
                     </>
                   ) : (
                     <>
                       <span className="w-4" />
-                      <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30">{t('event.status_closed')}</Badge>
+                      <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 text-xs">{t('event.status_closed')}</Badge>
                     </>
                   )}
                   </div>
                 </td>
                 <td className="px-3 py-1.5 min-w-[180px]">
-                  <div className="font-medium group-hover:text-primary transition-colors line-clamp-1">{event.customerName}</div>
-                  <div className="text-sm text-muted-foreground font-mono">{event.accountNumber}</div>
+                  <div className="font-medium text-xs group-hover:text-primary transition-colors line-clamp-1">{event.customerName}</div>
+                  <div className="text-xs text-muted-foreground font-mono">{event.accountNumber}</div>
                 </td>
                 <td className="px-3 py-1.5">
-                  <div className="font-medium text-sm line-clamp-1">{event.eventTypeName}</div>
-                  <div className="text-xs text-muted-foreground">{event.eventSourceName}</div>
+                  <div className="font-medium text-xs line-clamp-1">{event.eventTypeName}</div>
+                  <div className={cn('text-xs', sourceColor(event.eventSourceName))}>{event.eventSourceName}</div>
                 </td>
                 <td className="px-3 py-1.5">
                   {event.severity ? (
@@ -432,7 +439,7 @@ export default function DistrictWorkspace() {
                   )}
                 </td>
                 <td className="px-3 py-1.5 whitespace-nowrap">
-                  <div className="text-sm flex items-center gap-1.5 text-muted-foreground">
+                  <div className="text-xs flex items-center gap-1.5 text-muted-foreground">
                     <Clock className="h-3.5 w-3.5" />
                     {formatDate(event.dateOccurred)}
                   </div>
@@ -451,19 +458,22 @@ export default function DistrictWorkspace() {
                 {visibleCols.has('chgAmt') && <td className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.chargedAmount != null ? formatCurrency(event.chargedAmount) : '—'}</td>}
                 {visibleCols.has('prevChg') && <td className="px-3 py-1.5 text-xs font-mono">{event.prevChargeCount}</td>}
                 {visibleCols.has('prevTotal') && <td className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{formatCurrency(event.prevChargeTotal)}</td>}
-                <td className="px-3 py-1.5" onClick={e => e.stopPropagation()}>
-                  <div className="flex items-center justify-end gap-2">
+                <td className="sticky right-[124px] z-10 bg-card border-l px-2 py-1.5" onClick={e => e.stopPropagation()}>
                   {event.eventStatus === 0 && (
                     <Button
                       size="sm"
                       variant="destructive"
-                      className="h-7 px-2"
+                      className="h-7 w-7 p-0"
                       onClick={() => setCloseEventId(event.id)}
+                      aria-label={t('preview.close')}
+                      title={t('preview.close')}
                     >
-                      <XCircle className="h-3.5 w-3.5 mr-1" />
-                      {t('preview.close')}
+                      <XCircle className="h-3.5 w-3.5" />
                     </Button>
                   )}
+                </td>
+                <td className="sticky right-0 z-10 bg-card px-3 py-1.5 w-[124px]" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-2">
                   {(event.imageUrls?.length ?? 0) > 0 && (
                     <span className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Camera className="h-3.5 w-3.5" />
