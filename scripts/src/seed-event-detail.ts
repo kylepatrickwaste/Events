@@ -9,10 +9,13 @@ import { db, routeEventsTable, eventActionsTable } from "@workspace/db";
 import { eq, and, like } from "drizzle-orm";
 
 const PHOTOS = [
-  "/event-photos/ev1.jpg",
-  "/event-photos/ev2.jpg",
-  "/event-photos/ev3.jpg",
-  "/event-photos/ev4.jpg",
+  "/event-photos/truck-cam-1.jpg",
+  "/event-photos/truck-cam-2.jpg",
+  "/event-photos/truck-cam-3.jpg",
+  "/event-photos/truck-cam-4.jpg",
+  "/event-photos/truck-cam-5.jpg",
+  "/event-photos/truck-cam-6.jpg",
+  "/event-photos/truck-cam-7.jpg",
 ];
 
 const SEED_TAG = "[seed:event-detail]";
