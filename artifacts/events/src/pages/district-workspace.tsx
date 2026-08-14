@@ -18,13 +18,51 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronLeft, Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2 } from 'lucide-react';
+import { ChevronLeft, Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ChargeEventDialog, CloseEventDialog, BulkCloseDialog } from '@/components/event-action-dialogs';
 import { ContractAccountsDialog } from '@/components/contract-accounts-dialog';
 import { LAST_DISTRICT_KEY } from '@/pages/home';
+
+type SortColumn = 'status' | 'customer' | 'type' | 'severity' | 'date' | 'route';
+
+// Higher rank = more severe; unknown/missing severities sort last
+const SEVERITY_RANK: Record<string, number> = { severe: 2, minimal: 1 };
+const severityRank = (s: string | null | undefined) =>
+  s ? (SEVERITY_RANK[s.toLowerCase()] ?? 0) : 0;
+
+function SortHeader({ label, column, sortColumn, sortDirection, onSort }: {
+  label: string;
+  column: SortColumn;
+  sortColumn: SortColumn | null;
+  sortDirection: 'asc' | 'desc';
+  onSort: (column: SortColumn) => void;
+}) {
+  const active = sortColumn === column;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(column)}
+      aria-label={`Sort by ${label}${active ? (sortDirection === 'asc' ? ', descending' : ', ascending') : ''}`}
+      aria-sort={active ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+      className={cn(
+        'flex items-center gap-1 uppercase tracking-wider text-xs font-semibold transition-colors hover:text-foreground',
+        active ? 'text-foreground' : 'text-muted-foreground'
+      )}
+    >
+      {label}
+      {active ? (
+        sortDirection === 'asc'
+          ? <ArrowUp className="h-3 w-3 shrink-0" />
+          : <ArrowDown className="h-3 w-3 shrink-0" />
+      ) : (
+        <ArrowUpDown className="h-3 w-3 shrink-0 opacity-40" />
+      )}
+    </button>
+  );
+}
 
 export default function DistrictWorkspace() {
   const [, params] = useRoute('/districts/:districtId');
@@ -43,6 +81,17 @@ export default function DistrictWorkspace() {
   const [chargeEventId, setChargeEventId] = useState<number | null>(null);
   const [closeEventId, setCloseEventId] = useState<number | null>(null);
   const [contractAccountsOpen, setContractAccountsOpen] = useState(false);
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
 
   // Remember this district as the last one visited
   useEffect(() => {
@@ -80,6 +129,34 @@ export default function DistrictWorkspace() {
     if (!summary) return [];
     return summary.byEventType.map(et => ({ id: et.eventTypeId, name: et.eventTypeName }));
   }, [summary]);
+
+  const sortedEvents = useMemo(() => {
+    if (!events) return events;
+    if (!sortColumn) return events;
+    const dir = sortDirection === 'asc' ? 1 : -1;
+    const cmp = (a: (typeof events)[number], b: (typeof events)[number]): number => {
+      switch (sortColumn) {
+        case 'status':
+          return a.eventStatus - b.eventStatus;
+        case 'customer':
+          return (a.customerName ?? '').localeCompare(b.customerName ?? '');
+        case 'type': {
+          const byType = (a.eventTypeName ?? '').localeCompare(b.eventTypeName ?? '');
+          return byType !== 0 ? byType : (a.eventSourceName ?? '').localeCompare(b.eventSourceName ?? '');
+        }
+        case 'severity':
+          // Ascending = most severe first (Severe before Minimal)
+          return severityRank(b.severity) - severityRank(a.severity);
+        case 'date':
+          return new Date(a.dateOccurred).getTime() - new Date(b.dateOccurred).getTime();
+        case 'route': {
+          const byRoute = (a.route ?? '').localeCompare(b.route ?? '', undefined, { numeric: true });
+          return byRoute !== 0 ? byRoute : (a.vehicle ?? '').localeCompare(b.vehicle ?? '', undefined, { numeric: true });
+        }
+      }
+    };
+    return [...events].sort((a, b) => dir * cmp(a, b));
+  }, [events, sortColumn, sortDirection]);
 
   const openEvents = useMemo(() => (events ?? []).filter(e => e.eventStatus === 0), [events]);
   const allOpenSelected = openEvents.length > 0 && openEvents.every(e => selectedIds.has(e.id));
@@ -271,13 +348,23 @@ export default function DistrictWorkspace() {
               disabled={openEvents.length === 0}
               aria-label={t('district.select_all')}
             />
-            <span>Status</span>
+            <SortHeader label="Status" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
           </div>
-          <div className="col-span-3">Customer</div>
-          <div className="col-span-2">Type / Source</div>
-          <div className="col-span-1">Severity</div>
-          <div className="col-span-2">Date Occurred</div>
-          <div className="col-span-1">Route / Vehicle</div>
+          <div className="col-span-3">
+            <SortHeader label="Customer" column="customer" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
+          </div>
+          <div className="col-span-2">
+            <SortHeader label="Type / Source" column="type" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
+          </div>
+          <div className="col-span-1">
+            <SortHeader label="Severity" column="severity" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
+          </div>
+          <div className="col-span-2">
+            <SortHeader label="Date Occurred" column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
+          </div>
+          <div className="col-span-1">
+            <SortHeader label="Route / Vehicle" column="route" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
+          </div>
           <div className="col-span-2 text-right">Photo</div>
         </div>
 
@@ -292,7 +379,7 @@ export default function DistrictWorkspace() {
           </div>
         ) : (
           <div className="divide-y">
-            {events?.map(event => (
+            {sortedEvents?.map(event => (
               <div
                 key={event.id}
                 onClick={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
