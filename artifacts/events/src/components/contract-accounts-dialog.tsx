@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { FileX2, Undo2 } from 'lucide-react';
+import { Undo2 } from 'lucide-react';
 
 export function ContractAccountsDialog({ open, onOpenChange, districtId, onUnflagged }: {
   open: boolean;
@@ -55,7 +55,6 @@ export function ContractAccountsDialog({ open, onOpenChange, districtId, onUnfla
           </div>
         ) : !flags || flags.length === 0 ? (
           <div className="py-10 text-center text-muted-foreground">
-            <FileX2 className="h-10 w-10 mx-auto mb-3 opacity-20" />
             <p>{t('contract_accounts.empty')}</p>
           </div>
         ) : (

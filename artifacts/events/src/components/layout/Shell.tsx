@@ -23,7 +23,7 @@ function DistrictHeaderCenter() {
   const district = districts?.find(d => d.id === districtId);
 
   return (
-    <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 max-w-[45%] sm:max-w-[50%]">
+    <div className="absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 max-w-[45%] sm:max-w-[50%]">
       <Link
         href="/?browse=1"
         className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -35,14 +35,14 @@ function DistrictHeaderCenter() {
       {district ? (
         <span className="flex items-center gap-2 min-w-0">
           <Link
-            href={`/districts/${district.id}`}
+            href="/?browse=1"
             className="min-w-0 rounded-sm font-bold text-base sm:text-lg leading-none truncate hover:text-primary hover:underline underline-offset-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={district.name}
           >
             {district.name}
           </Link>
           <Link
-            href={`/districts/${district.id}`}
+            href="/?browse=1"
             className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={`${district.name} ${district.number}`}
           >
@@ -72,7 +72,7 @@ function EventHeaderCenter() {
   if (!matchesEvent) return null;
 
   return (
-    <div className="absolute left-1/2 -translate-x-1/2 max-w-[45%] sm:max-w-[50%]">
+    <div className="absolute left-1/2 -translate-x-1/2 z-10 max-w-[45%] sm:max-w-[50%]">
       {event ? (
         <Link
           href={`/districts/${params?.districtId}`}

@@ -186,8 +186,8 @@
   },
   "contract_accounts": {
     "title": "Comptes exclus",
-    "description": "Comptes marqués « Contrat - Sans dépassements ». Leurs événements de dépassement sont masqués de la file. Supprimez un marquage pour faire réapparaître les événements du compte.",
-    "empty": "Aucun compte marqué sous contrat dans ce district",
+    "description": "Les comptes marqués comme exclus n'apparaîtront pas comme événements et sont masqués de cette file. Pour afficher ces événements, retirez-les de cette liste.",
+    "empty": "Aucun compte exclu dans ce district",
     "flagged_by": "Marqué par {{user}} le {{date}}",
     "remove": "Retirer le marquage",
     "removed": "Marquage retiré — les événements du compte {{account}} sont de retour dans la file",

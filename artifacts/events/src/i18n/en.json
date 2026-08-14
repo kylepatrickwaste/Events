@@ -186,8 +186,8 @@
   },
   "contract_accounts": {
     "title": "Excluded Accounts",
-    "description": "Accounts flagged as \"Contract - No Overages\". Their overage events are hidden from the queue. Remove a flag to bring the account's events back.",
-    "empty": "No contract-flagged accounts in this district",
+    "description": "Accounts flagged as excluded will not show up as events and are hidden from this queue. To show these events, remove them from this list.",
+    "empty": "No excluded accounts in this district",
     "flagged_by": "Flagged by {{user}} on {{date}}",
     "remove": "Remove flag",
     "removed": "Flag removed — events for account {{account}} are back in the queue",
