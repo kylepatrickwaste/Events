@@ -121,25 +121,7 @@ export default function EventDetailWorkspace() {
           <Button variant="ghost" size="icon" onClick={() => setLocation(`/districts/${districtId}`)}>
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">{event.customerName}</h1>
-              {isClosed ? (
-                <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground">
-                  <CheckCircle2 className="w-3 h-3 mr-1" />
-                  {t('event.status_closed')}
-                </Badge>
-              ) : (
-                <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-0">
-                  <AlertTriangle className="w-3 h-3 mr-1" />
-                  {t('event.status_open')}
-                </Badge>
-              )}
-            </div>
-            <div className="text-sm text-muted-foreground font-mono mt-1">
-              {t('event.account')}: {event.accountNumber}
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight">{event.customerName}</h1>
         </div>
 
         <div className="flex items-center gap-2">
@@ -168,14 +150,31 @@ export default function EventDetailWorkspace() {
           
           {/* Event Detail */}
           <Card className="shadow-sm overflow-hidden">
-            <CardHeader className={event.severity === 'Severe' ? 'bg-destructive' : 'bg-primary'}>
-              <CardTitle className={`text-lg ${event.severity === 'Severe' ? 'text-destructive-foreground' : 'text-primary-foreground'}`}>{t('event.detail')}</CardTitle>
+            <CardHeader className={`py-2 ${event.severity === 'Severe' ? 'bg-destructive' : 'bg-primary'}`}>
+              <CardTitle className={`text-sm ${event.severity === 'Severe' ? 'text-destructive-foreground' : 'text-primary-foreground'}`}>{t('event.detail')}</CardTitle>
             </CardHeader>
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-                <DetailRow label={t('event.occurred')} value={formatDate(event.dateOccurred)} icon={<Clock className="h-4 w-4" />} />
+            <CardContent className="py-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2 text-xs">
+                <DetailRow
+                  label={t('event.account')}
+                  value={
+                    <span className="flex items-center gap-2">
+                      <span className="font-mono">{event.accountNumber}</span>
+                      {isClosed ? (
+                        <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground text-[10px] px-1.5 py-0">
+                          {t('event.status_closed')}
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-0 text-[10px] px-1.5 py-0">
+                          {t('event.status_open')}
+                        </Badge>
+                      )}
+                    </span>
+                  }
+                />
+                <DetailRow label={t('event.occurred')} value={formatDate(event.dateOccurred)} />
                 <DetailRow label={t('event.source')} value={event.eventSourceName} />
-                <DetailRow label={t('district.address')} value={event.address} icon={<MapPin className="h-4 w-4" />} />
+                <DetailRow label={t('district.address')} value={event.address} />
                 <DetailRow label={t('event.vehicle')} value={event.vehicle} mono />
                 <DetailRow label={t('event.bin_serial')} value={event.binSerialNumber} mono />
                 <DetailRow 
@@ -221,11 +220,6 @@ export default function EventDetailWorkspace() {
               </div>
             )}
           </Card>
-
-          {/* Overage Statistics */}
-          {event.statistics && (
-            <OverageStatisticsTile stats={event.statistics} t={t} formatCurrency={formatCurrency} formatDate={formatDate} />
-          )}
 
           <Card className="shadow-sm">
             <CardHeader>
@@ -330,6 +324,11 @@ export default function EventDetailWorkspace() {
             </CardContent>
           </Card>
 
+          {/* Overage Statistics */}
+          {event.statistics && (
+            <OverageStatisticsTile stats={event.statistics} t={t} formatCurrency={formatCurrency} formatDate={formatDate} />
+          )}
+
           <Card className="shadow-sm flex-1 flex flex-col h-[600px]">
             <CardHeader className="border-b pb-4">
               <CardTitle className="text-lg">{t('event.history_and_notes')}</CardTitle>
@@ -416,52 +415,39 @@ function OverageStatisticsTile({ stats, t, formatCurrency, formatDate }: any) {
   return (
     <Card className="shadow-sm">
       <CardContent className="p-0">
-        <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x border-b bg-muted/10">
-           <div className="p-4 flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{t('event.statistics.customer_since')}</span>
-              <span className="font-mono text-sm">{stats.customerSince ? formatDate(stats.customerSince) : t('event.statistics.never')}</span>
+        <div className="grid grid-cols-3 divide-x border-b bg-muted/10">
+           <div className="p-2 flex flex-col gap-0.5">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('event.statistics.customer_since')}</span>
+              <span className="font-mono text-xs">{stats.customerSince ? formatDate(stats.customerSince) : t('event.statistics.never')}</span>
            </div>
-           <div className="p-4 flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{t('event.statistics.tenure')}</span>
-              <span className="font-mono text-sm">{renderTenure(stats.tenureMonths)}</span>
+           <div className="p-2 flex flex-col gap-0.5">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('event.statistics.tenure')}</span>
+              <span className="font-mono text-xs">{renderTenure(stats.tenureMonths)}</span>
            </div>
-           <div className="p-4 flex flex-col gap-1 md:col-span-2">
-              <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{t('event.statistics.last_charge')}</span>
-              <span className="font-mono text-sm">{stats.lastChargeDate ? formatDate(stats.lastChargeDate) : t('event.statistics.never')}</span>
+           <div className="p-2 flex flex-col gap-0.5">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('event.statistics.last_charge')}</span>
+              <span className="font-mono text-xs">{stats.lastChargeDate ? formatDate(stats.lastChargeDate) : t('event.statistics.never')}</span>
            </div>
         </div>
         <div className="divide-y bg-card">
            {stats.windows.map((w: any) => (
-             <div key={w.days} className="px-4 py-3 flex items-center gap-4">
-               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest w-16 shrink-0">{t(`event.statistics.days_${w.days}` as any)}</span>
-               <div className="flex gap-6 w-full justify-evenly">
-                 <div className="flex flex-col items-center">
-                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('event.statistics.events')}</span>
-                   <span className="text-destructive font-bold text-lg leading-none">{w.eventsCount}</span>
-                 </div>
-                 <div className="w-px h-8 bg-border/50" />
-                 <div className="flex flex-col items-center">
-                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('event.statistics.charged')}</span>
-                   <div className="flex items-baseline gap-1">
-                     <span className="text-destructive font-bold text-lg leading-none">{w.chargedCount}</span>
-                     <span className="text-muted-foreground/50 text-xs">/</span>
-                     <span className="text-success font-bold text-base leading-none">{formatCurrency(w.chargedAmount)}</span>
-                   </div>
-                 </div>
-                 <div className="w-px h-8 bg-border/50" />
-                 <div className="flex flex-col items-center">
-                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('event.statistics.refunded')}</span>
-                   <div className="flex items-baseline gap-1">
-                     <span className="text-destructive font-bold text-lg leading-none">{w.refundedCount}</span>
-                     <span className="text-muted-foreground/50 text-xs">/</span>
-                     <span className="text-success font-bold text-base leading-none">{formatCurrency(w.refundedAmount)}</span>
-                   </div>
-                 </div>
-                 <div className="w-px h-8 bg-border/50" />
-                 <div className="flex flex-col items-center">
-                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('event.statistics.net_paid')}</span>
-                   <span className="text-success font-bold text-lg leading-none">{formatCurrency(w.netPaid)}</span>
-                 </div>
+             <div key={w.days} className="px-3 py-1.5 flex items-center gap-3">
+               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest w-12 shrink-0">{t(`event.statistics.days_${w.days}` as any)}</span>
+               <div className="flex gap-3 w-full justify-between text-xs">
+                 <span title={t('event.statistics.events')}>
+                   <span className="text-destructive font-bold">{w.eventsCount}</span>
+                 </span>
+                 <span title={t('event.statistics.charged')}>
+                   <span className="text-destructive font-bold">{w.chargedCount}</span>
+                   <span className="text-muted-foreground/50"> / </span>
+                   <span className="text-success font-bold">{formatCurrency(w.chargedAmount)}</span>
+                 </span>
+                 <span title={t('event.statistics.refunded')}>
+                   <span className="text-destructive font-bold">{w.refundedCount}</span>
+                   <span className="text-muted-foreground/50"> / </span>
+                   <span className="text-success font-bold">{formatCurrency(w.refundedAmount)}</span>
+                 </span>
+                 <span title={t('event.statistics.net_paid')} className="text-success font-bold">{formatCurrency(w.netPaid)}</span>
                </div>
              </div>
            ))}
