@@ -18,12 +18,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, DoorOpen } from 'lucide-react';
+import { Search, Clock, Columns3, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, DoorOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ChargeEventDialog, CloseEventDialog, BulkCloseDialog } from '@/components/event-action-dialogs';
 import { OPEN_EXCLUDED_ACCOUNTS_EVENT } from '@/components/layout/Shell';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
+const OPTIONAL_COLUMNS: Array<{ key: string; label: string }> = [
+  { key: 'qty', label: 'Qty' },
+  { key: 'binSerial', label: 'Serial#' },
+  { key: 'stop', label: 'Stop' },
+  { key: 'wo', label: 'WO#' },
+  { key: 'address', label: 'Address' },
+  { key: 'lob', label: 'LOB' },
+  { key: 'tabletNotes', label: 'Tablet Notes' },
+  { key: 'chgAmt', label: 'Chg. Amt' },
+  { key: 'prevChg', label: 'Prev. Chg' },
+  { key: 'prevTotal', label: 'Prev. Total' },
+];
 import { ContractAccountsDialog } from '@/components/contract-accounts-dialog';
 import { LAST_DISTRICT_KEY } from '@/pages/home';
 import { NearbyClusterPicker, suggestedDuplicateIds } from '@/components/nearby-cluster-picker';
@@ -86,6 +100,22 @@ export default function DistrictWorkspace() {
   const [closeEventId, setCloseEventId] = useState<number | null>(null);
   const [closeNearbyPreset, setCloseNearbyPreset] = useState<number[]>([]);
   const [contractAccountsOpen, setContractAccountsOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('grid-columns');
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
+  const toggleCol = (key: string) => {
+    setVisibleCols(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      try { localStorage.setItem('grid-columns', JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     const handler = () => setContractAccountsOpen(true);
@@ -112,6 +142,7 @@ export default function DistrictWorkspace() {
   // Reset selection when district or filters change
   useEffect(() => {
     setSelectedIds(new Set());
+    setPage(1);
   }, [districtId, statusFilter, typeFilter, severityFilter, search]);
 
   const { data: districts } = useListDistricts({ query: { queryKey: getListDistrictsQueryKey() }});
@@ -169,6 +200,13 @@ export default function DistrictWorkspace() {
     };
     return [...events].sort((a, b) => dir * cmp(a, b));
   }, [events, sortColumn, sortDirection]);
+
+  const totalPages = Math.max(1, Math.ceil((sortedEvents?.length ?? 0) / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedEvents = useMemo(
+    () => sortedEvents?.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [sortedEvents, currentPage, pageSize]
+  );
 
   const openEvents = useMemo(() => (events ?? []).filter(e => e.eventStatus === 0), [events]);
   const allOpenSelected = openEvents.length > 0 && openEvents.every(e => selectedIds.has(e.id));
@@ -280,55 +318,77 @@ export default function DistrictWorkspace() {
               {t('district.close_selected')} ({selectedIds.size})
             </Button>
           )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full sm:w-auto sm:ml-auto">
+                <Columns3 className="h-4 w-4 mr-2" />
+                {t('district.columns')}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {OPTIONAL_COLUMNS.map(c => (
+                <DropdownMenuCheckboxItem
+                  key={c.key}
+                  checked={visibleCols.has(c.key)}
+                  onCheckedChange={() => toggleCol(c.key)}
+                  onSelect={e => e.preventDefault()}
+                >
+                  {c.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
       </div>
 
       <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
-        <div className="grid grid-cols-12 gap-4 px-3 py-2 border-b bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground items-center">
-          <div className="col-span-1 flex items-center gap-3">
-            <Checkbox
-              checked={allOpenSelected}
-              onCheckedChange={(c) => toggleAll(c === true)}
-              disabled={openEvents.length === 0}
-              aria-label={t('district.select_all')}
-            />
-            <SortHeader label="Status" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
-          </div>
-          <div className="col-span-3">
-            <SortHeader label="Customer" column="customer" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
-          </div>
-          <div className="col-span-2">
-            <SortHeader label="Type / Source" column="type" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
-          </div>
-          <div className="col-span-1">
-            <SortHeader label="Severity" column="severity" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
-          </div>
-          <div className="col-span-2">
-            <SortHeader label="Date Occurred" column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
-          </div>
-          <div className="col-span-1">
-            <SortHeader label="Vehicle" column="route" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
-          </div>
-          <div className="col-span-2 text-right">Photo</div>
-        </div>
-
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <th className="px-3 py-2 text-left">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    checked={allOpenSelected}
+                    onCheckedChange={(c) => toggleAll(c === true)}
+                    disabled={openEvents.length === 0}
+                    aria-label={t('district.select_all')}
+                  />
+                  <SortHeader label="Status" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
+                </div>
+              </th>
+              <th className="px-3 py-2 text-left"><SortHeader label="Customer" column="customer" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} /></th>
+              <th className="px-3 py-2 text-left"><SortHeader label="Type / Source" column="type" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} /></th>
+              <th className="px-3 py-2 text-left"><SortHeader label="Severity" column="severity" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} /></th>
+              <th className="px-3 py-2 text-left"><SortHeader label="Date Occurred" column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} /></th>
+              <th className="px-3 py-2 text-left"><SortHeader label="Vehicle" column="route" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} /></th>
+              {OPTIONAL_COLUMNS.filter(c => visibleCols.has(c.key)).map(c => (
+                <th key={c.key} className="px-3 py-2 text-left whitespace-nowrap">{c.label}</th>
+              ))}
+              <th className="px-3 py-2 text-right">Photo</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
         {isLoadingEvents ? (
-          <div className="p-4 space-y-4">
-            {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-16 w-full" />)}
-          </div>
+          <tr><td colSpan={99} className="p-4">
+            <div className="space-y-4">
+              {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+            </div>
+          </td></tr>
         ) : events?.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground">
+          <tr><td colSpan={99} className="p-12 text-center text-muted-foreground">
             <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-20" />
             <p className="text-lg">{t('district.no_events')}</p>
-          </div>
+          </td></tr>
         ) : (
-          <div className="divide-y">
-            {sortedEvents?.map(event => (
-              <div
+            pagedEvents?.map(event => (
+              <tr
                 key={event.id}
                 onClick={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
-                className="grid grid-cols-12 gap-4 px-3 py-1.5 items-center hover:bg-muted/30 cursor-pointer transition-colors group"
+                className="hover:bg-muted/30 cursor-pointer transition-colors group"
               >
-                <div className="col-span-1 flex items-center gap-3" onClick={e => e.stopPropagation()}>
+                <td className="px-3 py-1.5" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-3">
                   {event.eventStatus === 0 ? (
                     <>
                       <Checkbox
@@ -344,16 +404,17 @@ export default function DistrictWorkspace() {
                       <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30">{t('event.status_closed')}</Badge>
                     </>
                   )}
-                </div>
-                <div className="col-span-3">
+                  </div>
+                </td>
+                <td className="px-3 py-1.5 min-w-[180px]">
                   <div className="font-medium group-hover:text-primary transition-colors line-clamp-1">{event.customerName}</div>
                   <div className="text-sm text-muted-foreground font-mono">{event.accountNumber}</div>
-                </div>
-                <div className="col-span-2">
+                </td>
+                <td className="px-3 py-1.5">
                   <div className="font-medium text-sm line-clamp-1">{event.eventTypeName}</div>
                   <div className="text-xs text-muted-foreground">{event.eventSourceName}</div>
-                </div>
-                <div className="col-span-1">
+                </td>
+                <td className="px-3 py-1.5">
                   {event.severity ? (
                     <Badge
                       variant="outline"
@@ -369,18 +430,29 @@ export default function DistrictWorkspace() {
                   ) : (
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
-                </div>
-                <div className="col-span-2">
+                </td>
+                <td className="px-3 py-1.5 whitespace-nowrap">
                   <div className="text-sm flex items-center gap-1.5 text-muted-foreground">
                     <Clock className="h-3.5 w-3.5" />
                     {formatDate(event.dateOccurred)}
                   </div>
-                </div>
-                <div className="col-span-1 text-sm">
+                </td>
+                <td className="px-3 py-1.5">
                   <div className="font-mono text-xs">{event.route}</div>
                   <div className="text-muted-foreground font-mono text-xs">{event.vehicle}</div>
-                </div>
-                <div className="col-span-2 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                </td>
+                {visibleCols.has('qty') && <td className="px-3 py-1.5 text-xs font-mono">{event.quantity ?? '—'}</td>}
+                {visibleCols.has('binSerial') && <td className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.binSerialNumber ?? '—'}</td>}
+                {visibleCols.has('stop') && <td className="px-3 py-1.5 text-xs font-mono">{event.stop ?? '—'}</td>}
+                {visibleCols.has('wo') && <td className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.workOrderNumber ?? '—'}</td>}
+                {visibleCols.has('address') && <td className="px-3 py-1.5 text-xs min-w-[160px]">{event.address}</td>}
+                {visibleCols.has('lob') && <td className="px-3 py-1.5 text-xs">{event.lob ?? '—'}</td>}
+                {visibleCols.has('tabletNotes') && <td className="px-3 py-1.5 text-xs min-w-[140px]">{event.tabletNotes ?? '—'}</td>}
+                {visibleCols.has('chgAmt') && <td className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.chargedAmount != null ? formatCurrency(event.chargedAmount) : '—'}</td>}
+                {visibleCols.has('prevChg') && <td className="px-3 py-1.5 text-xs font-mono">{event.prevChargeCount}</td>}
+                {visibleCols.has('prevTotal') && <td className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{formatCurrency(event.prevChargeTotal)}</td>}
+                <td className="px-3 py-1.5" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-2">
                   {event.eventStatus === 0 && (
                     <Button
                       size="sm"
@@ -410,9 +482,58 @@ export default function DistrictWorkspace() {
                   ) : (
                     <span className="text-xs text-muted-foreground italic">{t('event.no_photo')}</span>
                   )}
-                </div>
-              </div>
-            ))}
+                  </div>
+                </td>
+              </tr>
+            ))
+        )}
+          </tbody>
+        </table>
+        </div>
+        {(sortedEvents?.length ?? 0) > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 py-2 border-t bg-muted/20 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span>
+                {t('district.page_info', {
+                  from: (currentPage - 1) * pageSize + 1,
+                  to: Math.min(currentPage * pageSize, sortedEvents?.length ?? 0),
+                  total: sortedEvents?.length ?? 0,
+                })}
+              </span>
+              <Select value={String(pageSize)} onValueChange={v => { setPageSize(Number(v)); setPage(1); }}>
+                <SelectTrigger className="h-7 w-[110px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50, 100].map(n => (
+                    <SelectItem key={n} value={String(n)}>{t('district.per_page', { n })}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-7 px-2" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                .map((p, idx, arr) => (
+                  <React.Fragment key={p}>
+                    {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-muted-foreground">…</span>}
+                    <Button
+                      variant={p === currentPage ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 min-w-7 px-2"
+                      onClick={() => setPage(p)}
+                    >
+                      {p}
+                    </Button>
+                  </React.Fragment>
+                ))}
+              <Button variant="outline" size="sm" className="h-7 px-2" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
       </div>

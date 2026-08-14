@@ -16,6 +16,7 @@
     "french": "français"
   },
   "district": {
+    "columns": "Columnas",
     "summary": "Resumen",
     "open_events": "Eventos Abiertos",
     "closed_events": "Eventos Cerrados",
@@ -40,7 +41,9 @@
     "select_all": "Seleccionar todo",
     "close_selected": "Cerrar seleccionados",
     "selected_count": "{{count}} seleccionados",
-    "all_districts": "Todos los distritos"
+    "all_districts": "Todos los distritos",
+    "page_info": "{{from}}–{{to}} de {{total}}",
+    "per_page": "{{n}} / página"
   },
   "event": {
     "detail": "Detalle del Evento",
@@ -113,9 +116,13 @@
       "offset_min_after": "{{m}}m después",
       "offset_min_before": "{{m}}m antes"
     },
-    "simulate_charge": "Simular $1000 cobrados en el día"
+    "simulate_charge": "Simular $1000 cobrados en el día",
+    "event_type": "Evento",
+    "details_field": "Detalles",
+    "quantity": "Cantidad",
+    "latitude": "Latitud",
+    "longitude": "Longitud"
   },
-
   "nearby_picker": {
     "label": "Duplicados cercanos — marque para descartar con esta acción",
     "suggested": "Posible duplicado",

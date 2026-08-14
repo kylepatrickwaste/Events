@@ -175,6 +175,14 @@ export default function EventDetailWorkspace() {
                 <DetailRow label={t('district.address')} value={event.address} />
                 <DetailRow label={t('event.vehicle')} value={event.vehicle} mono />
                 <DetailRow label={t('event.bin_serial')} value={event.binSerialNumber} mono />
+                <DetailRow label={t('event.event_type')} value={event.eventTypeName} />
+                <DetailRow label={t('event.details_field')} value={event.details} />
+                <DetailRow label={t('event.quantity')} value={event.quantity != null ? String(event.quantity) : null} mono />
+                <DetailRow label={t('event.bill_area')} value={event.billArea} mono />
+                <DetailRow label={t('event.lob')} value={event.lob} />
+                <DetailRow label={t('event.route')} value={event.route} mono />
+                <DetailRow label={t('event.latitude')} value={event.latitude != null ? event.latitude.toFixed(6) : null} mono />
+                <DetailRow label={t('event.longitude')} value={event.longitude != null ? event.longitude.toFixed(6) : null} mono />
                 {isClosed && event.closedBy && (
                   <DetailRow label={t('event.closed_by')} value={`${event.closedBy} on ${formatDate(event.dateClosed || '')}`} />
                 )}

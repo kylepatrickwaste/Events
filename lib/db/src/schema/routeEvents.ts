@@ -8,6 +8,7 @@ import {
   doublePrecision,
   timestamp,
   jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -45,6 +46,10 @@ export const routeEventsTable = pgTable("route_events", {
   binSerialNumber: text("bin_serial_number"),
   lob: text("lob"),
   rmoStatus: text("rmo_status"),
+  details: text("details"),
+  stop: text("stop"),
+  workOrderNumber: text("work_order_number"),
+  tabletNotes: text("tablet_notes"),
   quantity: numeric("quantity", { precision: 9, scale: 2 }),
   imageUrl: text("image_url"),
   // additional photos of the event; imageUrl remains the primary/original image
@@ -60,7 +65,9 @@ export const routeEventsTable = pgTable("route_events", {
     .$type<CustomerRouteJson[]>()
     .notNull()
     .default([]),
-});
+}, (t) => [
+  index("route_events_account_date_idx").on(t.accountNumber, t.dateOccurred),
+]);
 
 export const eventActionsTable = pgTable("event_actions", {
   id: serial("id").primaryKey(),
@@ -84,7 +91,9 @@ export const eventActionsTable = pgTable("event_actions", {
   dateCreated: timestamp("date_created", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => [
+  index("event_actions_route_event_idx").on(t.routeEventId),
+]);
 
 export const insertRouteEventSchema = createInsertSchema(
   routeEventsTable,

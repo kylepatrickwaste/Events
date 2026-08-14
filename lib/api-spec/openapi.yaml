@@ -417,6 +417,14 @@ components:
         accountNumber: { type: string }
         address: { type: string }
         quantity: { type: ["number", "null"] }
+        binSerialNumber: { type: ["string", "null"] }
+        lob: { type: ["string", "null"] }
+        stop: { type: ["string", "null"] }
+        workOrderNumber: { type: ["string", "null"] }
+        tabletNotes: { type: ["string", "null"] }
+        chargedAmount: { type: ["number", "null"], description: "Total charged on this event" }
+        prevChargeCount: { type: integer, description: "Number of prior charges on the account (before this event)" }
+        prevChargeTotal: { type: number, description: "Total amount of prior charges on the account (before this event)" }
         imageUrl: { type: ["string", "null"] }
         imageUrls:
           type: array
@@ -426,7 +434,7 @@ components:
         dateClosed: { type: ["string", "null"] }
         closedBy: { type: ["string", "null"] }
       required:
-        [id, districtId, eventTypeId, eventTypeName, eventSourceName, dateOccurred, vehicle, route, customerName, accountNumber, address, eventStatus, imageUrls]
+        [id, districtId, eventTypeId, eventTypeName, eventSourceName, dateOccurred, vehicle, route, customerName, accountNumber, address, eventStatus, imageUrls, prevChargeCount, prevChargeTotal]
     CustomerRoute:
       type: object
       required: [code, service, material, day]
@@ -517,6 +525,10 @@ components:
         binSerialNumber: { type: ["string", "null"] }
         lob: { type: ["string", "null"] }
         rmoStatus: { type: ["string", "null"] }
+        details: { type: ["string", "null"] }
+        stop: { type: ["string", "null"] }
+        workOrderNumber: { type: ["string", "null"] }
+        tabletNotes: { type: ["string", "null"] }
         quantity: { type: ["number", "null"] }
         imageUrl: { type: ["string", "null"] }
         imageUrls:

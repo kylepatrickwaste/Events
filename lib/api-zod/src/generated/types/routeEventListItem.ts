@@ -21,6 +21,25 @@ export interface RouteEventListItem {
   /** @nullable */
   quantity?: number | null;
   /** @nullable */
+  binSerialNumber?: string | null;
+  /** @nullable */
+  lob?: string | null;
+  /** @nullable */
+  stop?: string | null;
+  /** @nullable */
+  workOrderNumber?: string | null;
+  /** @nullable */
+  tabletNotes?: string | null;
+  /**
+     * Total charged on this event
+     * @nullable
+     */
+  chargedAmount?: number | null;
+  /** Number of prior charges on the account (before this event) */
+  prevChargeCount: number;
+  /** Total amount of prior charges on the account (before this event) */
+  prevChargeTotal: number;
+  /** @nullable */
   imageUrl?: string | null;
   imageUrls: string[];
   /**

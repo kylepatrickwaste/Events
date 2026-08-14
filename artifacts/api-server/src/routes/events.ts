@@ -102,6 +102,7 @@ function serializeListItem(
   e: typeof routeEventsTable.$inferSelect,
   eventTypeName: string,
   eventSourceName: string,
+  charges?: { chargedAmount: number | null; prevChargeCount: number; prevChargeTotal: number },
 ) {
   return {
     id: e.id,
@@ -116,6 +117,14 @@ function serializeListItem(
     accountNumber: e.accountNumber,
     address: e.address,
     quantity: e.quantity === null ? null : Number(e.quantity),
+    binSerialNumber: e.binSerialNumber,
+    lob: e.lob,
+    stop: e.stop,
+    workOrderNumber: e.workOrderNumber,
+    tabletNotes: e.tabletNotes,
+    chargedAmount: charges?.chargedAmount ?? null,
+    prevChargeCount: charges?.prevChargeCount ?? 0,
+    prevChargeTotal: charges?.prevChargeTotal ?? 0,
     imageUrl: e.imageUrl,
     imageUrls: allImages(e),
     severity: e.severity,
@@ -344,6 +353,28 @@ router.get("/events", async (req, res): Promise<void> => {
       event: routeEventsTable,
       eventTypeName: eventTypesTable.name,
       eventSourceName: eventSourcesTable.name,
+      chargedAmount: sql<string | null>`(
+        SELECT sum(ea.charge_amount * coalesce(ea.charge_quantity, 1))
+        FROM event_actions ea
+        WHERE ea.route_event_id = ${routeEventsTable.id}
+          AND ea.action_type = 'charge'
+      )`,
+      prevChargeCount: sql<number>`(
+        SELECT count(*)::int
+        FROM event_actions ea
+        JOIN route_events re2 ON re2.id = ea.route_event_id
+        WHERE re2.account_number = ${routeEventsTable.accountNumber}
+          AND ea.action_type = 'charge'
+          AND re2.date_occurred < ${routeEventsTable.dateOccurred}
+      )`,
+      prevChargeTotal: sql<string | null>`(
+        SELECT sum(ea.charge_amount * coalesce(ea.charge_quantity, 1))
+        FROM event_actions ea
+        JOIN route_events re2 ON re2.id = ea.route_event_id
+        WHERE re2.account_number = ${routeEventsTable.accountNumber}
+          AND ea.action_type = 'charge'
+          AND re2.date_occurred < ${routeEventsTable.dateOccurred}
+      )`,
     })
     .from(routeEventsTable)
     .innerJoin(
@@ -360,7 +391,11 @@ router.get("/events", async (req, res): Promise<void> => {
   res.json(
     ListEventsResponse.parse(
       rows.map((r) =>
-        serializeListItem(r.event, r.eventTypeName, r.eventSourceName),
+        serializeListItem(r.event, r.eventTypeName, r.eventSourceName, {
+          chargedAmount: r.chargedAmount === null ? null : Number(r.chargedAmount),
+          prevChargeCount: r.prevChargeCount,
+          prevChargeTotal: r.prevChargeTotal === null ? 0 : Number(r.prevChargeTotal),
+        }),
       ),
     ),
   );
@@ -608,6 +643,7 @@ async function loadEventDetail(eventId: number) {
     binSerialNumber: e.binSerialNumber,
     lob: e.lob,
     rmoStatus: e.rmoStatus,
+    details: e.details,
     latitude: e.latitude,
     longitude: e.longitude,
     routes: e.customerRoutes,

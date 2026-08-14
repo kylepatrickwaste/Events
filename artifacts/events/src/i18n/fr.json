@@ -16,6 +16,7 @@
     "french": "français"
   },
   "district": {
+    "columns": "Colonnes",
     "summary": "Résumé",
     "open_events": "Événements Ouverts",
     "closed_events": "Événements Fermés",
@@ -40,7 +41,9 @@
     "select_all": "Tout sélectionner",
     "close_selected": "Fermer la sélection",
     "selected_count": "{{count}} sélectionnés",
-    "all_districts": "Tous les districts"
+    "all_districts": "Tous les districts",
+    "page_info": "{{from}}–{{to}} sur {{total}}",
+    "per_page": "{{n}} / page"
   },
   "event": {
     "detail": "Détail de l'Événement",
@@ -113,9 +116,13 @@
       "offset_min_after": "{{m}}m après",
       "offset_min_before": "{{m}}m avant"
     },
-    "simulate_charge": "Simuler 1000 $ facturés pour la journée"
+    "simulate_charge": "Simuler 1000 $ facturés pour la journée",
+    "event_type": "Événement",
+    "details_field": "Détails",
+    "quantity": "Quantité",
+    "latitude": "Latitude",
+    "longitude": "Longitude"
   },
-
   "nearby_picker": {
     "label": "Doublons à proximité — cochez pour les rejeter avec cette action",
     "suggested": "Doublon probable",

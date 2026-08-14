@@ -16,6 +16,7 @@
     "french": "français"
   },
   "district": {
+    "columns": "Columns",
     "summary": "Summary",
     "open_events": "Open Events",
     "closed_events": "Closed Events",
@@ -40,7 +41,9 @@
     "select_all": "Select all",
     "close_selected": "Close selected",
     "selected_count": "{{count}} selected",
-    "all_districts": "All districts"
+    "all_districts": "All districts",
+    "page_info": "{{from}}–{{to}} of {{total}}",
+    "per_page": "{{n}} / page"
   },
   "event": {
     "detail": "Event Detail",
@@ -113,9 +116,13 @@
       "offset_min_after": "{{m}}m after",
       "offset_min_before": "{{m}}m before"
     },
-    "simulate_charge": "Simulate $1000 charged for the day"
+    "simulate_charge": "Simulate $1000 charged for the day",
+    "event_type": "Event",
+    "details_field": "Details",
+    "quantity": "Quantity",
+    "latitude": "Latitude",
+    "longitude": "Longitude"
   },
-
   "nearby_picker": {
     "label": "Nearby duplicates — check to dismiss with this action",
     "suggested": "Likely duplicate",

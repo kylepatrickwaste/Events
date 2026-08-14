@@ -35,6 +35,14 @@ export interface RouteEventDetail {
   /** @nullable */
   rmoStatus?: string | null;
   /** @nullable */
+  details?: string | null;
+  /** @nullable */
+  stop?: string | null;
+  /** @nullable */
+  workOrderNumber?: string | null;
+  /** @nullable */
+  tabletNotes?: string | null;
+  /** @nullable */
   quantity?: number | null;
   /** @nullable */
   imageUrl?: string | null;

@@ -27,7 +27,7 @@ function DistrictHeaderCenter() {
   const district = districts?.find(d => d.id === districtId);
 
   return (
-    <div className="absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 max-w-[45%] sm:max-w-[50%]">
+    <div className="flex items-center gap-1 min-w-0 max-w-full">
       <Link
         href="/?browse=1"
         className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -76,7 +76,7 @@ function EventHeaderCenter() {
   if (!matchesEvent) return null;
 
   return (
-    <div className="absolute left-1/2 -translate-x-1/2 z-10 max-w-[45%] sm:max-w-[50%]">
+    <div className="min-w-0 max-w-full">
       {event ? (
         <Link
           href={`/districts/${params?.districtId}`}
@@ -179,16 +179,18 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background shadow-sm">
       <TruckDrive startRef={titleRef} endRef={langRef} />
-      <div className="container relative flex h-14 items-center justify-between">
-        <DistrictHeaderCenter />
-        <EventHeaderCenter />
-        <Link href="/" ref={titleRef} className="flex items-center gap-2 mr-6 hover:opacity-90 transition-opacity">
+      <div className="container relative flex h-14 items-center gap-4">
+        <Link href="/" ref={titleRef} className="flex shrink-0 items-center gap-2 hover:opacity-90 transition-opacity">
           <img src={logoUrl} alt="Waste Connections" className="h-8 w-auto object-contain" />
           <span className="font-bold hidden sm:inline-block text-primary">
             {t('app.title')}
           </span>
         </Link>
-        <div className="flex flex-1 items-center justify-end space-x-4">
+        <div className="flex flex-1 items-center justify-center min-w-0">
+          <DistrictHeaderCenter />
+          <EventHeaderCenter />
+        </div>
+        <div className="flex shrink-0 items-center justify-end space-x-4">
           <HeaderExcludedAccountsButton />
           <HeaderDistrictSwitcher />
           <div ref={langRef} className="flex items-center space-x-1 text-sm text-muted-foreground">
@@ -229,42 +231,6 @@ export function Header() {
   );
 }
 
-export function Footer() {
-  const { t, setLanguage, language } = useI18n();
-
-  return (
-    <footer className="border-t bg-muted/40 py-6 mt-auto">
-      <div className="container flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="text-sm text-muted-foreground">
-          © 2026 Waste Connections
-        </div>
-        <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-          <button 
-            onClick={() => setLanguage('en')}
-            className={`hover:text-foreground transition-colors ${language === 'en' ? 'text-foreground font-semibold' : ''}`}
-          >
-            {t('nav.english')}
-          </button>
-          <span>|</span>
-          <button 
-            onClick={() => setLanguage('es')}
-            className={`hover:text-foreground transition-colors ${language === 'es' ? 'text-foreground font-semibold' : ''}`}
-          >
-            {t('nav.spanish')}
-          </button>
-          <span>|</span>
-          <button 
-            onClick={() => setLanguage('fr')}
-            className={`hover:text-foreground transition-colors ${language === 'fr' ? 'text-foreground font-semibold' : ''}`}
-          >
-            {t('nav.french')}
-          </button>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background">
@@ -272,7 +238,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <main className="flex-1">
         {children}
       </main>
-      <Footer />
     </div>
   );
 }
