@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useRoute, useLocation } from 'wouter';
+import React, { useState, useEffect } from 'react';
+import { useRoute, useLocation, Link } from 'wouter';
 import {
   useGetEvent, getGetEventQueryKey,
   useAddEventNote,
@@ -10,14 +10,12 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -28,17 +26,17 @@ import {
   Clock,
   Camera,
   AlertTriangle,
-  FileText,
   DollarSign,
   Mail,
   XCircle,
   Copy,
   CheckCircle2,
   Send,
-  MessageSquare
+  MessageSquare,
+  Images
 } from 'lucide-react';
 import { z } from 'zod';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
@@ -66,11 +64,15 @@ export default function EventDetailWorkspace() {
   const [emailOpen, setEmailOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
 
-  // Mutations
-  const addNote = useAddEventNote();
-  const chargeEvent = useChargeEvent();
-  const emailEvent = useEmailEvent();
-  const closeEvent = useCloseEvent();
+  // Interaction States
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [checkedNearby, setCheckedNearby] = useState<Set<number>>(new Set());
+
+  // Reset local state when eventId changes
+  useEffect(() => {
+    setSelectedImage(null);
+    setCheckedNearby(new Set());
+  }, [eventId]);
 
   const handleActionSuccess = () => {
     queryClient.invalidateQueries({ queryKey: getGetEventQueryKey(eventId) });
@@ -85,10 +87,29 @@ export default function EventDetailWorkspace() {
     toast({ description: t('event.link_copied') });
   };
 
+  const toggleNearby = (id: number) => {
+    setCheckedNearby(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   if (isLoading) {
     return <div className="container mx-auto p-6 max-w-7xl"><Skeleton className="h-[800px] w-full" /></div>;
   }
   if (!event) return null;
+
+  const images = event.imageUrls?.length ? event.imageUrls : (event.imageUrl ? [event.imageUrl] : []);
+  const displayImage = selectedImage || images[0];
+
+  const formatOffset = (seconds: number) => {
+    const abs = Math.abs(seconds);
+    const sign = seconds < 0 ? '-' : '+';
+    if (abs < 60) return sign + t('event.nearby.offset_sec', { s: abs });
+    return sign + t('event.nearby.offset_min', { m: Math.floor(abs / 60) });
+  };
 
   return (
     <div className="container mx-auto py-6 px-4 max-w-7xl">
@@ -140,12 +161,19 @@ export default function EventDetailWorkspace() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Image & Details */}
+        {/* Left Column: Image, Stats, Details */}
         <div className="lg:col-span-2 space-y-6">
+          
+          {/* Overage Statistics */}
+          {event.statistics && (
+            <OverageStatisticsTile stats={event.statistics} t={t} formatCurrency={formatCurrency} formatDate={formatDate} />
+          )}
+
+          {/* Image Gallery */}
           <Card className="overflow-hidden shadow-sm">
-            <div className="bg-muted aspect-video relative flex items-center justify-center">
-              {event.imageUrl ? (
-                <img src={event.imageUrl} alt="Event" className="object-contain w-full h-full" />
+            <div className="bg-muted aspect-video relative flex items-center justify-center bg-black/5">
+              {displayImage ? (
+                <img src={displayImage} alt="Event" className="object-contain w-full h-full" />
               ) : (
                 <div className="text-muted-foreground flex flex-col items-center">
                   <Camera className="h-12 w-12 mb-2 opacity-20" />
@@ -153,6 +181,19 @@ export default function EventDetailWorkspace() {
                 </div>
               )}
             </div>
+            {images.length > 1 && (
+              <div className="flex gap-2 p-3 bg-muted/30 border-t overflow-x-auto">
+                {images.slice(0, 5).map((img, idx) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => setSelectedImage(img)}
+                    className={`relative rounded-md overflow-hidden border-2 transition-all w-20 h-16 shrink-0 ${displayImage === img ? 'border-primary shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                  >
+                    <img src={img} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </Card>
 
           <Card className="shadow-sm">
@@ -169,6 +210,16 @@ export default function EventDetailWorkspace() {
                 <DetailRow label={t('event.vehicle')} value={event.vehicle} mono />
                 <DetailRow label={t('event.bin_serial')} value={event.binSerialNumber} mono />
                 <DetailRow label={t('event.lob')} value={event.lob} />
+                <DetailRow 
+                  label={t('event.severity')} 
+                  value={
+                    event.severity ? (
+                      <span className={event.severity === 'Severe' ? 'text-destructive font-bold' : 'text-muted-foreground font-medium'}>
+                        {event.severity === 'Severe' ? t('event.severity_severe') : t('event.severity_minimal')}
+                      </span>
+                    ) : null
+                  } 
+                />
                 {isClosed && event.closedBy && (
                   <DetailRow label={t('event.closed_by')} value={`${event.closedBy} on ${formatDate(event.dateClosed || '')}`} />
                 )}
@@ -176,39 +227,102 @@ export default function EventDetailWorkspace() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">{t('event.customer_routes')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {event.routes.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">{t('event.no_routes')}</p>
-              ) : (
-                <div className="border rounded-md overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50 border-b">
-                      <tr>
-                        <th className="px-4 py-2 text-left font-medium">{t('event.code')}</th>
-                        <th className="px-4 py-2 text-left font-medium">{t('event.service')}</th>
-                        <th className="px-4 py-2 text-left font-medium">{t('event.material')}</th>
-                        <th className="px-4 py-2 text-left font-medium">{t('event.day')}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {event.routes.map((route, i) => (
-                        <tr key={i}>
-                          <td className="px-4 py-2 font-mono">{route.code}</td>
-                          <td className="px-4 py-2">{route.service}</td>
-                          <td className="px-4 py-2">{route.material}</td>
-                          <td className="px-4 py-2">{route.day}</td>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">{t('event.customer_routes')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {event.routes.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">{t('event.no_routes')}</p>
+                ) : (
+                  <div className="border rounded-md overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50 border-b">
+                        <tr>
+                          <th className="px-4 py-2 text-left font-medium">{t('event.code')}</th>
+                          <th className="px-4 py-2 text-left font-medium">{t('event.service')}</th>
+                          <th className="px-4 py-2 text-left font-medium">{t('event.material')}</th>
+                          <th className="px-4 py-2 text-left font-medium">{t('event.day')}</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      </thead>
+                      <tbody className="divide-y">
+                        {event.routes.map((route, i) => (
+                          <tr key={i}>
+                            <td className="px-4 py-2 font-mono">{route.code}</td>
+                            <td className="px-4 py-2">{route.service}</td>
+                            <td className="px-4 py-2">{route.material}</td>
+                            <td className="px-4 py-2">{route.day}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">{t('event.nearby.title')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {event.nearbyEvents?.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">{t('event.nearby.empty')}</p>
+                ) : (
+                  <div className="border rounded-md overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50 border-b">
+                        <tr>
+                          <th className="px-3 py-2 w-8"></th>
+                          <th className="px-2 py-2 w-12"></th>
+                          <th className="px-3 py-2 text-left font-medium">{t('district.date')}</th>
+                          <th className="px-3 py-2 text-right font-medium">{t('event.nearby.offset')}</th>
+                          <th className="px-3 py-2 text-right font-medium">{t('district.status')}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {event.nearbyEvents?.map(nearby => (
+                          <tr key={nearby.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-3 py-2">
+                              <Checkbox 
+                                checked={checkedNearby.has(nearby.id)} 
+                                onCheckedChange={() => toggleNearby(nearby.id)} 
+                              />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Link href={`/districts/${districtId}/events/${nearby.id}`}>
+                                {nearby.imageUrl ? (
+                                  <img src={nearby.imageUrl} className="w-8 h-8 object-cover rounded shadow-sm cursor-pointer" alt="Thumbnail" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded bg-muted flex items-center justify-center cursor-pointer">
+                                    <Images className="w-3 h-3 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </Link>
+                            </td>
+                            <td className="px-3 py-2">
+                              <Link href={`/districts/${districtId}/events/${nearby.id}`} className="hover:underline text-primary">
+                                {formatDate(nearby.dateOccurred, { hour: 'numeric', minute: '2-digit' })}
+                              </Link>
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">
+                              {formatOffset(nearby.secondsOffset)}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <Badge variant="outline" className="text-[10px]">
+                                {t(`event.nearby.status_${nearby.status.toLowerCase()}` as any)}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Right Column: Map & Timeline */}
@@ -228,12 +342,12 @@ export default function EventDetailWorkspace() {
             </div>
             <CardContent className="p-4 bg-muted/10">
               <div className="text-xs text-muted-foreground flex justify-between items-center">
-                <span>{event.latitude.toFixed(5)}, {event.longitude.toFixed(5)}</span>
+                <span className="font-mono">{event.latitude.toFixed(5)}, {event.longitude.toFixed(5)}</span>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyLink(event.shareLinks.photo)} title="Copy Photo Link">
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyLink(event.shareLinks?.photo)} title={t('event.copy_link')}>
                     <Camera className="h-3 w-3" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyLink(event.shareLinks.event)} title="Copy Event Link">
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyLink(event.shareLinks?.event)} title={t('event.share')}>
                     <Copy className="h-3 w-3" />
                   </Button>
                 </div>
@@ -253,7 +367,7 @@ export default function EventDetailWorkspace() {
                   </div>
                 ) : (
                   event.actions.map(action => (
-                    <div key={action.id} className="p-4 hover:bg-muted/20 transition-colors">
+                    <div key={action.id} className="p-4 hover:bg-muted/10 transition-colors">
                       <div className="flex items-center gap-2 mb-2">
                         {action.actionType === 'Note' ? <MessageSquare className="h-4 w-4 text-muted-foreground" /> :
                          action.actionType === 'Charge' ? <DollarSign className="h-4 w-4 text-success" /> :
@@ -280,7 +394,7 @@ export default function EventDetailWorkspace() {
               </div>
             </CardContent>
             {!isClosed && (
-              <div className="p-4 border-t bg-muted/10">
+              <div className="p-4 border-t bg-muted/5">
                 <NoteForm eventId={eventId} onSuccess={handleActionSuccess} />
               </div>
             )}
@@ -294,6 +408,7 @@ export default function EventDetailWorkspace() {
           open={chargeOpen} 
           onOpenChange={setChargeOpen} 
           eventId={eventId} 
+          event={event}
           serviceCodes={serviceCodes}
           onSuccess={handleActionSuccess} 
         />
@@ -309,17 +424,73 @@ export default function EventDetailWorkspace() {
         open={closeOpen} 
         onOpenChange={setCloseOpen} 
         eventId={eventId} 
+        checkedNearby={checkedNearby}
         onSuccess={handleActionSuccess} 
       />
     </div>
   );
 }
 
-function DetailRow({ label, value, icon, mono }: { label: string, value: string | number | null | undefined, icon?: React.ReactNode, mono?: boolean }) {
-  if (!value) return null;
+function OverageStatisticsTile({ stats, t, formatCurrency, formatDate }: any) {
+  const renderTenure = (months: number | null) => {
+    if (months === null) return t('event.statistics.never');
+    if (months < 12) return t('event.statistics.months', { count: months });
+    return t('event.statistics.years_months', { years: Math.floor(months / 12), months: months % 12 });
+  };
+
+  return (
+    <Card className="shadow-sm">
+      <CardContent className="p-0">
+        <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x border-b bg-muted/10">
+           <div className="p-4 flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{t('event.statistics.customer_since')}</span>
+              <span className="font-mono text-sm">{stats.customerSince ? formatDate(stats.customerSince) : t('event.statistics.never')}</span>
+           </div>
+           <div className="p-4 flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{t('event.statistics.tenure')}</span>
+              <span className="font-mono text-sm">{renderTenure(stats.tenureMonths)}</span>
+           </div>
+           <div className="p-4 flex flex-col gap-1 md:col-span-2">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{t('event.statistics.last_charge')}</span>
+              <span className="font-mono text-sm">{stats.lastChargeDate ? formatDate(stats.lastChargeDate) : t('event.statistics.never')}</span>
+           </div>
+        </div>
+        <div className="grid grid-cols-3 divide-x bg-card">
+           {stats.windows.map((w: any) => (
+             <div key={w.days} className="p-4 flex flex-col items-center justify-center text-center">
+               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-3">{t(`event.statistics.days_${w.days}` as any)}</span>
+               <div className="flex gap-4 w-full justify-center">
+                 <div className="flex flex-col items-center">
+                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('event.statistics.charged')}</span>
+                   <div className="flex items-baseline gap-1">
+                     <span className="text-destructive font-bold text-lg leading-none">{w.chargedCount}</span>
+                     <span className="text-muted-foreground/50 text-xs">/</span>
+                     <span className="text-success font-bold text-base leading-none">{formatCurrency(w.chargedAmount)}</span>
+                   </div>
+                 </div>
+                 <div className="w-px h-8 bg-border/50" />
+                 <div className="flex flex-col items-center">
+                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('event.statistics.paid')}</span>
+                   <div className="flex items-baseline gap-1">
+                     <span className="text-destructive font-bold text-lg leading-none">{w.paidCount}</span>
+                     <span className="text-muted-foreground/50 text-xs">/</span>
+                     <span className="text-success font-bold text-base leading-none">{formatCurrency(w.paidAmount)}</span>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DetailRow({ label, value, icon, mono }: { label: string, value: React.ReactNode, icon?: React.ReactNode, mono?: boolean }) {
+  if (value === null || value === undefined || value === '') return null;
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">{label}</span>
+      <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">{label}</span>
       <div className="flex items-center gap-2">
         {icon && <span className="text-muted-foreground">{icon}</span>}
         <span className={mono ? "font-mono" : ""}>{value}</span>
@@ -368,26 +539,36 @@ const chargeSchema = z.object({
   keepOpen: z.boolean().default(false)
 });
 
-function ChargeDialog({ open, onOpenChange, eventId, serviceCodes, onSuccess }: any) {
-  const { t } = useI18n();
+function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSuccess }: any) {
+  const { t, formatCurrency, formatDate } = useI18n();
   const charge = useChargeEvent();
+  const [selectedCodeAmount, setSelectedCodeAmount] = useState<number | null>(null);
   
   const form = useForm({
     resolver: zodResolver(chargeSchema),
     defaultValues: { serviceCodeId: '', amount: 0, quantity: 1, keepOpen: false }
   });
 
+  useEffect(() => {
+    if (open) {
+      form.reset({ serviceCodeId: '', amount: 0, quantity: 1, keepOpen: false });
+      setSelectedCodeAmount(null);
+    }
+  }, [open, form]);
+
   const onSelectCode = (idStr: string) => {
     const id = parseInt(idStr);
     form.setValue('serviceCodeId', id as any);
     const code = serviceCodes.find((c: any) => c.id === id);
-    if (code) form.setValue('amount', code.amount);
+    if (code) {
+      setSelectedCodeAmount(code.amount);
+      form.setValue('amount', code.amount);
+    }
   };
 
   const submit = (data: any) => {
     charge.mutate({ eventId, data }, {
       onSuccess: () => {
-        form.reset();
         onSuccess();
       }
     });
@@ -418,33 +599,60 @@ function ChargeDialog({ open, onOpenChange, eventId, serviceCodes, onSuccess }: 
               </FormItem>
             )} />
             
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="amount" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('charge.amount')}</FormLabel>
-                  <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="quantity" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('charge.quantity')}</FormLabel>
-                  <FormControl><Input type="number" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+            <div className="border rounded-md p-4 bg-muted/10 space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b border-border/50">
+                <span className="font-medium text-sm">{t('charge.service_price')}</span>
+                <span className="font-mono text-success font-bold text-lg">
+                  {selectedCodeAmount !== null ? formatCurrency(selectedCodeAmount) : '—'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="amount" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('charge.amount')}</FormLabel>
+                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="quantity" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('charge.quantity')}</FormLabel>
+                    <FormControl><Input type="number" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
             </div>
 
             <FormField control={form.control} name="keepOpen" render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 p-2">
                 <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                 <div className="space-y-1 leading-none">
-                  <FormLabel>{t('charge.keep_open')}</FormLabel>
+                  <FormLabel className="text-sm font-normal">{t('charge.keep_open')}</FormLabel>
                 </div>
               </FormItem>
             )} />
 
-            <DialogFooter>
+            {event.lastCharges?.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-border/50">
+                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t('charge.last_charges')}</h4>
+                 <div className="space-y-2">
+                   {event.lastCharges.map((charge: any) => (
+                      <div key={charge.id} className="flex justify-between items-center text-sm px-3 py-2 bg-muted/30 rounded border border-border/50">
+                         <span className="text-muted-foreground">{formatDate(charge.dateCreated)}</span>
+                         <div className="flex items-center gap-3">
+                           <span className="font-mono font-medium">{formatCurrency(charge.amount)}</span>
+                           <Badge variant={charge.paymentStatus === 'PAID' ? 'default' : charge.paymentStatus === 'REFUNDED' ? 'secondary' : 'outline'} className="text-[10px] w-20 justify-center">
+                             {charge.paymentStatus ? t(`charge.status_${charge.paymentStatus.toLowerCase()}` as any) : t('charge.status_pending')}
+                           </Badge>
+                         </div>
+                      </div>
+                   ))}
+                 </div>
+              </div>
+            )}
+
+            <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('charge.cancel')}</Button>
               <Button type="submit" disabled={charge.isPending}>{t('charge.submit')}</Button>
             </DialogFooter>
@@ -557,22 +765,28 @@ function EmailDialog({ open, onOpenChange, eventId, event, onSuccess }: any) {
 
 const closeSchema = z.object({
   closeReason: z.string().min(1, 'Required'),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  duplicateEventIds: z.array(z.number()).optional()
 });
 
-function CloseDialog({ open, onOpenChange, eventId, onSuccess }: any) {
+function CloseDialog({ open, onOpenChange, eventId, checkedNearby, onSuccess }: any) {
   const { t } = useI18n();
   const closeMutation = useCloseEvent();
   
   const form = useForm({
     resolver: zodResolver(closeSchema),
-    defaultValues: { closeReason: '', notes: '' }
+    defaultValues: { closeReason: '', notes: '', duplicateEventIds: [] }
   });
+
+  useEffect(() => {
+    if (open) {
+      form.reset({ closeReason: '', notes: '', duplicateEventIds: Array.from(checkedNearby) });
+    }
+  }, [open, checkedNearby, form]);
 
   const submit = (data: any) => {
     closeMutation.mutate({ eventId, data }, {
       onSuccess: () => {
-        form.reset();
         onSuccess();
       }
     });
@@ -594,19 +808,31 @@ function CloseDialog({ open, onOpenChange, eventId, onSuccess }: any) {
                     <SelectTrigger><SelectValue placeholder={t('close.select_reason')} /></SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="Duplicate charge">{t('close.reasons.duplicate')}</SelectItem>
-                    <SelectItem value="Unclear picture">{t('close.reasons.unclear')}</SelectItem>
-                    <SelectItem value="Below minimum">{t('close.reasons.below_minimum')}</SelectItem>
-                    <SelectItem value="No charge per driver/office">{t('close.reasons.no_charge')}</SelectItem>
-                    <SelectItem value="Holiday delay">{t('close.reasons.holiday')}</SelectItem>
-                    <SelectItem value="Route delay">{t('close.reasons.route_delay')}</SelectItem>
-                    <SelectItem value="Weather">{t('close.reasons.weather')}</SelectItem>
-                    <SelectItem value="Other">{t('close.reasons.other')}</SelectItem>
+                    <SelectItem value="Not an Overfill">{t('close.reasons.not_overfill')}</SelectItem>
+                    <SelectItem value="District Declined to Charge">{t('close.reasons.district_declined')}</SelectItem>
+                    <SelectItem value="New Customer">{t('close.reasons.new_customer')}</SelectItem>
+                    <SelectItem value="Duplicate">{t('close.reasons.duplicate')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
             )} />
+
+            {checkedNearby.size > 0 && (
+              <FormField control={form.control} name="duplicateEventIds" render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 p-4 border rounded-md bg-muted/10">
+                  <FormControl>
+                    <Checkbox 
+                      checked={field.value?.length > 0} 
+                      onCheckedChange={(c) => field.onChange(c ? Array.from(checkedNearby) : [])} 
+                    />
+                  </FormControl>
+                  <FormLabel className="font-normal text-sm leading-none pt-0.5">
+                    {t('close.close_duplicates', { count: checkedNearby.size })}
+                  </FormLabel>
+                </FormItem>
+              )} />
+            )}
 
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem>

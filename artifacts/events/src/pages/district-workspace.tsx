@@ -56,7 +56,7 @@ export default function DistrictWorkspace() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Card className="bg-primary/5 border-primary/20 shadow-none">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
@@ -97,21 +97,6 @@ export default function DistrictWorkspace() {
                 <p className="text-sm font-medium text-muted-foreground">{t('district.charged_today')}</p>
                 <h3 className="text-2xl font-bold text-foreground">
                   {isLoadingSummary ? <Skeleton className="h-8 w-16" /> : formatCurrency(summary?.chargedToday || 0)}
-                </h3>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-none">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-secondary/10 rounded-full text-secondary">
-                <DollarSign className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t('district.total_charged')}</p>
-                <h3 className="text-2xl font-bold text-foreground">
-                  {isLoadingSummary ? <Skeleton className="h-8 w-16" /> : formatCurrency(summary?.totalChargedAmount || 0)}
                 </h3>
               </div>
             </div>

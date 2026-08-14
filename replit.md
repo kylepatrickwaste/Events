@@ -42,7 +42,7 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Do not suggest or ask about publishing/deploying the app.
 
 ## Gotchas
 

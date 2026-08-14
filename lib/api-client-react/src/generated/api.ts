@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BulkCloseInput,
+  BulkCloseResult,
   ChargeInput,
   CloseInput,
   District,
@@ -532,6 +534,77 @@ export function useListEventTypes<TData = Awaited<ReturnType<typeof listEventTyp
 
 
 
+
+export const getBulkCloseEventsUrl = () => {
+
+
+
+
+  return `/api/events/bulk-close`
+}
+
+/**
+ * @summary Close multiple events at once
+ */
+export const bulkCloseEvents = async (bulkCloseInput: BulkCloseInput, options?: Parameters<typeof customFetch>[1]): Promise<BulkCloseResult> => {
+
+  return customFetch<BulkCloseResult>(getBulkCloseEventsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bulkCloseInput)
+  }
+);}
+
+
+
+
+
+export const getBulkCloseEventsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkCloseEvents>>, TError,{data: BodyType<BulkCloseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkCloseEvents>>, TError,{data: BodyType<BulkCloseInput>}, TContext> => {
+
+const mutationKey = ['bulkCloseEvents'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkCloseEvents>>, {data: BodyType<BulkCloseInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkCloseEvents(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkCloseEventsMutationResult = NonNullable<Awaited<ReturnType<typeof bulkCloseEvents>>>
+    export type BulkCloseEventsMutationBody = BodyType<BulkCloseInput>
+    export type BulkCloseEventsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Close multiple events at once
+ */
+export const useBulkCloseEvents = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkCloseEvents>>, TError,{data: BodyType<BulkCloseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkCloseEvents>>,
+        TError,
+        {data: BodyType<BulkCloseInput>},
+        TContext
+      > => {
+      return useMutation(getBulkCloseEventsMutationOptions(options));
+    }
 
 export const getGetEventUrl = (eventId: number,) => {
 

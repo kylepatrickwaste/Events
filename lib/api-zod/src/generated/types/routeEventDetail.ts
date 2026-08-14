@@ -7,6 +7,9 @@
  */
 import type { CustomerRoute } from './customerRoute';
 import type { EventAction } from './eventAction';
+import type { NearbyEvent } from './nearbyEvent';
+import type { OverageStatistics } from './overageStatistics';
+import type { RecentCharge } from './recentCharge';
 import type { RouteEventDetailShareLinks } from './routeEventDetailShareLinks';
 
 export interface RouteEventDetail {
@@ -35,6 +38,12 @@ export interface RouteEventDetail {
   quantity?: number | null;
   /** @nullable */
   imageUrl?: string | null;
+  imageUrls: string[];
+  /**
+     * Severe | Minimal
+     * @nullable
+     */
+  severity?: string | null;
   latitude: number;
   longitude: number;
   /** 0 = open, 1 = closed */
@@ -45,5 +54,8 @@ export interface RouteEventDetail {
   closedBy?: string | null;
   routes: CustomerRoute[];
   actions: EventAction[];
+  statistics: OverageStatistics;
+  nearbyEvents: NearbyEvent[];
+  lastCharges: RecentCharge[];
   shareLinks: RouteEventDetailShareLinks;
 }

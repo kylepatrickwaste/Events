@@ -131,6 +131,24 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/EventType"
+  /events/bulk-close:
+    post:
+      operationId: bulkCloseEvents
+      tags: [events]
+      summary: Close multiple events at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkCloseInput"
+      responses:
+        "200":
+          description: Bulk close result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkCloseResult"
   /events/{eventId}:
     get:
       operationId: getEvent
@@ -327,7 +345,6 @@ components:
               openCount: { type: integer }
     RouteEventListItem:
       type: object
-      required: [id, districtId, eventTypeId, eventTypeName, eventSourceName, dateOccurred, vehicle, route, customerName, accountNumber, address, eventStatus]
       properties:
         id: { type: integer }
         districtId: { type: integer }
@@ -342,9 +359,15 @@ components:
         address: { type: string }
         quantity: { type: ["number", "null"] }
         imageUrl: { type: ["string", "null"] }
+        imageUrls:
+          type: array
+          items: { type: string }
+        severity: { type: ["string", "null"], description: "Severe | Minimal" }
         eventStatus: { type: integer, description: "0 = open, 1 = closed" }
         dateClosed: { type: ["string", "null"] }
         closedBy: { type: ["string", "null"] }
+      required:
+        [id, districtId, eventTypeId, eventTypeName, eventSourceName, dateOccurred, vehicle, route, customerName, accountNumber, address, eventStatus, imageUrls]
     CustomerRoute:
       type: object
       required: [code, service, material, day]
@@ -366,11 +389,50 @@ components:
         serviceCodeId: { type: ["integer", "null"] }
         chargeAmount: { type: ["number", "null"] }
         chargeQuantity: { type: ["number", "null"] }
+        paymentStatus: { type: ["string", "null"], description: "PAID | REFUNDED | null (pending)" }
         createdBy: { type: string }
         dateCreated: { type: string }
+    OverageStatistics:
+      type: object
+      required: [tenureMonths, customerSince, windows, lastChargeDate]
+      properties:
+        tenureMonths: { type: ["integer", "null"] }
+        customerSince: { type: ["string", "null"] }
+        lastChargeDate: { type: ["string", "null"] }
+        windows:
+          type: array
+          items:
+            type: object
+            required: [days, chargedCount, chargedAmount, paidCount, paidAmount]
+            properties:
+              days: { type: integer }
+              chargedCount: { type: integer }
+              chargedAmount: { type: number }
+              paidCount: { type: integer }
+              paidAmount: { type: number }
+    NearbyEvent:
+      type: object
+      required: [id, dateOccurred, secondsOffset, eventStatus, status]
+      properties:
+        id: { type: integer }
+        imageUrl: { type: ["string", "null"] }
+        dateOccurred: { type: string }
+        secondsOffset: { type: integer, description: "seconds relative to the main event (negative = earlier)" }
+        eventStatus: { type: integer, description: "0 = open, 1 = closed" }
+        status: { type: string, description: "Open | Charged | Dismissed" }
+        address: { type: ["string", "null"] }
+        customerName: { type: ["string", "null"] }
+    RecentCharge:
+      type: object
+      required: [id, dateCreated, amount, paymentStatus]
+      properties:
+        id: { type: integer }
+        dateCreated: { type: string }
+        amount: { type: number }
+        paymentStatus: { type: ["string", "null"], description: "PAID | REFUNDED | null (pending)" }
     RouteEventDetail:
       type: object
-      required: [id, districtId, eventTypeId, eventTypeName, eventSourceName, dateOccurred, vehicle, route, customerName, accountNumber, address, eventStatus, latitude, longitude, routes, actions, shareLinks]
+      required: [id, districtId, eventTypeId, eventTypeName, eventSourceName, dateOccurred, vehicle, route, customerName, accountNumber, address, eventStatus, latitude, longitude, routes, actions, shareLinks, imageUrls, statistics, nearbyEvents, lastCharges]
       properties:
         id: { type: integer }
         districtId: { type: integer }
@@ -390,6 +452,10 @@ components:
         rmoStatus: { type: ["string", "null"] }
         quantity: { type: ["number", "null"] }
         imageUrl: { type: ["string", "null"] }
+        imageUrls:
+          type: array
+          items: { type: string }
+        severity: { type: ["string", "null"], description: "Severe | Minimal" }
         latitude: { type: number }
         longitude: { type: number }
         eventStatus: { type: integer, description: "0 = open, 1 = closed" }
@@ -403,6 +469,16 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/EventAction"
+        statistics:
+          $ref: "#/components/schemas/OverageStatistics"
+        nearbyEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/NearbyEvent"
+        lastCharges:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecentCharge"
         shareLinks:
           type: object
           required: [event, photo, source]
@@ -438,3 +514,23 @@ components:
       properties:
         closeReason: { type: string }
         notes: { type: ["string", "null"] }
+        duplicateEventIds:
+          type: array
+          items: { type: integer }
+          description: "Nearby event IDs to also close as duplicates"
+    BulkCloseInput:
+      type: object
+      required: [eventIds, closeReason]
+      properties:
+        eventIds:
+          type: array
+          items: { type: integer }
+          minItems: 1
+        closeReason: { type: string }
+        notes: { type: ["string", "null"] }
+    BulkCloseResult:
+      type: object
+      required: [closedCount, skippedCount]
+      properties:
+        closedCount: { type: integer }
+        skippedCount: { type: integer }

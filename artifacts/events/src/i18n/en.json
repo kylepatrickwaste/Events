@@ -63,18 +63,50 @@
     "link_copied": "Link copied to clipboard!",
     "no_photo": "No photo available",
     "no_routes": "No routes available",
-    "no_history": "No history available"
+    "no_history": "No history available",
+    "severity": "Severity",
+    "severity_severe": "Severe",
+    "severity_minimal": "Minimal",
+    "statistics": {
+      "title": "Overage Statistics",
+      "tenure": "Tenure",
+      "customer_since": "Customer Since",
+      "last_charge": "Last Charge",
+      "days_30": "30 Days",
+      "days_60": "60 Days",
+      "days_90": "90 Days",
+      "charged": "Charged",
+      "paid": "Paid",
+      "months": "{{count}} mos",
+      "years_months": "{{years}}y {{months}}m",
+      "never": "Never"
+    },
+    "nearby": {
+      "title": "Nearby Overages",
+      "offset_sec": "{{s}}s",
+      "offset_min": "{{m}}m",
+      "status_open": "Open",
+      "status_charged": "Charged",
+      "status_dismissed": "Dismissed",
+      "empty": "No nearby overages",
+      "offset": "Offset"
+    }
   },
   "charge": {
     "title": "Charge Account",
     "service_code": "Service Code",
     "select_code": "Select a code...",
-    "amount": "Amount",
+    "amount": "Charge Amount",
+    "service_price": "Service Price",
     "quantity": "Quantity",
     "keep_open": "Keep event open after charging",
     "submit": "Submit Charge",
     "cancel": "Cancel",
-    "success": "Charge successfully applied"
+    "success": "Charge successfully applied",
+    "last_charges": "Last 3 Charges",
+    "status_paid": "PAID",
+    "status_refunded": "REFUNDED",
+    "status_pending": "PENDING"
   },
   "email": {
     "title": "Send Email",
@@ -100,15 +132,12 @@
     "submit": "Close Event",
     "cancel": "Cancel",
     "success": "Event closed successfully",
+    "close_duplicates": "Close {{count}} checked nearby events as duplicates",
     "reasons": {
-      "duplicate": "Duplicate charge",
-      "unclear": "Unclear picture",
-      "below_minimum": "Below minimum",
-      "no_charge": "No charge per driver/office",
-      "holiday": "Holiday delay",
-      "route_delay": "Route delay",
-      "weather": "Weather",
-      "other": "Other"
+      "not_overfill": "Not an Overfill",
+      "district_declined": "District Declined to Charge",
+      "new_customer": "New Customer",
+      "duplicate": "Duplicate"
     }
   }
 }

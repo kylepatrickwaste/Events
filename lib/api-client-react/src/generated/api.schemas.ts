@@ -64,6 +64,12 @@ export interface RouteEventListItem {
   quantity?: number | null;
   /** @nullable */
   imageUrl?: string | null;
+  imageUrls: string[];
+  /**
+     * Severe | Minimal
+     * @nullable
+     */
+  severity?: string | null;
   /** 0 = open, 1 = closed */
   eventStatus: number;
   /** @nullable */
@@ -94,8 +100,59 @@ export interface EventAction {
   chargeAmount?: number | null;
   /** @nullable */
   chargeQuantity?: number | null;
+  /**
+     * PAID | REFUNDED | null (pending)
+     * @nullable
+     */
+  paymentStatus?: string | null;
   createdBy: string;
   dateCreated: string;
+}
+
+export type OverageStatisticsWindowsItem = {
+  days: number;
+  chargedCount: number;
+  chargedAmount: number;
+  paidCount: number;
+  paidAmount: number;
+};
+
+export interface OverageStatistics {
+  /** @nullable */
+  tenureMonths: number | null;
+  /** @nullable */
+  customerSince: string | null;
+  /** @nullable */
+  lastChargeDate: string | null;
+  windows: OverageStatisticsWindowsItem[];
+}
+
+export interface NearbyEvent {
+  id: number;
+  /** @nullable */
+  imageUrl?: string | null;
+  dateOccurred: string;
+  /** seconds relative to the main event (negative = earlier) */
+  secondsOffset: number;
+  /** 0 = open, 1 = closed */
+  eventStatus: number;
+  /** Open | Charged | Dismissed */
+  status: string;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  customerName?: string | null;
+}
+
+export interface RecentCharge {
+  id: number;
+  dateCreated: string;
+  amount: number;
+  /**
+     * PAID | REFUNDED | null (pending)
+     * @nullable
+     */
+  paymentStatus: string | null;
 }
 
 export type RouteEventDetailShareLinks = {
@@ -130,6 +187,12 @@ export interface RouteEventDetail {
   quantity?: number | null;
   /** @nullable */
   imageUrl?: string | null;
+  imageUrls: string[];
+  /**
+     * Severe | Minimal
+     * @nullable
+     */
+  severity?: string | null;
   latitude: number;
   longitude: number;
   /** 0 = open, 1 = closed */
@@ -140,6 +203,9 @@ export interface RouteEventDetail {
   closedBy?: string | null;
   routes: CustomerRoute[];
   actions: EventAction[];
+  statistics: OverageStatistics;
+  nearbyEvents: NearbyEvent[];
+  lastCharges: RecentCharge[];
   shareLinks: RouteEventDetailShareLinks;
 }
 
@@ -169,6 +235,21 @@ export interface CloseInput {
   closeReason: string;
   /** @nullable */
   notes?: string | null;
+  /** Nearby event IDs to also close as duplicates */
+  duplicateEventIds?: number[];
+}
+
+export interface BulkCloseInput {
+  /** @minItems 1 */
+  eventIds: number[];
+  closeReason: string;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface BulkCloseResult {
+  closedCount: number;
+  skippedCount: number;
 }
 
 export type ListEventsParams = {

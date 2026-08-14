@@ -47,6 +47,11 @@ export const routeEventsTable = pgTable("route_events", {
   rmoStatus: text("rmo_status"),
   quantity: numeric("quantity", { precision: 9, scale: 2 }),
   imageUrl: text("image_url"),
+  // additional photos of the event; imageUrl remains the primary/original image
+  imageUrls: jsonb("image_urls").$type<string[]>().notNull().default([]),
+  // "Severe" | "Minimal"
+  severity: text("severity"),
+  customerSince: timestamp("customer_since", { withTimezone: true }),
   // 0 = open, 1 = closed
   eventStatus: integer("event_status").notNull().default(0),
   dateClosed: timestamp("date_closed", { withTimezone: true }),
@@ -72,6 +77,8 @@ export const eventActionsTable = pgTable("event_actions", {
   chargeAmount: numeric("charge_amount", { precision: 12, scale: 4 }),
   chargeQuantity: numeric("charge_quantity", { precision: 9, scale: 2 }),
   billedStatementNumber: text("billed_statement_number"),
+  // "PAID" | "REFUNDED" | null (pending) — for charge actions
+  paymentStatus: text("payment_status"),
   billedAmount: numeric("billed_amount", { precision: 12, scale: 4 }),
   createdBy: text("created_by").notNull(),
   dateCreated: timestamp("date_created", { withTimezone: true })

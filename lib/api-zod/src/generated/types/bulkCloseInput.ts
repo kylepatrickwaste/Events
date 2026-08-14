@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CloseInput {
+export interface BulkCloseInput {
+  /** @minItems 1 */
+  eventIds: number[];
   closeReason: string;
   /** @nullable */
   notes?: string | null;
-  /** Nearby event IDs to also close as duplicates */
-  duplicateEventIds?: number[];
 }

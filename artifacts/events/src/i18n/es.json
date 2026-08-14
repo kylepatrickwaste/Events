@@ -63,18 +63,50 @@
     "link_copied": "¡Enlace copiado al portapapeles!",
     "no_photo": "No hay foto disponible",
     "no_routes": "No hay rutas disponibles",
-    "no_history": "No hay historial disponible"
+    "no_history": "No hay historial disponible",
+    "severity": "Severidad",
+    "severity_severe": "Severo",
+    "severity_minimal": "Mínimo",
+    "statistics": {
+      "title": "Estadísticas de Exceso",
+      "tenure": "Antigüedad",
+      "customer_since": "Cliente Desde",
+      "last_charge": "Último Cobro",
+      "days_30": "30 Días",
+      "days_60": "60 Días",
+      "days_90": "90 Días",
+      "charged": "Cobrado",
+      "paid": "Pagado",
+      "months": "{{count}} mes",
+      "years_months": "{{years}}a {{months}}m",
+      "never": "Nunca"
+    },
+    "nearby": {
+      "title": "Excesos Cercanos",
+      "offset_sec": "{{s}}s",
+      "offset_min": "{{m}}m",
+      "status_open": "Abierto",
+      "status_charged": "Cobrado",
+      "status_dismissed": "Desestimado",
+      "empty": "Sin excesos cercanos",
+      "offset": "Desfase"
+    }
   },
   "charge": {
     "title": "Cobrar a Cuenta",
     "service_code": "Código de Servicio",
     "select_code": "Seleccione un código...",
-    "amount": "Monto",
+    "amount": "Monto de Cobro",
+    "service_price": "Precio de Servicio",
     "quantity": "Cantidad",
     "keep_open": "Mantener evento abierto después de cobrar",
     "submit": "Aplicar Cobro",
     "cancel": "Cancelar",
-    "success": "Cobro aplicado exitosamente"
+    "success": "Cobro aplicado exitosamente",
+    "last_charges": "Últimos 3 Cobros",
+    "status_paid": "PAGADO",
+    "status_refunded": "REEMBOLSADO",
+    "status_pending": "PENDIENTE"
   },
   "email": {
     "title": "Enviar Correo",
@@ -100,15 +132,12 @@
     "submit": "Cerrar Evento",
     "cancel": "Cancelar",
     "success": "Evento cerrado exitosamente",
+    "close_duplicates": "Cerrar {{count}} eventos cercanos marcados como duplicados",
     "reasons": {
-      "duplicate": "Cobro duplicado",
-      "unclear": "Foto poco clara",
-      "below_minimum": "Por debajo del mínimo",
-      "no_charge": "Sin cobro por conductor/oficina",
-      "holiday": "Retraso por día festivo",
-      "route_delay": "Retraso en ruta",
-      "weather": "Clima",
-      "other": "Otro"
+      "not_overfill": "No es un Exceso",
+      "district_declined": "Distrito Declinó Cobrar",
+      "new_customer": "Cliente Nuevo",
+      "duplicate": "Duplicado"
     }
   }
 }

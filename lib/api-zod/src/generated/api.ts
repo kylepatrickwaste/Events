@@ -74,6 +74,8 @@ export const ListEventsResponseItem = zod.object({
   "address": zod.string(),
   "quantity": zod.coerce.number().nullish(),
   "imageUrl": zod.string().nullish(),
+  "imageUrls": zod.array(zod.string()),
+  "severity": zod.string().nullish().describe('Severe | Minimal'),
   "eventStatus": zod.coerce.number().int().describe('0 = open, 1 = closed'),
   "dateClosed": zod.string().nullish(),
   "closedBy": zod.string().nullish()
@@ -109,6 +111,24 @@ export const ListEventTypesResponse = zod.array(ListEventTypesResponseItem)
 
 
 /**
+ * @summary Close multiple events at once
+ */
+
+
+
+export const BulkCloseEventsBody = zod.object({
+  "eventIds": zod.array(zod.coerce.number().int()).min(1),
+  "closeReason": zod.string(),
+  "notes": zod.string().nullish()
+})
+
+export const BulkCloseEventsResponse = zod.object({
+  "closedCount": zod.coerce.number().int(),
+  "skippedCount": zod.coerce.number().int()
+})
+
+
+/**
  * @summary Full event detail with routes and actions
  */
 export const GetEventParams = zod.object({
@@ -134,6 +154,8 @@ export const GetEventResponse = zod.object({
   "rmoStatus": zod.string().nullish(),
   "quantity": zod.coerce.number().nullish(),
   "imageUrl": zod.string().nullish(),
+  "imageUrls": zod.array(zod.string()),
+  "severity": zod.string().nullish().describe('Severe | Minimal'),
   "latitude": zod.coerce.number(),
   "longitude": zod.coerce.number(),
   "eventStatus": zod.coerce.number().int().describe('0 = open, 1 = closed'),
@@ -155,8 +177,37 @@ export const GetEventResponse = zod.object({
   "serviceCodeId": zod.coerce.number().int().nullish(),
   "chargeAmount": zod.coerce.number().nullish(),
   "chargeQuantity": zod.coerce.number().nullish(),
+  "paymentStatus": zod.string().nullish().describe('PAID | REFUNDED | null (pending)'),
   "createdBy": zod.string(),
   "dateCreated": zod.string()
+})),
+  "statistics": zod.object({
+  "tenureMonths": zod.coerce.number().int().nullable(),
+  "customerSince": zod.string().nullable(),
+  "lastChargeDate": zod.string().nullable(),
+  "windows": zod.array(zod.object({
+  "days": zod.coerce.number().int(),
+  "chargedCount": zod.coerce.number().int(),
+  "chargedAmount": zod.coerce.number(),
+  "paidCount": zod.coerce.number().int(),
+  "paidAmount": zod.coerce.number()
+}))
+}),
+  "nearbyEvents": zod.array(zod.object({
+  "id": zod.coerce.number().int(),
+  "imageUrl": zod.string().nullish(),
+  "dateOccurred": zod.string(),
+  "secondsOffset": zod.coerce.number().int().describe('seconds relative to the main event (negative = earlier)'),
+  "eventStatus": zod.coerce.number().int().describe('0 = open, 1 = closed'),
+  "status": zod.string().describe('Open | Charged | Dismissed'),
+  "address": zod.string().nullish(),
+  "customerName": zod.string().nullish()
+})),
+  "lastCharges": zod.array(zod.object({
+  "id": zod.coerce.number().int(),
+  "dateCreated": zod.string(),
+  "amount": zod.coerce.number(),
+  "paymentStatus": zod.string().nullable().describe('PAID | REFUNDED | null (pending)')
 })),
   "shareLinks": zod.object({
   "event": zod.string(),
@@ -190,6 +241,7 @@ export const AddEventNoteResponse = zod.object({
   "serviceCodeId": zod.coerce.number().int().nullish(),
   "chargeAmount": zod.coerce.number().nullish(),
   "chargeQuantity": zod.coerce.number().nullish(),
+  "paymentStatus": zod.string().nullish().describe('PAID | REFUNDED | null (pending)'),
   "createdBy": zod.string(),
   "dateCreated": zod.string()
 })
@@ -219,6 +271,7 @@ export const ChargeEventResponse = zod.object({
   "serviceCodeId": zod.coerce.number().int().nullish(),
   "chargeAmount": zod.coerce.number().nullish(),
   "chargeQuantity": zod.coerce.number().nullish(),
+  "paymentStatus": zod.string().nullish().describe('PAID | REFUNDED | null (pending)'),
   "createdBy": zod.string(),
   "dateCreated": zod.string()
 })
@@ -249,6 +302,7 @@ export const EmailEventResponse = zod.object({
   "serviceCodeId": zod.coerce.number().int().nullish(),
   "chargeAmount": zod.coerce.number().nullish(),
   "chargeQuantity": zod.coerce.number().nullish(),
+  "paymentStatus": zod.string().nullish().describe('PAID | REFUNDED | null (pending)'),
   "createdBy": zod.string(),
   "dateCreated": zod.string()
 })
@@ -263,7 +317,8 @@ export const CloseEventParams = zod.object({
 
 export const CloseEventBody = zod.object({
   "closeReason": zod.string(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "duplicateEventIds": zod.array(zod.coerce.number().int()).optional().describe('Nearby event IDs to also close as duplicates')
 })
 
 export const CloseEventResponse = zod.object({
@@ -276,6 +331,7 @@ export const CloseEventResponse = zod.object({
   "serviceCodeId": zod.coerce.number().int().nullish(),
   "chargeAmount": zod.coerce.number().nullish(),
   "chargeQuantity": zod.coerce.number().nullish(),
+  "paymentStatus": zod.string().nullish().describe('PAID | REFUNDED | null (pending)'),
   "createdBy": zod.string(),
   "dateCreated": zod.string()
 })

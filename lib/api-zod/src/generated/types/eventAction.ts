@@ -21,6 +21,11 @@ export interface EventAction {
   chargeAmount?: number | null;
   /** @nullable */
   chargeQuantity?: number | null;
+  /**
+     * PAID | REFUNDED | null (pending)
+     * @nullable
+     */
+  paymentStatus?: string | null;
   createdBy: string;
   dateCreated: string;
 }

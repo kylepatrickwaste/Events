@@ -22,6 +22,12 @@ export interface RouteEventListItem {
   quantity?: number | null;
   /** @nullable */
   imageUrl?: string | null;
+  imageUrls: string[];
+  /**
+     * Severe | Minimal
+     * @nullable
+     */
+  severity?: string | null;
   /** 0 = open, 1 = closed */
   eventStatus: number;
   /** @nullable */

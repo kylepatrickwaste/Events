@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './bulkCloseInput';
+export * from './bulkCloseResult';
 export * from './chargeInput';
 export * from './closeInput';
 export * from './customerRoute';
@@ -19,7 +21,11 @@ export * from './eventType';
 export * from './healthStatus';
 export * from './listEventsParams';
 export * from './listEventsStatus';
+export * from './nearbyEvent';
 export * from './noteInput';
+export * from './overageStatistics';
+export * from './overageStatisticsWindowsItem';
+export * from './recentCharge';
 export * from './routeEventDetail';
 export * from './routeEventDetailShareLinks';
 export * from './routeEventListItem';

@@ -63,18 +63,50 @@
     "link_copied": "Lien copié dans le presse-papiers !",
     "no_photo": "Aucune photo disponible",
     "no_routes": "Aucune route disponible",
-    "no_history": "Aucun historique disponible"
+    "no_history": "Aucun historique disponible",
+    "severity": "Sévérité",
+    "severity_severe": "Sévère",
+    "severity_minimal": "Minime",
+    "statistics": {
+      "title": "Statistiques de Dépassement",
+      "tenure": "Ancienneté",
+      "customer_since": "Client Depuis",
+      "last_charge": "Dernière Facturation",
+      "days_30": "30 Jours",
+      "days_60": "60 Jours",
+      "days_90": "90 Jours",
+      "charged": "Facturé",
+      "paid": "Payé",
+      "months": "{{count}} mois",
+      "years_months": "{{years}}a {{months}}m",
+      "never": "Jamais"
+    },
+    "nearby": {
+      "title": "Dépassements à Proximité",
+      "offset_sec": "{{s}}s",
+      "offset_min": "{{m}}m",
+      "status_open": "Ouvert",
+      "status_charged": "Facturé",
+      "status_dismissed": "Rejeté",
+      "empty": "Aucun dépassement à proximité",
+      "offset": "Décalage"
+    }
   },
   "charge": {
     "title": "Facturer le Compte",
     "service_code": "Code de Service",
     "select_code": "Sélectionnez un code...",
-    "amount": "Montant",
+    "amount": "Montant de la Facturation",
+    "service_price": "Prix du Service",
     "quantity": "Quantité",
     "keep_open": "Garder l'événement ouvert après facturation",
     "submit": "Appliquer la Facturation",
     "cancel": "Annuler",
-    "success": "Facturation appliquée avec succès"
+    "success": "Facturation appliquée avec succès",
+    "last_charges": "3 Dernières Facturations",
+    "status_paid": "PAYÉ",
+    "status_refunded": "REMBOURSÉ",
+    "status_pending": "EN ATTENTE"
   },
   "email": {
     "title": "Envoyer un E-mail",
@@ -100,15 +132,12 @@
     "submit": "Fermer l'Événement",
     "cancel": "Annuler",
     "success": "Événement fermé avec succès",
+    "close_duplicates": "Fermer {{count}} événements à proximité cochés comme doublons",
     "reasons": {
-      "duplicate": "Facturation en double",
-      "unclear": "Image peu claire",
-      "below_minimum": "En dessous du minimum",
-      "no_charge": "Pas de frais par chauffeur/bureau",
-      "holiday": "Retard pour jour férié",
-      "route_delay": "Retard sur la route",
-      "weather": "Météo",
-      "other": "Autre"
+      "not_overfill": "Pas un Dépassement",
+      "district_declined": "District a Refusé de Facturer",
+      "new_customer": "Nouveau Client",
+      "duplicate": "Doublon"
     }
   }
 }
