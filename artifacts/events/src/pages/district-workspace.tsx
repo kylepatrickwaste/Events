@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useRoute, useLocation } from 'wouter';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useRoute, useLocation, Link } from 'wouter';
 import {
   useGetDistrictSummary, getGetDistrictSummaryQueryKey,
   useListEvents, getListEventsQueryKey,
   useListDistricts, getListDistrictsQueryKey,
   useListDistrictServiceCodes, getListDistrictServiceCodesQueryKey,
+  useGetEvent, getGetEventQueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
@@ -16,9 +17,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronLeft, Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { ChevronLeft, Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -471,6 +471,7 @@ export default function DistrictWorkspace() {
                   {event.imageUrl ? (
                     <EventThumbnailPreview
                       event={event}
+                      districtId={districtId}
                       onCharge={() => setChargeEventId(event.id)}
                       onClose={() => setCloseEventId(event.id)}
                       onNavigate={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
@@ -518,14 +519,53 @@ export default function DistrictWorkspace() {
   );
 }
 
-function EventThumbnailPreview({ event, onCharge, onClose, onNavigate }: {
+function EventThumbnailPreview({ event, districtId, onCharge, onClose, onNavigate }: {
   event: any;
+  districtId: number;
   onCharge: () => void;
   onClose: () => void;
   onNavigate: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const [selectedImage, setSelectedImage] = useState<string>(event.imageUrl);
+  const [open, setOpen] = useState(false);
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTimers = () => {
+    if (openTimer.current) { clearTimeout(openTimer.current); openTimer.current = null; }
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+  };
+
+  const scheduleOpen = () => {
+    clearTimers();
+    openTimer.current = setTimeout(() => setOpen(true), 150);
+  };
+
+  const scheduleClose = () => {
+    clearTimers();
+    closeTimer.current = setTimeout(() => setOpen(false), 200);
+  };
+
+  const cancelClose = () => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+  };
+
+  useEffect(() => () => clearTimers(), []);
+
+  // Close on Escape while open
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  // Load the full event detail (includes nearby events) once the preview opens
+  const { data: detail, isLoading: isLoadingDetail } = useGetEvent(event.id, {
+    query: { enabled: open, queryKey: getGetEventQueryKey(event.id) }
+  });
+  const nearbyEvents = detail?.nearbyEvents;
 
   // Forward-compatible with a multi-image data model (Task on detail page):
   // if the API exposes an image list use it, otherwise fall back to the single image.
@@ -534,61 +574,160 @@ function EventThumbnailPreview({ event, onCharge, onClose, onNavigate }: {
     : [event.imageUrl];
   const isOpen = event.eventStatus === 0;
 
+  const formatOffset = (seconds: number) => {
+    const abs = Math.abs(seconds);
+    const dir = seconds < 0 ? 'before' : 'after';
+    if (abs < 60) return t(`event.nearby.offset_sec_${dir}` as any, { s: abs });
+    return t(`event.nearby.offset_min_${dir}` as any, { m: Math.floor(abs / 60) });
+  };
+
   return (
-    <HoverCard openDelay={150} closeDelay={200}>
-      <HoverCardTrigger asChild>
-        <div
-          onClick={onNavigate}
-          className="h-10 w-16 rounded overflow-hidden border bg-muted/50 cursor-pointer"
-        >
-          <img
-            src={event.imageUrl}
-            alt={`${event.customerName} photo`}
-            loading="lazy"
-            className="h-full w-full object-cover"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+    <>
+      <div
+        onClick={onNavigate}
+        onMouseEnter={scheduleOpen}
+        onMouseLeave={scheduleClose}
+        className="h-10 w-16 rounded overflow-hidden border bg-muted/50 cursor-pointer"
+      >
+        <img
+          src={event.imageUrl}
+          alt={`${event.customerName} photo`}
+          loading="lazy"
+          className="h-full w-full object-cover"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+      </div>
+      {open && (
+        <>
+          {/* Dim backdrop; click closes the preview */}
+          <div
+            className="fixed inset-0 z-50 bg-black/40 animate-in fade-in-0"
+            onClick={() => setOpen(false)}
           />
-        </div>
-      </HoverCardTrigger>
-      <HoverCardContent side="left" align="center" className="w-96 p-3 space-y-3">
-        <div className="bg-muted rounded-lg overflow-hidden aspect-video flex items-center justify-center">
-          <img
-            src={selectedImage}
-            alt="Event preview"
-            className="object-contain w-full h-full"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        </div>
-        {images.length > 1 && (
-          <div className="flex gap-2 overflow-x-auto">
-            {images.map((url, i) => (
-              <button
-                key={i}
-                onMouseEnter={() => setSelectedImage(url)}
-                onClick={() => setSelectedImage(url)}
-                className={cn(
-                  'h-12 w-16 shrink-0 rounded overflow-hidden border-2 transition-colors',
-                  selectedImage === url ? 'border-primary' : 'border-transparent hover:border-muted-foreground/40'
-                )}
-              >
-                <img src={url} alt={`Thumbnail ${i + 1}`} className="h-full w-full object-cover" />
-              </button>
-            ))}
+          <div
+            role="dialog"
+            aria-label={`${event.customerName} photo preview`}
+            onMouseEnter={cancelClose}
+            onMouseLeave={scheduleClose}
+            onClick={e => e.stopPropagation()}
+            className="fixed left-1/2 top-1/2 z-50 w-[min(56rem,calc(100vw-2rem))] max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border bg-background p-4 shadow-lg space-y-3 animate-in fade-in-0 zoom-in-95"
+          >
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="absolute right-3 top-3 z-10 rounded-sm bg-background/80 p-1 opacity-70 transition-opacity hover:opacity-100"
+              aria-label="Close preview"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="bg-muted rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+              <img
+                src={selectedImage}
+                alt="Event preview"
+                className="object-contain w-full h-full"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
+            {images.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto">
+                {images.map((url, i) => (
+                  <button
+                    key={i}
+                    onMouseEnter={() => setSelectedImage(url)}
+                    onClick={() => setSelectedImage(url)}
+                    className={cn(
+                      'h-12 w-16 shrink-0 rounded overflow-hidden border-2 transition-colors',
+                      selectedImage === url ? 'border-primary' : 'border-transparent hover:border-muted-foreground/40'
+                    )}
+                  >
+                    <img src={url} alt={`Thumbnail ${i + 1}`} className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {isOpen && (
+              <div className="flex gap-2">
+                <Button size="sm" className="flex-1 bg-success text-success-foreground hover:bg-success/90" onClick={onCharge}>
+                  <DollarSign className="h-4 w-4 mr-1" />
+                  {t('preview.charge')}
+                </Button>
+                <Button size="sm" variant="destructive" className="flex-1" onClick={onClose}>
+                  <XCircle className="h-4 w-4 mr-1" />
+                  {t('preview.close')}
+                </Button>
+              </div>
+            )}
+            {/* Nearby events cluster */}
+            <div className="pt-1">
+              <h4 className="text-sm font-semibold mb-2">{t('event.nearby.title')}</h4>
+              {isLoadingDetail ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : !nearbyEvents || nearbyEvents.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">{t('event.nearby.empty')}</p>
+              ) : (
+                <div className="border rounded-md overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 border-b">
+                      <tr>
+                        <th className="px-2 py-2 w-12"></th>
+                        <th className="px-3 py-2 text-left font-medium">{t('event.nearby.business')}</th>
+                        <th className="px-3 py-2 text-left font-medium">{t('event.nearby.account')}</th>
+                        <th className="px-3 py-2 text-left font-medium">{t('event.nearby.bin_serial')}</th>
+                        <th className="px-3 py-2 text-left font-medium">{t('district.date')}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t('district.status')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {nearbyEvents.map((nearby: any) => {
+                        const accountMismatch = !!nearby.accountNumber && nearby.accountNumber !== event.accountNumber;
+                        return (
+                          <tr
+                            key={nearby.id}
+                            className={`transition-colors ${accountMismatch ? 'bg-destructive/10 hover:bg-destructive/15 text-destructive' : 'hover:bg-muted/30'}`}
+                          >
+                            <td className="px-2 py-2">
+                              <Link href={`/districts/${districtId}/events/${nearby.id}`}>
+                                {nearby.imageUrl ? (
+                                  <img src={nearby.imageUrl} className="w-8 h-8 object-cover rounded shadow-sm cursor-pointer" alt="Thumbnail" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded bg-muted flex items-center justify-center cursor-pointer">
+                                    <Images className="w-3 h-3 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </Link>
+                            </td>
+                            <td className="px-3 py-2">{nearby.customerName ?? '—'}</td>
+                            <td className={`px-3 py-2 font-mono text-xs ${accountMismatch ? 'font-bold' : ''}`}>
+                              {nearby.accountNumber ?? '—'}
+                            </td>
+                            <td className="px-3 py-2 font-mono text-xs">{nearby.binSerialNumber ?? '—'}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              <Link href={`/districts/${districtId}/events/${nearby.id}`} className={`hover:underline ${accountMismatch ? 'text-destructive' : 'text-primary'}`}>
+                                {formatDate(nearby.dateOccurred, { hour: 'numeric', minute: '2-digit' })}
+                              </Link>
+                              <span className={`ml-2 font-mono text-xs ${accountMismatch ? 'text-destructive/80' : 'text-muted-foreground'}`}>
+                                {formatOffset(nearby.secondsOffset)}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <Badge variant="outline" className="text-[10px]">
+                                {t(`event.nearby.status_${nearby.status.toLowerCase()}` as any)}
+                              </Badge>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-        {isOpen && (
-          <div className="flex gap-2">
-            <Button size="sm" className="flex-1 bg-success text-success-foreground hover:bg-success/90" onClick={onCharge}>
-              <DollarSign className="h-4 w-4 mr-1" />
-              {t('preview.charge')}
-            </Button>
-            <Button size="sm" variant="destructive" className="flex-1" onClick={onClose}>
-              <XCircle className="h-4 w-4 mr-1" />
-              {t('preview.close')}
-            </Button>
-          </div>
-        )}
-      </HoverCardContent>
-    </HoverCard>
+        </>
+      )}
+    </>
   );
 }
