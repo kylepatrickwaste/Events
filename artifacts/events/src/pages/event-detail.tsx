@@ -219,10 +219,10 @@ export default function EventDetailWorkspace() {
           </Card>
 
           <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">{t('event.nearby.title')}</CardTitle>
+            <CardHeader className="py-3">
+              <CardTitle className="text-base">{t('event.nearby.title')}</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               {event.nearbyEvents?.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">{t('event.nearby.empty')}</p>
               ) : (
@@ -230,14 +230,14 @@ export default function EventDetailWorkspace() {
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50 border-b">
                       <tr>
-                        <th className="px-3 py-2 w-8"></th>
-                        <th className="px-2 py-2 w-12"></th>
-                        <th className="px-3 py-2 text-left font-medium">{t('event.nearby.business')}</th>
-                        <th className="px-3 py-2 text-left font-medium">{t('event.nearby.account')}</th>
-                        <th className="px-3 py-2 text-left font-medium">{t('event.nearby.bin_serial')}</th>
-                        <th className="px-3 py-2 text-left font-medium">{t('event.nearby.truck')}</th>
-                        <th className="px-3 py-2 text-left font-medium">{t('district.date')}</th>
-                        <th className="px-3 py-2 text-right font-medium">{t('district.status')}</th>
+                        <th className="px-3 py-1 w-8"></th>
+                        <th className="px-2 py-1 w-12"></th>
+                        <th className="px-3 py-1 text-left font-medium">{t('event.nearby.business')}</th>
+                        <th className="px-3 py-1 text-left font-medium">{t('event.nearby.account')}</th>
+                        <th className="px-3 py-1 text-left font-medium">{t('event.nearby.bin_serial')}</th>
+                        <th className="px-3 py-1 text-left font-medium">{t('event.nearby.truck')}</th>
+                        <th className="px-3 py-1 text-left font-medium">{t('district.date')}</th>
+                        <th className="px-3 py-1 text-right font-medium">{t('district.status')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -248,13 +248,13 @@ export default function EventDetailWorkspace() {
                             key={nearby.id}
                             className={`transition-colors ${accountMismatch ? 'bg-destructive/10 hover:bg-destructive/15 text-destructive' : 'hover:bg-muted/30'}`}
                           >
-                            <td className="px-3 py-2">
+                            <td className="px-3 py-1">
                               <Checkbox 
                                 checked={checkedNearby.has(nearby.id)} 
                                 onCheckedChange={() => toggleNearby(nearby.id)} 
                               />
                             </td>
-                            <td className="px-2 py-2">
+                            <td className="px-2 py-1">
                               <Link href={`/districts/${districtId}/events/${nearby.id}`}>
                                 {nearby.imageUrl ? (
                                   <img src={nearby.imageUrl} className="w-8 h-8 object-cover rounded shadow-sm cursor-pointer" alt="Thumbnail" />
@@ -265,13 +265,13 @@ export default function EventDetailWorkspace() {
                                 )}
                               </Link>
                             </td>
-                            <td className="px-3 py-2">{nearby.customerName ?? '—'}</td>
-                            <td className={`px-3 py-2 font-mono text-xs ${accountMismatch ? 'font-bold' : ''}`}>
+                            <td className="px-3 py-1">{nearby.customerName ?? '—'}</td>
+                            <td className={`px-3 py-1 font-mono text-xs ${accountMismatch ? 'font-bold' : ''}`}>
                               {nearby.accountNumber ?? '—'}
                             </td>
-                            <td className="px-3 py-2 font-mono text-xs">{nearby.binSerialNumber ?? '—'}</td>
-                            <td className="px-3 py-2 font-mono text-xs">{nearby.vehicle ?? '—'}</td>
-                            <td className="px-3 py-2 whitespace-nowrap">
+                            <td className="px-3 py-1 font-mono text-xs">{nearby.binSerialNumber ?? '—'}</td>
+                            <td className="px-3 py-1 font-mono text-xs">{nearby.vehicle ?? '—'}</td>
+                            <td className="px-3 py-1 whitespace-nowrap">
                               <Link href={`/districts/${districtId}/events/${nearby.id}`} className={`hover:underline ${accountMismatch ? 'text-destructive' : 'text-primary'}`}>
                                 {formatDate(nearby.dateOccurred, { hour: 'numeric', minute: '2-digit' })}
                               </Link>
@@ -279,7 +279,7 @@ export default function EventDetailWorkspace() {
                                 {formatOffset(nearby.secondsOffset)}
                               </span>
                             </td>
-                            <td className="px-3 py-2 text-right">
+                            <td className="px-3 py-1 text-right">
                               <Badge variant="outline" className="text-[10px]">
                                 {t(`event.nearby.status_${nearby.status.toLowerCase()}` as any)}
                               </Badge>

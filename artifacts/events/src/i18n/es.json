@@ -106,7 +106,7 @@
       "offset": "Desfase",
       "business": "Negocio",
       "account": "N.º de Cuenta",
-      "bin_serial": "N.º de Serie del Contenedor",
+      "bin_serial": "N.º Serie",
       "truck": "N.º de Camión",
       "offset_sec_after": "{{s}}s después",
       "offset_sec_before": "{{s}}s antes",

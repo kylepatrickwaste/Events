@@ -106,7 +106,7 @@
       "offset": "Décalage",
       "business": "Entreprise",
       "account": "N° de Compte",
-      "bin_serial": "N° de Série du Bac",
+      "bin_serial": "N° Série",
       "truck": "N° de Camion",
       "offset_sec_after": "{{s}}s après",
       "offset_sec_before": "{{s}}s avant",

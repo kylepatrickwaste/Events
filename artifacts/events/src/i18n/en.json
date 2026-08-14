@@ -106,7 +106,7 @@
       "offset": "Offset",
       "business": "Business",
       "account": "Account #",
-      "bin_serial": "Bin Serial #",
+      "bin_serial": "Serial#",
       "truck": "Truck #",
       "offset_sec_after": "{{s}}s after",
       "offset_sec_before": "{{s}}s before",
