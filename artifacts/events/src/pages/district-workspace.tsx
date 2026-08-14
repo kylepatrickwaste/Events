@@ -200,108 +200,32 @@ export default function DistrictWorkspace() {
   };
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-7xl">
-      <div className="flex items-center justify-end mb-4">
-        {/* Searchable district switcher */}
-        <Popover open={switcherOpen} onOpenChange={setSwitcherOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" role="combobox" aria-expanded={switcherOpen} className="w-full md:w-[300px] justify-between">
-              <span className="truncate">
-                {district ? `${district.number} – ${district.name}` : t('district.switch_district')}
-              </span>
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[300px] p-0" align="end">
-            <Command>
-              <CommandInput placeholder={t('district.search_district')} />
-              <CommandList>
-                <CommandEmpty>{t('district.no_district_found')}</CommandEmpty>
-                <CommandGroup>
-                  {(districts ?? []).map(d => (
-                    <CommandItem
-                      key={d.id}
-                      value={`${d.number} ${d.name}`}
-                      onSelect={() => {
-                        setSwitcherOpen(false);
-                        if (d.id !== districtId) setLocation(`/districts/${d.id}`);
-                      }}
-                    >
-                      <Check className={cn('mr-2 h-4 w-4', d.id === districtId ? 'opacity-100' : 'opacity-0')} />
-                      <span className="font-mono mr-2">{d.number}</span> – {d.name}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card className="bg-primary/5 border-primary/20 shadow-none">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-full text-primary">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t('district.open_events')}</p>
-                <h3 className="text-2xl font-bold text-foreground">
-                  {isLoadingSummary ? <Skeleton className="h-8 w-16" /> : summary?.openCount || 0}
-                </h3>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-none">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-muted rounded-full text-muted-foreground">
-                <CheckCircle2 className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t('district.closed_events')}</p>
-                <h3 className="text-2xl font-bold text-foreground">
-                  {isLoadingSummary ? <Skeleton className="h-8 w-16" /> : summary?.closedCount || 0}
-                </h3>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-none">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-success/10 rounded-full text-success">
-                <DollarSign className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t('district.charged_today')}</p>
-                <h3 className="text-2xl font-bold text-foreground">
-                  {isLoadingSummary ? <Skeleton className="h-8 w-16" /> : formatCurrency(summary?.chargedToday || 0)}
-                </h3>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold tracking-tight">{t('district.queue')}</h2>
-          {someSelected && (
-            <Button variant="destructive" size="sm" onClick={() => setBulkCloseOpen(true)}>
-              <XCircle className="h-4 w-4 mr-2" />
-              {t('district.close_selected')} ({selectedIds.size})
-            </Button>
-          )}
+    <div className="container mx-auto py-3 px-4 max-w-7xl">
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <div className="flex items-center gap-2 rounded-lg border bg-primary/5 border-primary/20 px-3 py-1.5">
+          <AlertTriangle className="h-4 w-4 text-primary" />
+          <span className="text-xs font-medium text-muted-foreground">{t('district.open_events')}</span>
+          <span className="text-base font-bold text-foreground">
+            {isLoadingSummary ? <Skeleton className="h-5 w-8" /> : summary?.openCount || 0}
+          </span>
         </div>
+        <div className="flex items-center gap-2 rounded-lg border px-3 py-1.5">
+          <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">{t('district.closed_events')}</span>
+          <span className="text-base font-bold text-foreground">
+            {isLoadingSummary ? <Skeleton className="h-5 w-8" /> : summary?.closedCount || 0}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg border px-3 py-1.5">
+          <DollarSign className="h-4 w-4 text-success" />
+          <span className="text-xs font-medium text-muted-foreground">{t('district.charged_today')}</span>
+          <span className="text-base font-bold text-foreground">
+            {isLoadingSummary ? <Skeleton className="h-5 w-8" /> : formatCurrency(summary?.chargedToday || 0)}
+          </span>
+        </div>
+      </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          <Button variant="outline" className="w-full sm:w-auto" onClick={() => setContractAccountsOpen(true)}>
-            <FileX2 className="h-4 w-4 mr-2" />
-            {t('contract_accounts.button')}
-          </Button>
+      <div className="flex flex-col sm:flex-row items-center gap-2 mb-3 w-full">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -342,11 +266,21 @@ export default function DistrictWorkspace() {
               <TabsTrigger value="closed">{t('district.filter_closed')}</TabsTrigger>
             </TabsList>
           </Tabs>
-        </div>
+
+          <Button variant="outline" size="sm" className="w-full sm:w-auto sm:ml-auto" onClick={() => setContractAccountsOpen(true)}>
+            <FileX2 className="h-4 w-4 mr-2" />
+            {t('contract_accounts.button')}
+          </Button>
+          {someSelected && (
+            <Button variant="destructive" size="sm" onClick={() => setBulkCloseOpen(true)}>
+              <XCircle className="h-4 w-4 mr-2" />
+              {t('district.close_selected')} ({selectedIds.size})
+            </Button>
+          )}
       </div>
 
       <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
-        <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground items-center">
+        <div className="grid grid-cols-12 gap-4 px-3 py-2 border-b bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground items-center">
           <div className="col-span-1 flex items-center gap-3">
             <Checkbox
               checked={allOpenSelected}
@@ -369,7 +303,7 @@ export default function DistrictWorkspace() {
             <SortHeader label="Date Occurred" column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
           </div>
           <div className="col-span-1">
-            <SortHeader label="Route / Vehicle" column="route" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
+            <SortHeader label="Vehicle" column="route" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
           </div>
           <div className="col-span-2 text-right">Photo</div>
         </div>
@@ -389,7 +323,7 @@ export default function DistrictWorkspace() {
               <div
                 key={event.id}
                 onClick={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
-                className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 cursor-pointer transition-colors group"
+                className="grid grid-cols-12 gap-4 px-3 py-1.5 items-center hover:bg-muted/30 cursor-pointer transition-colors group"
               >
                 <div className="col-span-1 flex items-center gap-3" onClick={e => e.stopPropagation()}>
                   {event.eventStatus === 0 ? (

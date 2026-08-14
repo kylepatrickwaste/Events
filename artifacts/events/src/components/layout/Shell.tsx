@@ -1,5 +1,9 @@
 import React from 'react';
-import { Link, useRoute } from 'wouter';
+import { Link, useRoute, useLocation } from 'wouter';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useI18n, Language } from '@/i18n';
 import { useTheme } from '@/components/theme-provider';
 import logoUrl from '@assets/Waste_Connections_Logo_Symbol_-_2_Color-_12-10-09_-_transparen_1786045458506.png';
@@ -91,6 +95,60 @@ function EventHeaderCenter() {
   );
 }
 
+function HeaderDistrictSwitcher() {
+  const { t } = useI18n();
+  const [, setLocation] = useLocation();
+  const [matchesDistrict, params] = useRoute('/districts/:districtId');
+  const [matchesEvent, eventParams] = useRoute('/districts/:districtId/events/:eventId');
+  const [open, setOpen] = React.useState(false);
+
+  const districtId = Number((matchesDistrict ? params?.districtId : eventParams?.districtId) ?? NaN);
+  const show = matchesDistrict || matchesEvent;
+
+  const { data: districts } = useListDistricts({
+    query: { enabled: show, queryKey: getListDistrictsQueryKey() },
+  });
+
+  if (!show) return null;
+  const district = districts?.find(d => d.id === districtId);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" role="combobox" aria-expanded={open} className="h-8 max-w-[220px] justify-between">
+          <span className="truncate font-mono text-xs">
+            {district ? `${district.number} – ${district.name}` : t('district.switch_district')}
+          </span>
+          <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0" align="end">
+        <Command>
+          <CommandInput placeholder={t('district.search_district')} />
+          <CommandList>
+            <CommandEmpty>{t('district.no_district_found')}</CommandEmpty>
+            <CommandGroup>
+              {(districts ?? []).map(d => (
+                <CommandItem
+                  key={d.id}
+                  value={`${d.number} ${d.name}`}
+                  onSelect={() => {
+                    setOpen(false);
+                    if (d.id !== districtId) setLocation(`/districts/${d.id}`);
+                  }}
+                >
+                  <Check className={cn('mr-2 h-4 w-4', d.id === districtId ? 'opacity-100' : 'opacity-0')} />
+                  <span className="font-mono mr-2">{d.number}</span> – {d.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function Header() {
   const { t, language, setLanguage } = useI18n();
   const { theme, setTheme } = useTheme();
@@ -110,6 +168,7 @@ export function Header() {
           </span>
         </Link>
         <div className="flex flex-1 items-center justify-end space-x-4">
+          <HeaderDistrictSwitcher />
           <div ref={langRef} className="flex items-center space-x-1 text-sm text-muted-foreground">
             <button 
               onClick={() => setLanguage('en')}
