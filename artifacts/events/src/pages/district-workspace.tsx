@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronLeft, Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X } from 'lucide-react';
+import { Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -196,19 +196,7 @@ export default function DistrictWorkspace() {
 
   return (
     <div className="container mx-auto py-6 px-4 max-w-7xl">
-      <div className="flex flex-col md:flex-row md:items-center gap-4 mb-8">
-        <div className="flex items-center gap-4 flex-1">
-          <Button variant="ghost" size="icon" onClick={() => setLocation('/?browse=1')} title={t('app.view_all_districts')}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-              {district?.name || <Skeleton className="h-8 w-48" />}
-              {district && <Badge variant="secondary" className="font-mono">{district.number}</Badge>}
-            </h1>
-          </div>
-        </div>
-
+      <div className="flex items-center justify-end mb-4">
         {/* Searchable district switcher */}
         <Popover open={switcherOpen} onOpenChange={setSwitcherOpen}>
           <PopoverTrigger asChild>
