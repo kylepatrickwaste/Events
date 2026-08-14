@@ -44,6 +44,8 @@
   },
   "event": {
     "detail": "Detalle del Evento",
+    "detail_severe": "Detalle del Evento - Sobrecarga Severa",
+    "detail_minimal": "Detalle del Evento - Sobrecarga Mínima",
     "occurred": "Ocurrido",
     "source": "Fuente",
     "account": "Cuenta",

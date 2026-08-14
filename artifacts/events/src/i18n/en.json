@@ -44,6 +44,8 @@
   },
   "event": {
     "detail": "Event Detail",
+    "detail_severe": "Event Detail - Severe Overload",
+    "detail_minimal": "Event Detail - Minimal Overload",
     "occurred": "Occurred",
     "source": "Source",
     "account": "Account",

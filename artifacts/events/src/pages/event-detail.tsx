@@ -151,7 +151,13 @@ export default function EventDetailWorkspace() {
           {/* Event Detail */}
           <Card className="shadow-sm overflow-hidden">
             <CardHeader className={`py-2 ${event.severity === 'Severe' ? 'bg-destructive' : 'bg-primary'}`}>
-              <CardTitle className={`text-sm ${event.severity === 'Severe' ? 'text-destructive-foreground' : 'text-primary-foreground'}`}>{t('event.detail')}</CardTitle>
+              <CardTitle className={`text-sm ${event.severity === 'Severe' ? 'text-destructive-foreground' : 'text-primary-foreground'}`}>
+                {event.severity === 'Severe'
+                  ? t('event.detail_severe')
+                  : event.severity
+                    ? t('event.detail_minimal')
+                    : t('event.detail')}
+              </CardTitle>
             </CardHeader>
             <CardContent className="py-3">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2 text-xs">
@@ -177,16 +183,6 @@ export default function EventDetailWorkspace() {
                 <DetailRow label={t('district.address')} value={event.address} />
                 <DetailRow label={t('event.vehicle')} value={event.vehicle} mono />
                 <DetailRow label={t('event.bin_serial')} value={event.binSerialNumber} mono />
-                <DetailRow 
-                  label={t('event.severity')} 
-                  value={
-                    event.severity ? (
-                      <span className={event.severity === 'Severe' ? 'text-destructive font-bold' : 'text-muted-foreground font-medium'}>
-                        {event.severity === 'Severe' ? t('event.severity_severe') : t('event.severity_minimal')}
-                      </span>
-                    ) : null
-                  } 
-                />
                 {isClosed && event.closedBy && (
                   <DetailRow label={t('event.closed_by')} value={`${event.closedBy} on ${formatDate(event.dateClosed || '')}`} />
                 )}
