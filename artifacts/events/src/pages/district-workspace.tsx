@@ -73,7 +73,7 @@ export default function DistrictWorkspace() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [statusFilter, setStatusFilter] = useState<'open' | 'closed' | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<'open' | 'closed' | 'all'>('open');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [severityFilter, setSeverityFilter] = useState<'all' | 'severe' | 'minimal'>('all');

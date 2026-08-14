@@ -115,27 +115,25 @@ export default function EventDetailWorkspace() {
   };
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-7xl">
+    <div className="container mx-auto py-3 px-4 max-w-7xl">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div className="flex items-center gap-2 md:ml-auto">
-          {!isClosed && (
-            <>
-              <Button onClick={() => setChargeOpen(true)} className="bg-success text-success-foreground hover:bg-success/90">
-                <DollarSign className="w-4 h-4 mr-2" />
-                {t('event.charge')}
-              </Button>
-              <Button onClick={() => setEmailOpen(true)} variant="secondary">
-                <Mail className="w-4 h-4 mr-2" />
-                {t('event.email')}
-              </Button>
-              <Button onClick={() => setCloseOpen(true)} variant="destructive">
-                <XCircle className="w-4 h-4 mr-2" />
-                {t('event.close')}
-              </Button>
-            </>
-          )}
-        </div>
+      <div className="flex justify-end items-center gap-2 mb-3">
+        {!isClosed && (
+          <>
+            <Button size="sm" onClick={() => setChargeOpen(true)} className="bg-success text-success-foreground hover:bg-success/90">
+              <DollarSign className="w-4 h-4 mr-1" />
+              {t('event.charge')}
+            </Button>
+            <Button size="sm" onClick={() => setEmailOpen(true)} variant="secondary">
+              <Mail className="w-4 h-4 mr-1" />
+              {t('event.email')}
+            </Button>
+            <Button size="sm" onClick={() => setCloseOpen(true)} variant="destructive">
+              <XCircle className="w-4 h-4 mr-1" />
+              {t('event.close')}
+            </Button>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

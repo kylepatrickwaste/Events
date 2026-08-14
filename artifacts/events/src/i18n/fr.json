@@ -63,9 +63,9 @@
     "material": "Matériel",
     "day": "Jour",
     "actions": "Actions",
-    "charge": "Facturer le Compte",
-    "email": "Envoyer un E-mail",
-    "close": "Fermer l'Événement",
+    "charge": "Facturer",
+    "email": "E-mail",
+    "close": "Fermer",
     "history_and_notes": "Historique et Notes",
     "add_note": "Ajouter une note...",
     "save_note": "Enregistrer la Note",
@@ -185,13 +185,13 @@
     "dismiss_event": "Rejeter l’événement"
   },
   "contract_accounts": {
-    "title": "Comptes sous contrat",
+    "title": "Comptes exclus",
     "description": "Comptes marqués « Contrat - Sans dépassements ». Leurs événements de dépassement sont masqués de la file. Supprimez un marquage pour faire réapparaître les événements du compte.",
     "empty": "Aucun compte marqué sous contrat dans ce district",
     "flagged_by": "Marqué par {{user}} le {{date}}",
     "remove": "Retirer le marquage",
     "removed": "Marquage retiré — les événements du compte {{account}} sont de retour dans la file",
     "remove_failed": "Impossible de retirer le marquage. Veuillez réessayer.",
-    "button": "Comptes sous contrat"
+    "button": "Comptes exclus"
   }
 }

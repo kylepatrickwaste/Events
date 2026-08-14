@@ -63,9 +63,9 @@
     "material": "Material",
     "day": "Day",
     "actions": "Actions",
-    "charge": "Charge Account",
-    "email": "Send Email",
-    "close": "Close Event",
+    "charge": "Charge",
+    "email": "Email",
+    "close": "Close",
     "history_and_notes": "History & Notes",
     "add_note": "Add note...",
     "save_note": "Save Note",
@@ -185,13 +185,13 @@
     "dismiss_event": "Dismiss Event"
   },
   "contract_accounts": {
-    "title": "Contract Accounts",
+    "title": "Excluded Accounts",
     "description": "Accounts flagged as \"Contract - No Overages\". Their overage events are hidden from the queue. Remove a flag to bring the account's events back.",
     "empty": "No contract-flagged accounts in this district",
     "flagged_by": "Flagged by {{user}} on {{date}}",
     "remove": "Remove flag",
     "removed": "Flag removed — events for account {{account}} are back in the queue",
     "remove_failed": "Could not remove the flag. Please try again.",
-    "button": "Contract Accounts"
+    "button": "Excluded Accounts"
   }
 }
