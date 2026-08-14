@@ -10,7 +10,8 @@
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
-    "seed:event-photos": "tsx ./src/seed/eventPhotos.ts"
+    "seed:event-photos": "tsx ./src/seed/eventPhotos.ts",
+    "seed:duplicate-clusters": "tsx ./src/seed/duplicateClusters.ts"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",
