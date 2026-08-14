@@ -1,6 +1,7 @@
 import React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Images } from 'lucide-react';
 import { useI18n } from '@/i18n';
 
@@ -69,7 +70,14 @@ export function NearbyClusterPicker({ nearby, checked, onToggle, anchorAccountNu
                 <span className="block w-4 shrink-0" />
               )}
               {n.imageUrl ? (
-                <img src={n.imageUrl} className="w-10 h-8 object-cover rounded shrink-0" alt="" />
+                <HoverCard openDelay={150} closeDelay={100}>
+                  <HoverCardTrigger asChild>
+                    <img src={n.imageUrl} className="w-10 h-8 object-cover rounded shrink-0" alt="" />
+                  </HoverCardTrigger>
+                  <HoverCardContent side="right" align="start" className="w-auto p-1 z-[60]">
+                    <img src={n.imageUrl} className="w-80 max-w-[70vw] rounded object-contain" alt="" />
+                  </HoverCardContent>
+                </HoverCard>
               ) : (
                 <div className="w-10 h-8 rounded bg-muted flex items-center justify-center shrink-0">
                   <Images className="w-3 h-3 text-muted-foreground" />
