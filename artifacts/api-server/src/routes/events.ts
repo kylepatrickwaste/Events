@@ -301,25 +301,49 @@ router.get("/events", async (req, res): Promise<void> => {
   );
 });
 
-/** Nearby overages: same district & route within ±60 minutes of the event. */
+// --- Nearby-overage matching tunables ---
+/** Max great-circle distance (meters) for an event to count as "nearby". */
+const NEARBY_RADIUS_METERS = 300;
+/** Time window (± minutes around the event) for nearby matching. */
+const NEARBY_WINDOW_MINUTES = 60;
+/** Max number of nearby events returned. */
+const NEARBY_MAX_RESULTS = 10;
+
+/**
+ * Nearby overages: same district within ±NEARBY_WINDOW_MINUTES and a true
+ * haversine distance of NEARBY_RADIUS_METERS, closest first, capped at
+ * NEARBY_MAX_RESULTS rows.
+ */
 async function queryNearbyRows(e: typeof routeEventsTable.$inferSelect) {
-  const windowMs = 60 * 60000;
+  const windowMs = NEARBY_WINDOW_MINUTES * 60000;
+  // Haversine distance in meters between the anchor event and each row.
+  const distanceMeters = sql<number>`(
+    2 * 6371000 * asin(
+      sqrt(
+        pow(sin(radians(${routeEventsTable.latitude} - ${e.latitude}) / 2), 2)
+        + cos(radians(${e.latitude}))
+        * cos(radians(${routeEventsTable.latitude}))
+        * pow(sin(radians(${routeEventsTable.longitude} - ${e.longitude}) / 2), 2)
+      )
+    )
+  )`;
   return db
     .select()
     .from(routeEventsTable)
     .where(
       and(
         eq(routeEventsTable.districtId, e.districtId),
-        eq(routeEventsTable.route, e.route),
         ne(routeEventsTable.id, e.id),
         gte(
           routeEventsTable.dateOccurred,
           new Date(e.dateOccurred.getTime() - windowMs),
         ),
         sql`${routeEventsTable.dateOccurred} <= ${new Date(e.dateOccurred.getTime() + windowMs)}`,
+        sql`${distanceMeters} <= ${NEARBY_RADIUS_METERS}`,
       ),
     )
-    .orderBy(asc(routeEventsTable.dateOccurred));
+    .orderBy(sql`${distanceMeters} asc`, asc(routeEventsTable.dateOccurred))
+    .limit(NEARBY_MAX_RESULTS);
 }
 
 async function loadEventDetail(eventId: number) {
