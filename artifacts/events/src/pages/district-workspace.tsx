@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronLeft, Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle } from 'lucide-react';
+import { ChevronLeft, Search, Clock, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -269,8 +269,9 @@ export default function DistrictWorkspace() {
           </div>
           <div className="col-span-3">Customer</div>
           <div className="col-span-2">Type / Source</div>
+          <div className="col-span-1">Severity</div>
           <div className="col-span-2">Date Occurred</div>
-          <div className="col-span-2">Route / Vehicle</div>
+          <div className="col-span-1">Route / Vehicle</div>
           <div className="col-span-2 text-right">Photo</div>
         </div>
 
@@ -316,17 +317,40 @@ export default function DistrictWorkspace() {
                   <div className="font-medium text-sm line-clamp-1">{event.eventTypeName}</div>
                   <div className="text-xs text-muted-foreground">{event.eventSourceName}</div>
                 </div>
+                <div className="col-span-1">
+                  {event.severity ? (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'border-0',
+                        event.severity.toLowerCase() === 'severe'
+                          ? 'bg-destructive/10 text-destructive'
+                          : 'bg-muted text-muted-foreground'
+                      )}
+                    >
+                      {event.severity}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </div>
                 <div className="col-span-2">
                   <div className="text-sm flex items-center gap-1.5 text-muted-foreground">
                     <Clock className="h-3.5 w-3.5" />
                     {formatDate(event.dateOccurred)}
                   </div>
                 </div>
-                <div className="col-span-2 text-sm">
+                <div className="col-span-1 text-sm">
                   <div className="font-mono text-xs">{event.route}</div>
                   <div className="text-muted-foreground font-mono text-xs">{event.vehicle}</div>
                 </div>
-                <div className="col-span-2 flex justify-end" onClick={e => e.stopPropagation()}>
+                <div className="col-span-2 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                  {(event.imageUrls?.length ?? 0) > 0 && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Camera className="h-3.5 w-3.5" />
+                      {event.imageUrls.length}
+                    </span>
+                  )}
                   {event.imageUrl ? (
                     <EventThumbnailPreview
                       event={event}
