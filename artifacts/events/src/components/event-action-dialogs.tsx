@@ -1,5 +1,5 @@
-import React from 'react';
-import { useChargeEvent, useCloseEvent, useBulkCloseEvents } from '@workspace/api-client-react';
+import React, { useState, useEffect } from 'react';
+import { useChargeEvent, useCloseEvent, useBulkCloseEvents, useGetEvent, getGetEventQueryKey } from '@workspace/api-client-react';
 import { useI18n } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -62,21 +62,43 @@ export function CloseEventDialog({ open, onOpenChange, eventId, onSuccess }: {
   eventId: number;
   onSuccess: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const closeMutation = useCloseEvent();
+  const [checkedNearby, setCheckedNearby] = useState<Set<number>>(new Set());
+
+  const { data: detail } = useGetEvent(eventId, {
+    query: { enabled: open && !!eventId, queryKey: getGetEventQueryKey(eventId) },
+  });
+  const nearbyOpen = (detail?.nearbyEvents ?? []).filter((n: any) => n.status === 'Open');
+
+  useEffect(() => {
+    if (!open) setCheckedNearby(new Set());
+  }, [open]);
 
   const form = useForm({
     resolver: zodResolver(closeSchema),
     defaultValues: { closeReason: '', notes: '' },
   });
 
-  const submit = (data: any) => {
-    closeMutation.mutate({ eventId, data }, {
-      onSuccess: () => {
-        form.reset();
-        onSuccess();
-      },
+  const toggleNearby = (id: number) => {
+    setCheckedNearby(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
     });
+  };
+
+  const submit = (data: any) => {
+    closeMutation.mutate(
+      { eventId, data: { ...data, duplicateEventIds: Array.from(checkedNearby) } },
+      {
+        onSuccess: () => {
+          form.reset();
+          setCheckedNearby(new Set());
+          onSuccess();
+        },
+      },
+    );
   };
 
   return (
@@ -88,6 +110,26 @@ export function CloseEventDialog({ open, onOpenChange, eventId, onSuccess }: {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(submit)} className="space-y-4">
             <CloseReasonFields form={form} />
+            {nearbyOpen.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">{t('close.dismiss_these')}</p>
+                <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
+                  {nearbyOpen.map((n: any) => (
+                    <label key={n.id} className="flex items-center gap-3 p-2 cursor-pointer hover:bg-muted/30">
+                      <Checkbox
+                        checked={checkedNearby.has(n.id)}
+                        onCheckedChange={() => toggleNearby(n.id)}
+                      />
+                      {n.imageUrl && (
+                        <img src={n.imageUrl} className="w-10 h-8 object-cover rounded" alt="" />
+                      )}
+                      <span className="text-sm">{formatDate(n.dateOccurred, { hour: 'numeric', minute: '2-digit' })}</span>
+                      <span className="text-xs text-muted-foreground ml-auto truncate max-w-[10rem]">{n.customerName}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('close.cancel')}</Button>
               <Button type="submit" variant="destructive" disabled={closeMutation.isPending}>{t('close.submit')}</Button>
@@ -152,7 +194,6 @@ const chargeSchema = z.object({
   serviceCodeId: z.coerce.number().min(1, 'Required'),
   amount: z.coerce.number().min(0),
   quantity: z.coerce.number().min(1),
-  keepOpen: z.boolean().default(false),
 });
 
 export function ChargeEventDialog({ open, onOpenChange, eventId, serviceCodes, onSuccess }: {
@@ -167,7 +208,7 @@ export function ChargeEventDialog({ open, onOpenChange, eventId, serviceCodes, o
 
   const form = useForm({
     resolver: zodResolver(chargeSchema),
-    defaultValues: { serviceCodeId: '' as any, amount: 0, quantity: 1, keepOpen: false },
+    defaultValues: { serviceCodeId: '' as any, amount: 0, quantity: 1 },
   });
 
   const onSelectCode = (idStr: string) => {
@@ -227,15 +268,6 @@ export function ChargeEventDialog({ open, onOpenChange, eventId, serviceCodes, o
                 </FormItem>
               )} />
             </div>
-
-            <FormField control={form.control} name="keepOpen" render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
-                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                <div className="space-y-1 leading-none">
-                  <FormLabel>{t('charge.keep_open')}</FormLabel>
-                </div>
-              </FormItem>
-            )} />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('charge.cancel')}</Button>

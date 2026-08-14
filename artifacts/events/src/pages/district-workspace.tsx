@@ -351,6 +351,17 @@ export default function DistrictWorkspace() {
                   <div className="text-muted-foreground font-mono text-xs">{event.vehicle}</div>
                 </div>
                 <div className="col-span-2 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                  {event.eventStatus === 0 && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-7 px-2"
+                      onClick={() => setCloseEventId(event.id)}
+                    >
+                      <XCircle className="h-3.5 w-3.5 mr-1" />
+                      {t('preview.close')}
+                    </Button>
+                  )}
                   {(event.imageUrls?.length ?? 0) > 0 && (
                     <span className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Camera className="h-3.5 w-3.5" />

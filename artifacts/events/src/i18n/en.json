@@ -153,7 +153,8 @@
       "new_customer": "New Customer",
       "duplicate": "Duplicate",
       "contract_no_overages": "Contract - No Overages Can Be Charged"
-    }
+    },
+    "dismiss_these": "Dismiss these when closing"
   },
   "bulk_close": {
     "title": "Close selected events",

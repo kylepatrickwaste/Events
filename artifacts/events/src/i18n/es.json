@@ -153,7 +153,8 @@
       "new_customer": "Cliente Nuevo",
       "duplicate": "Duplicado",
       "contract_no_overages": "Contrato - No Se Pueden Cobrar Excesos"
-    }
+    },
+    "dismiss_these": "Descartar estos al cerrar"
   },
   "bulk_close": {
     "title": "Cerrar eventos seleccionados",

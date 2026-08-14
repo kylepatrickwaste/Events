@@ -535,7 +535,6 @@ const chargeSchema = z.object({
   serviceCodeId: z.coerce.number().min(1, 'Required'),
   amount: z.coerce.number().min(0),
   quantity: z.coerce.number().min(1),
-  keepOpen: z.boolean().default(false)
 });
 
 function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSuccess }: any) {
@@ -554,12 +553,12 @@ function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSucc
   
   const form = useForm({
     resolver: zodResolver(chargeSchema),
-    defaultValues: { serviceCodeId: '', amount: 0, quantity: 1, keepOpen: false }
+    defaultValues: { serviceCodeId: '', amount: 0, quantity: 1 }
   });
 
   useEffect(() => {
     if (open) {
-      form.reset({ serviceCodeId: '', amount: 0, quantity: 1, keepOpen: false });
+      form.reset({ serviceCodeId: '', amount: 0, quantity: 1 });
       setSelectedCodeAmount(null);
       setCustomAmount('');
     }
@@ -645,15 +644,6 @@ function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSucc
                 />
               </div>
             </div>
-
-            <FormField control={form.control} name="keepOpen" render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-3 space-y-0 p-2">
-                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                <div className="space-y-1 leading-none">
-                  <FormLabel className="text-sm font-normal">{t('charge.keep_open')}</FormLabel>
-                </div>
-              </FormItem>
-            )} />
 
             {event.lastCharges?.length > 0 && (
               <div className="mt-6 pt-4 border-t border-border/50">

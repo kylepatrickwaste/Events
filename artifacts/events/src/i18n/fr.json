@@ -153,7 +153,8 @@
       "new_customer": "Nouveau Client",
       "duplicate": "Doublon",
       "contract_no_overages": "Contrat - Aucun Dépassement Facturable"
-    }
+    },
+    "dismiss_these": "Rejeter ceux-ci lors de la fermeture"
   },
   "bulk_close": {
     "title": "Fermer les événements sélectionnés",
