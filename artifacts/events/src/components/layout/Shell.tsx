@@ -5,22 +5,26 @@ import { useTheme } from '@/components/theme-provider';
 import logoUrl from '@assets/Waste_Connections_Logo_Symbol_-_2_Color-_12-10-09_-_transparen_1786045458506.png';
 import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { TruckDrive } from './TruckDrive';
 
 export function Header() {
   const { t, language, setLanguage } = useI18n();
   const { theme, setTheme } = useTheme();
+  const titleRef = React.useRef<HTMLAnchorElement>(null);
+  const langRef = React.useRef<HTMLDivElement>(null);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
+      <TruckDrive startRef={titleRef} endRef={langRef} />
       <div className="container flex h-14 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 mr-6 hover:opacity-90 transition-opacity">
+        <Link href="/" ref={titleRef} className="flex items-center gap-2 mr-6 hover:opacity-90 transition-opacity">
           <img src={logoUrl} alt="Waste Connections" className="h-8 w-auto object-contain" />
           <span className="font-bold hidden sm:inline-block text-primary">
             {t('app.title')}
           </span>
         </Link>
         <div className="flex flex-1 items-center justify-end space-x-4">
-          <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+          <div ref={langRef} className="flex items-center space-x-1 text-sm text-muted-foreground">
             <button 
               onClick={() => setLanguage('en')}
               className={`hover:text-foreground transition-colors ${language === 'en' ? 'text-foreground font-semibold' : ''}`}
