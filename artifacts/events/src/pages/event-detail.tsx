@@ -166,6 +166,35 @@ export default function EventDetailWorkspace() {
         {/* Left Column: Image, Stats, Details */}
         <div className="lg:col-span-2 space-y-6">
           
+          {/* Event Detail */}
+          <Card className="shadow-sm overflow-hidden">
+            <CardHeader className={event.severity === 'Severe' ? 'bg-destructive' : 'bg-primary'}>
+              <CardTitle className={`text-lg ${event.severity === 'Severe' ? 'text-destructive-foreground' : 'text-primary-foreground'}`}>{t('event.detail')}</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                <DetailRow label={t('event.occurred')} value={formatDate(event.dateOccurred)} icon={<Clock className="h-4 w-4" />} />
+                <DetailRow label={t('event.source')} value={event.eventSourceName} />
+                <DetailRow label={t('district.address')} value={event.address} icon={<MapPin className="h-4 w-4" />} />
+                <DetailRow label={t('event.vehicle')} value={event.vehicle} mono />
+                <DetailRow label={t('event.bin_serial')} value={event.binSerialNumber} mono />
+                <DetailRow 
+                  label={t('event.severity')} 
+                  value={
+                    event.severity ? (
+                      <span className={event.severity === 'Severe' ? 'text-destructive font-bold' : 'text-muted-foreground font-medium'}>
+                        {event.severity === 'Severe' ? t('event.severity_severe') : t('event.severity_minimal')}
+                      </span>
+                    ) : null
+                  } 
+                />
+                {isClosed && event.closedBy && (
+                  <DetailRow label={t('event.closed_by')} value={`${event.closedBy} on ${formatDate(event.dateClosed || '')}`} />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Image Gallery */}
           <Card className="overflow-hidden shadow-sm">
             <div className="bg-muted aspect-video relative flex items-center justify-center bg-black/5">
@@ -197,37 +226,6 @@ export default function EventDetailWorkspace() {
           {event.statistics && (
             <OverageStatisticsTile stats={event.statistics} t={t} formatCurrency={formatCurrency} formatDate={formatDate} />
           )}
-
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">{t('event.detail')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-                <DetailRow label={t('event.occurred')} value={formatDate(event.dateOccurred)} icon={<Clock className="h-4 w-4" />} />
-                <DetailRow label={t('event.source')} value={event.eventSourceName} />
-                <DetailRow label={t('district.event_type')} value={event.eventTypeName} />
-                <DetailRow label={t('district.address')} value={event.address} icon={<MapPin className="h-4 w-4" />} />
-                <DetailRow label={t('event.route')} value={event.route} mono />
-                <DetailRow label={t('event.vehicle')} value={event.vehicle} mono />
-                <DetailRow label={t('event.bin_serial')} value={event.binSerialNumber} mono />
-                <DetailRow label={t('event.lob')} value={event.lob} />
-                <DetailRow 
-                  label={t('event.severity')} 
-                  value={
-                    event.severity ? (
-                      <span className={event.severity === 'Severe' ? 'text-destructive font-bold' : 'text-muted-foreground font-medium'}>
-                        {event.severity === 'Severe' ? t('event.severity_severe') : t('event.severity_minimal')}
-                      </span>
-                    ) : null
-                  } 
-                />
-                {isClosed && event.closedBy && (
-                  <DetailRow label={t('event.closed_by')} value={`${event.closedBy} on ${formatDate(event.dateClosed || '')}`} />
-                )}
-              </div>
-            </CardContent>
-          </Card>
 
           <Card className="shadow-sm">
             <CardHeader>
