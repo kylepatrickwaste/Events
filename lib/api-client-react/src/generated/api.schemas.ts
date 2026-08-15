@@ -7,6 +7,8 @@
  */
 export interface HealthStatus {
   status: string;
+  /** Build number served from the repo-root buildinfo.txt. Optional so a server that has not been redeployed yet still satisfies the schema. */
+  buildNumber?: string;
 }
 
 export interface ErrorMessage {

@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -28,26 +27,8 @@ if (!basePath) {
   );
 }
 
-// Build number lives at the repo root so it can be bumped independently of any
-// single artifact. A missing file degrades to '?' rather than failing the
-// build, since this value is purely informational.
-let buildNumber = '?';
-try {
-  buildNumber = fs
-    .readFileSync(
-      path.resolve(import.meta.dirname, '..', '..', 'buildinfo.txt'),
-      'utf-8',
-    )
-    .trim();
-} catch {
-  console.warn('[vite] buildinfo.txt not found; build number will render "?"');
-}
-
 export default defineConfig({
   base: basePath,
-  define: {
-    __BUILD_NUMBER__: JSON.stringify(buildNumber),
-  },
   plugins: [
     react(),
     tailwindcss(),

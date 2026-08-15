@@ -6,6 +6,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- Build number lives at the repo root; ship a copy next to the assembly
+       so it resolves the same way in dev and in a published deployment. -->
+  <ItemGroup>
+    <None Include="../../../../buildinfo.txt"
+          Link="buildinfo.txt"
+          CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('../../../../buildinfo.txt')" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />

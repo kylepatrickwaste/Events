@@ -343,6 +343,11 @@ components:
       properties:
         status:
           type: string
+        buildNumber:
+          type: string
+          description: >-
+            Build number served from the repo-root buildinfo.txt. Optional so a
+            server that has not been redeployed yet still satisfies the schema.
       required:
         - status
     ErrorMessage:

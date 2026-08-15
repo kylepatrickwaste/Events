@@ -13,7 +13,8 @@ import * as zod from 'zod';
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
-  "status": zod.string()
+  "status": zod.string(),
+  "buildNumber": zod.string().optional().describe('Build number served from the repo-root buildinfo.txt. Optional so a server that has not been redeployed yet still satisfies the schema.')
 })
 
 

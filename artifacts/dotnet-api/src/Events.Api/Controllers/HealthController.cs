@@ -1,3 +1,4 @@
+using Events.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Events.Api.Controllers;
@@ -8,5 +9,10 @@ public class HealthController : ControllerBase
 {
     [HttpGet("healthz")]
     public IActionResult HealthCheck() =>
-        Ok(new { status = "ok", timestamp = DateTimeOffset.UtcNow });
+        Ok(new
+        {
+            status = "ok",
+            timestamp = DateTimeOffset.UtcNow,
+            buildNumber = BuildInfo.ReadBuildNumber(),
+        });
 }

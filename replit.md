@@ -47,10 +47,14 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 ## Gotchas
 
 - **Always increment `buildinfo.txt` (repo root) before every commit + push.** It
-  holds a single integer, injected into the events frontend at build time as
-  `__BUILD_NUMBER__` (via `define` in `artifacts/events/vite.config.ts`) and shown
-  next to the online/offline dot in the header. Vite reads it at config load, so
-  the events workflow must be restarted for a new number to appear.
+  holds a single integer, served by the API from `GET /api/healthz` as
+  `buildNumber` and rendered next to the online/offline dot in the events header.
+  Both backends read it per request, so bumping it needs no rebuild of the
+  frontend — the number reflects whichever API the client is pointed at.
+  Implemented in `artifacts/api-server/src/lib/build-info.ts` (Express, searches
+  upward for the file) and `Services/BuildInfo.cs` (.NET, csproj copies the file
+  next to the assembly). Adding a field here means updating
+  `lib/api-spec/openapi.yaml` and re-running `@workspace/api-spec codegen`.
 
 ## Pointers
 

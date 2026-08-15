@@ -6,7 +6,7 @@ import { Check, ChevronsUpDown, FileX2, AlertTriangle, CheckCircle2, DollarSign 
 import { cn } from '@/lib/utils';
 import { useI18n, Language } from '@/i18n';
 import { useTheme } from '@/components/theme-provider';
-import { getBaseUrl } from '@workspace/api-client-react';
+import { getBaseUrl, useHealthCheck, getHealthCheckQueryKey } from '@workspace/api-client-react';
 import logoUrl from '@assets/Waste_Connections_Logo_Symbol_-_2_Color-_12-10-09_-_transparen_1786045458506.png';
 import { Moon, Sun, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -206,6 +206,17 @@ function HeaderDistrictSwitcher() {
 function ApiSourceDot() {
   const baseUrl = getBaseUrl();
   const isRemote = Boolean(baseUrl && baseUrl.includes('api.kpcf.us'));
+  // Build number is served by whichever API we're pointed at, so it reflects
+  // the deployed backend rather than whenever this bundle happened to be built.
+  const { data: health } = useHealthCheck({
+    query: {
+      queryKey: getHealthCheckQueryKey(),
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    },
+  });
+  const buildNumber = health?.buildNumber;
+
   return (
     <span className="flex items-center gap-1.5">
       <span
@@ -218,12 +229,14 @@ function ApiSourceDot() {
           }`}
         />
       </span>
-      <span
-        title={`Build ${__BUILD_NUMBER__}`}
-        className="text-xs tabular-nums text-muted-foreground"
-      >
-        {__BUILD_NUMBER__}
-      </span>
+      {buildNumber ? (
+        <span
+          title={`Build ${buildNumber}`}
+          className="text-xs tabular-nums text-muted-foreground"
+        >
+          {buildNumber}
+        </span>
+      ) : null}
     </span>
   );
 }
