@@ -12,6 +12,7 @@
     <None Include="../../../../buildinfo.txt"
           Link="buildinfo.txt"
           CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest"
           Condition="Exists('../../../../buildinfo.txt')" />
   </ItemGroup>
 
