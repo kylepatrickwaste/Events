@@ -6,6 +6,7 @@ import { Check, ChevronsUpDown, FileX2, AlertTriangle, CheckCircle2, DollarSign 
 import { cn } from '@/lib/utils';
 import { useI18n, Language } from '@/i18n';
 import { useTheme } from '@/components/theme-provider';
+import { getBaseUrl } from '@workspace/api-client-react';
 import logoUrl from '@assets/Waste_Connections_Logo_Symbol_-_2_Color-_12-10-09_-_transparen_1786045458506.png';
 import { Moon, Sun, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -202,6 +203,23 @@ function HeaderDistrictSwitcher() {
   );
 }
 
+function ApiSourceDot() {
+  const baseUrl = getBaseUrl();
+  const isRemote = Boolean(baseUrl && baseUrl.includes('api.kpcf.us'));
+  return (
+    <span
+      title={isRemote ? `Remote API: ${baseUrl}` : 'Local / mock data'}
+      className="flex items-center justify-center"
+    >
+      <span
+        className={`block h-2.5 w-2.5 rounded-full ring-2 ring-background ${
+          isRemote ? 'bg-green-500' : 'bg-red-500'
+        }`}
+      />
+    </span>
+  );
+}
+
 export function Header() {
   const { t, language, setLanguage } = useI18n();
   const { theme, setTheme } = useTheme();
@@ -258,6 +276,7 @@ export function Header() {
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle theme</span>
           </Button>
+          <ApiSourceDot />
         </div>
       </div>
     </header>
