@@ -1,6 +1,6 @@
 # Events API — ASP.NET Core 9.0
 
-Backend API for the **Route Events** internal tool (Waste Connections). Replaces the Express/Node.js API with ASP.NET Core 9.0 + Dapper targeting SQL Server.
+Backend API for the **Route Events** internal tool (Waste Connections). ASP.NET Core 9.0 + Dapper targeting SQL Server. This is the only backend — the former Express/Node.js API has been removed, and the frontend in `artifacts/events` calls this service directly.
 
 ## Stack
 
@@ -63,7 +63,7 @@ All routes prefixed with `/api`.
 
 ## Database schema
 
-Targets the same schema as the Node.js version. See `lib/db/src/schema/` in the monorepo for the full Drizzle schema definition. Key tables:
+Tables are created and seeded idempotently on startup by `src/Events.Api/Services/DatabaseInitializer.cs`, which is now the authoritative schema definition. Key tables:
 
 - `districts`
 - `event_types` / `event_sources`

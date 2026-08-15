@@ -1,2 +1,5 @@
 - [Orval/zod codegen compat](orval-zod-compat.md) — keep number coercion in orval config (zod v3 vs `zod.int()`), and never mix path+query params on one operation (TS2308).
 - [Post-merge seed scripts](post-merge-seeds.md) — merged seed-data tasks need their `lib/db` seed script run manually or users see empty data.
+- [.NET API cutover](dotnet-api-cutover.md) — no backend runs in this repl; a GitHub push IS the deploy, confirmed by polling `buildNumber` on healthz.
+- [Route parity ≠ behavior parity](backend-cutover-parity.md) — matching operationIds to controllers proves nothing; sweep every endpoint before a cutover.
+- [Dapper + SQL Server pitfalls](dapper-sqlserver-pitfalls.md) — snake_case aliases, `Sum` over dynamic, and subqueries in aggregates all compile clean and fail at runtime.
