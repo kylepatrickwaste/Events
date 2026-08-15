@@ -46,7 +46,16 @@
     "per_page": "{{n}} / page",
     "stat_open": "Open",
     "stat_closed": "Closed",
-    "stat_charged": "Charged"
+    "stat_charged": "Charged",
+    "saved_views": "Saved Views",
+    "save_view": "Save current view",
+    "view_name": "View name",
+    "delete_view": "Remove selected view",
+    "no_views": "No saved views yet",
+    "group_hint": "Drag a column header here to group by it",
+    "clear_group": "Clear grouping",
+    "save": "Save",
+    "cancel": "Cancel"
   },
   "event": {
     "detail": "Event Detail",

@@ -46,7 +46,16 @@
     "per_page": "{{n}} / página",
     "stat_open": "Abiertos",
     "stat_closed": "Cerrados",
-    "stat_charged": "Cobrado"
+    "stat_charged": "Cobrado",
+    "saved_views": "Vistas guardadas",
+    "save_view": "Guardar vista actual",
+    "view_name": "Nombre de la vista",
+    "delete_view": "Eliminar vista seleccionada",
+    "no_views": "Aún no hay vistas guardadas",
+    "group_hint": "Arrastra un encabezado de columna aquí para agrupar",
+    "clear_group": "Quitar agrupación",
+    "save": "Guardar",
+    "cancel": "Cancelar"
   },
   "event": {
     "detail": "Detalle del Evento",

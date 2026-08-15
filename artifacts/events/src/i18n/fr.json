@@ -46,7 +46,16 @@
     "per_page": "{{n}} / page",
     "stat_open": "Ouverts",
     "stat_closed": "Fermés",
-    "stat_charged": "Facturé"
+    "stat_charged": "Facturé",
+    "saved_views": "Vues enregistrées",
+    "save_view": "Enregistrer la vue actuelle",
+    "view_name": "Nom de la vue",
+    "delete_view": "Supprimer la vue sélectionnée",
+    "no_views": "Aucune vue enregistrée",
+    "group_hint": "Faites glisser un en-tête de colonne ici pour grouper",
+    "clear_group": "Supprimer le regroupement",
+    "save": "Enregistrer",
+    "cancel": "Annuler"
   },
   "event": {
     "detail": "Détail de l'Événement",

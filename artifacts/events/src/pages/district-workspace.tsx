@@ -18,13 +18,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Clock, Columns3, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, DoorOpen } from 'lucide-react';
+import { Search, Clock, Columns3, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, DoorOpen, Plus, Minus, GripVertical, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ChargeEventDialog, CloseEventDialog, BulkCloseDialog } from '@/components/event-action-dialogs';
 import { OPEN_EXCLUDED_ACCOUNTS_EVENT } from '@/components/layout/Shell';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const OPTIONAL_COLUMNS: Array<{ key: SortColumn; label: string }> = [
   { key: 'qty', label: 'Qty' },
@@ -38,6 +39,71 @@ const OPTIONAL_COLUMNS: Array<{ key: SortColumn; label: string }> = [
   { key: 'prevChg', label: 'Prev. Chg' },
   { key: 'prevTotal', label: 'Prev. Total' },
 ];
+
+const BASE_COLUMNS: Array<{ key: SortColumn; label: string }> = [
+  { key: 'status', label: 'Status' },
+  { key: 'customer', label: 'Customer' },
+  { key: 'type', label: 'Type / Source' },
+  { key: 'severity', label: 'Severity' },
+  { key: 'date', label: 'Date Occurred' },
+  { key: 'route', label: 'Vehicle' },
+];
+const ALL_COLUMNS = [...BASE_COLUMNS, ...OPTIONAL_COLUMNS];
+const DEFAULT_COL_ORDER: SortColumn[] = ALL_COLUMNS.map(c => c.key);
+const BASE_KEYS = new Set<string>(BASE_COLUMNS.map(c => c.key));
+const VIEWS_KEY = 'grid-views';
+
+type ViewConfig = {
+  visibleCols: string[];
+  colOrder: string[];
+  groupBy: string | null;
+  sortColumn: string | null;
+  sortDirection: 'asc' | 'desc';
+  pageSize: number;
+};
+
+const normalizeOrder = (saved: string[]): SortColumn[] => {
+  const valid = [...new Set(saved)].filter((k): k is SortColumn => (DEFAULT_COL_ORDER as string[]).includes(k));
+  const missing = DEFAULT_COL_ORDER.filter(k => !valid.includes(k));
+  return [...valid, ...missing];
+};
+
+const sanitizeConfig = (cfg: unknown): ViewConfig | null => {
+  if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return null;
+  const c = cfg as Record<string, unknown>;
+  if (!Array.isArray(c.visibleCols) || !Array.isArray(c.colOrder)) return null;
+  return {
+    visibleCols: c.visibleCols.filter((k): k is string => typeof k === 'string'),
+    colOrder: c.colOrder.filter((k): k is string => typeof k === 'string'),
+    groupBy: typeof c.groupBy === 'string' ? c.groupBy : null,
+    sortColumn: typeof c.sortColumn === 'string' ? c.sortColumn : null,
+    sortDirection: c.sortDirection === 'desc' ? 'desc' : 'asc',
+    pageSize: typeof c.pageSize === 'number' && [10, 25, 50, 100].includes(c.pageSize) ? c.pageSize : 10,
+  };
+};
+
+const loadViews = (): Record<string, ViewConfig> => {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(VIEWS_KEY) || '{}');
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const out: Record<string, ViewConfig> = {};
+    for (const [name, cfg] of Object.entries(raw)) {
+      const c = sanitizeConfig(cfg);
+      if (c) out[name] = c;
+    }
+    return out;
+  } catch { return {}; }
+};
+
+// Load saved views once and, if a view was active last session, use its
+// config as the initial grid state so the dropdown and the grid agree.
+const loadInitialGridState = () => {
+  const views = loadViews();
+  let currentView = '';
+  try { currentView = localStorage.getItem('grid-current-view') || ''; } catch {}
+  if (!views[currentView]) currentView = '';
+  return { views, currentView, cfg: currentView ? views[currentView] : null };
+};
 import { ContractAccountsDialog } from '@/components/contract-accounts-dialog';
 import { LAST_DISTRICT_KEY } from '@/pages/home';
 import { NearbyClusterPicker, suggestedDuplicateIds } from '@/components/nearby-cluster-picker';
@@ -96,6 +162,7 @@ export default function DistrictWorkspace() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const initialGrid = useRef(loadInitialGridState()).current;
   const [statusFilter, setStatusFilter] = useState<'open' | 'closed' | 'all'>('open');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -109,8 +176,9 @@ export default function DistrictWorkspace() {
   const [closeNearbyPreset, setCloseNearbyPreset] = useState<number[]>([]);
   const [contractAccountsOpen, setContractAccountsOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(() => initialGrid.cfg?.pageSize ?? 10);
   const [visibleCols, setVisibleCols] = useState<Set<string>>(() => {
+    if (initialGrid.cfg) return new Set(initialGrid.cfg.visibleCols);
     try {
       const raw = localStorage.getItem('grid-columns');
       return raw ? new Set(JSON.parse(raw) as string[]) : new Set(OPTIONAL_COLUMNS.map(c => c.key));
@@ -125,13 +193,110 @@ export default function DistrictWorkspace() {
     });
   };
 
+  const [colOrder, setColOrder] = useState<SortColumn[]>(() => {
+    if (initialGrid.cfg) return normalizeOrder(initialGrid.cfg.colOrder);
+    try {
+      const raw = localStorage.getItem('grid-col-order');
+      if (raw) return normalizeOrder(JSON.parse(raw) as string[]);
+    } catch {}
+    return DEFAULT_COL_ORDER;
+  });
+  const setColOrderPersist = (next: SortColumn[]) => {
+    setColOrder(next);
+    try { localStorage.setItem('grid-col-order', JSON.stringify(next)); } catch {}
+  };
+  const [groupBy, setGroupBy] = useState<SortColumn | null>(() => {
+    const fromView = initialGrid.cfg?.groupBy;
+    if (initialGrid.cfg) return fromView && (DEFAULT_COL_ORDER as string[]).includes(fromView) ? (fromView as SortColumn) : null;
+    try {
+      const raw = localStorage.getItem('grid-group-by');
+      return raw && (DEFAULT_COL_ORDER as string[]).includes(raw) ? (raw as SortColumn) : null;
+    } catch { return null; }
+  });
+  const setGroupByPersist = (next: SortColumn | null) => {
+    setGroupBy(next);
+    setPage(1);
+    try {
+      if (next) localStorage.setItem('grid-group-by', next);
+      else localStorage.removeItem('grid-group-by');
+    } catch {}
+  };
+  const [dragCol, setDragCol] = useState<SortColumn | null>(null);
+  const [dropTarget, setDropTarget] = useState<SortColumn | 'groupzone' | null>(null);
+
+  const moveColumn = (from: SortColumn, to: SortColumn) => {
+    if (from === to) return;
+    const next = colOrder.filter(k => k !== from);
+    next.splice(next.indexOf(to), 0, from);
+    setColOrderPersist(next);
+  };
+
+  // Saved views
+  const [views, setViews] = useState<Record<string, ViewConfig>>(initialGrid.views);
+  const [currentView, setCurrentView] = useState<string>(initialGrid.currentView);
+  const [saveViewOpen, setSaveViewOpen] = useState(false);
+  const [newViewName, setNewViewName] = useState('');
+
+  const applyView = (name: string) => {
+    const cfg = views[name];
+    if (!cfg) return;
+    setCurrentView(name);
+    try { localStorage.setItem('grid-current-view', name); } catch {}
+    const vis = new Set(cfg.visibleCols);
+    setVisibleCols(vis);
+    try { localStorage.setItem('grid-columns', JSON.stringify([...vis])); } catch {}
+    setColOrderPersist(normalizeOrder(cfg.colOrder));
+    setGroupByPersist(cfg.groupBy && (DEFAULT_COL_ORDER as string[]).includes(cfg.groupBy) ? (cfg.groupBy as SortColumn) : null);
+    setSortColumn(cfg.sortColumn && (DEFAULT_COL_ORDER as string[]).includes(cfg.sortColumn) ? (cfg.sortColumn as SortColumn) : null);
+    setSortDirection(cfg.sortDirection === 'desc' ? 'desc' : 'asc');
+    if ([10, 25, 50, 100].includes(cfg.pageSize)) setPageSize(cfg.pageSize);
+    setPage(1);
+  };
+
+  const saveView = () => {
+    const name = newViewName.trim();
+    if (!name) return;
+    const cfg: ViewConfig = {
+      visibleCols: [...visibleCols],
+      colOrder,
+      groupBy,
+      sortColumn,
+      sortDirection,
+      pageSize,
+    };
+    const next = { ...views, [name]: cfg };
+    setViews(next);
+    try {
+      localStorage.setItem(VIEWS_KEY, JSON.stringify(next));
+      localStorage.setItem('grid-current-view', name);
+    } catch {}
+    setCurrentView(name);
+    setSaveViewOpen(false);
+    setNewViewName('');
+  };
+
+  const deleteView = () => {
+    if (!currentView) return;
+    const next = { ...views };
+    delete next[currentView];
+    setViews(next);
+    try {
+      localStorage.setItem(VIEWS_KEY, JSON.stringify(next));
+      localStorage.removeItem('grid-current-view');
+    } catch {}
+    setCurrentView('');
+  };
+
   useEffect(() => {
     const handler = () => setContractAccountsOpen(true);
     window.addEventListener(OPEN_EXCLUDED_ACCOUNTS_EVENT, handler);
     return () => window.removeEventListener(OPEN_EXCLUDED_ACCOUNTS_EVENT, handler);
   }, []);
-  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(() => {
+    const sc = initialGrid.cfg?.sortColumn;
+    return sc && (DEFAULT_COL_ORDER as string[]).includes(sc) ? (sc as SortColumn) : null;
+  });
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(initialGrid.cfg?.sortDirection ?? 'asc');
 
   const toggleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -229,11 +394,56 @@ export default function DistrictWorkspace() {
     return [...events].sort((a, b) => dir * cmp(a, b));
   }, [events, sortColumn, sortDirection]);
 
-  const totalPages = Math.max(1, Math.ceil((sortedEvents?.length ?? 0) / pageSize));
+  const groupValue = (key: SortColumn, e: NonNullable<typeof events>[number]): string => {
+    switch (key) {
+      case 'status': return e.eventStatus === 0 ? t('event.status_open') : t('event.status_closed');
+      case 'customer': return e.customerName ?? '—';
+      case 'type': return e.eventTypeName ?? '—';
+      case 'severity': return e.severity ?? '—';
+      case 'date': return new Date(e.dateOccurred).toLocaleDateString();
+      case 'route': return e.route ?? '—';
+      case 'qty': return String(e.quantity ?? '—');
+      case 'binSerial': return e.binSerialNumber ?? '—';
+      case 'stop': return e.stop ?? '—';
+      case 'wo': return e.workOrderNumber ?? '—';
+      case 'address': return e.address ?? '—';
+      case 'lob': return e.lob ?? '—';
+      case 'tabletNotes': return e.tabletNotes ?? '—';
+      case 'chgAmt': return e.chargedAmount != null ? formatCurrency(e.chargedAmount) : '—';
+      case 'prevChg': return String(e.prevChargeCount);
+      case 'prevTotal': return formatCurrency(e.prevChargeTotal);
+    }
+  };
+
+  const displayEvents = useMemo(() => {
+    if (!sortedEvents || !groupBy) return sortedEvents;
+    return [...sortedEvents].sort((a, b) =>
+      groupValue(groupBy, a).localeCompare(groupValue(groupBy, b), undefined, { numeric: true })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedEvents, groupBy]);
+
+  const groupCounts = useMemo(() => {
+    if (!groupBy || !displayEvents) return null;
+    const m = new Map<string, number>();
+    for (const e of displayEvents) {
+      const g = groupValue(groupBy, e);
+      m.set(g, (m.get(g) ?? 0) + 1);
+    }
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayEvents, groupBy]);
+
+  const orderedVisibleCols = useMemo(
+    () => colOrder.filter(k => BASE_KEYS.has(k) || visibleCols.has(k)),
+    [colOrder, visibleCols]
+  );
+
+  const totalPages = Math.max(1, Math.ceil((displayEvents?.length ?? 0) / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pagedEvents = useMemo(
-    () => sortedEvents?.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-    [sortedEvents, currentPage, pageSize]
+    () => displayEvents?.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [displayEvents, currentPage, pageSize]
   );
 
   const openEvents = useMemo(() => (events ?? []).filter(e => e.eventStatus === 0), [events]);
@@ -323,9 +533,47 @@ export default function DistrictWorkspace() {
             </Button>
           )}
 
+          <div className="flex items-center gap-1 w-full sm:w-auto sm:ml-auto">
+            <Select value={currentView || undefined} onValueChange={applyView}>
+              <SelectTrigger className="h-9 w-full sm:w-44 bg-background">
+                <SelectValue placeholder={t('district.saved_views')} />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(views).length === 0 ? (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">{t('district.no_views')}</div>
+                ) : (
+                  Object.keys(views).sort().map(name => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 w-9 p-0 shrink-0"
+              onClick={() => setSaveViewOpen(true)}
+              aria-label={t('district.save_view')}
+              title={t('district.save_view')}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 w-9 p-0 shrink-0"
+              onClick={deleteView}
+              disabled={!currentView}
+              aria-label={t('district.delete_view')}
+              title={t('district.delete_view')}
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+          </div>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full sm:w-auto sm:ml-auto">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 <Columns3 className="h-4 w-4 mr-2" />
                 {t('district.columns')}
               </Button>
@@ -345,32 +593,70 @@ export default function DistrictWorkspace() {
           </DropdownMenu>
       </div>
 
+      <div
+        onDragOver={e => { if (dragCol) { e.preventDefault(); setDropTarget('groupzone'); } }}
+        onDragLeave={() => setDropTarget(prev => (prev === 'groupzone' ? null : prev))}
+        onDrop={e => { e.preventDefault(); if (dragCol) setGroupByPersist(dragCol); setDragCol(null); setDropTarget(null); }}
+        className={cn(
+          'flex items-center gap-2 mb-2 rounded-lg border border-dashed px-3 py-1.5 text-xs transition-colors',
+          dropTarget === 'groupzone' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground'
+        )}
+      >
+        <Layers className="h-3.5 w-3.5 shrink-0" />
+        {groupBy ? (
+          <span className="flex items-center gap-1 rounded-md bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 font-medium">
+            {ALL_COLUMNS.find(c => c.key === groupBy)?.label}
+            <button
+              type="button"
+              onClick={() => setGroupByPersist(null)}
+              aria-label={t('district.clear_group')}
+              title={t('district.clear_group')}
+              className="hover:text-destructive"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ) : (
+          <span>{t('district.group_hint')}</span>
+        )}
+      </div>
+
       <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <th className="px-3 py-2 text-left">
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    checked={allOpenSelected}
-                    onCheckedChange={(c) => toggleAll(c === true)}
-                    disabled={openEvents.length === 0}
-                    aria-label={t('district.select_all')}
-                  />
-                  <SortHeader label="Status" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
-                </div>
+              <th className="px-3 py-2 w-8 text-left">
+                <Checkbox
+                  checked={allOpenSelected}
+                  onCheckedChange={(c) => toggleAll(c === true)}
+                  disabled={openEvents.length === 0}
+                  aria-label={t('district.select_all')}
+                />
               </th>
-              <th className="px-3 py-2 text-left"><SortHeader label="Customer" column="customer" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} /></th>
-              <th className="px-3 py-2 text-left"><SortHeader label="Type / Source" column="type" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} /></th>
-              <th className="px-3 py-2 text-left"><SortHeader label="Severity" column="severity" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} /></th>
-              <th className="px-3 py-2 text-left"><SortHeader label="Date Occurred" column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} /></th>
-              <th className="px-3 py-2 text-left"><SortHeader label="Vehicle" column="route" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} /></th>
-              {OPTIONAL_COLUMNS.filter(c => visibleCols.has(c.key)).map(c => (
-                <th key={c.key} className="px-3 py-2 text-left whitespace-nowrap">
-                  <SortHeader label={c.label} column={c.key} sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
-                </th>
-              ))}
+              {orderedVisibleCols.map(key => {
+                const col = ALL_COLUMNS.find(c => c.key === key)!;
+                return (
+                  <th
+                    key={key}
+                    draggable
+                    onDragStart={e => { setDragCol(key); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', key); }}
+                    onDragEnd={() => { setDragCol(null); setDropTarget(null); }}
+                    onDragOver={e => { if (dragCol && dragCol !== key) { e.preventDefault(); setDropTarget(key); } }}
+                    onDrop={e => { e.preventDefault(); if (dragCol && dragCol !== key) moveColumn(dragCol, key); setDragCol(null); setDropTarget(null); }}
+                    className={cn(
+                      'px-3 py-2 text-left whitespace-nowrap cursor-move select-none transition-colors',
+                      dropTarget === key && 'bg-primary/15',
+                      dragCol === key && 'opacity-50'
+                    )}
+                  >
+                    <div className="flex items-center gap-1">
+                      <GripVertical className="h-3 w-3 opacity-30 shrink-0" />
+                      <SortHeader label={col.label} column={key} sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
+                    </div>
+                  </th>
+                );
+              })}
               <th className="sticky right-[124px] z-10 bg-background border-l px-2 py-2"></th>
               <th className="sticky right-0 z-10 bg-background px-3 py-2 text-right w-[124px]">Photo</th>
             </tr>
@@ -388,126 +674,181 @@ export default function DistrictWorkspace() {
             <p className="text-lg">{t('district.no_events')}</p>
           </td></tr>
         ) : (
-            pagedEvents?.map(event => (
-              <tr
-                key={event.id}
-                onClick={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
-                className="hover:bg-muted/30 cursor-pointer transition-colors group"
-              >
-                <td className="px-3 py-1.5" onClick={e => e.stopPropagation()}>
-                  <div className="flex items-center gap-3">
-                  {event.eventStatus === 0 ? (
-                    <>
-                      <Checkbox
-                        checked={selectedIds.has(event.id)}
-                        onCheckedChange={(c) => toggleOne(event.id, c === true)}
-                        aria-label={`Select ${event.customerName}`}
-                      />
-                      <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20 border-0 text-xs">{t('event.status_open')}</Badge>
-                    </>
-                  ) : (
-                    <>
-                      <span className="w-4" />
-                      <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 text-xs">{t('event.status_closed')}</Badge>
-                    </>
-                  )}
-                  </div>
-                </td>
-                <td className="px-3 py-1.5 min-w-[180px]">
-                  <div className="font-medium text-xs group-hover:text-primary transition-colors line-clamp-1">{event.customerName}</div>
-                  <div className="text-xs text-muted-foreground font-mono">{event.accountNumber}</div>
-                </td>
-                <td className="px-3 py-1.5">
-                  <div className="font-medium text-xs line-clamp-1">{event.eventTypeName}</div>
-                  <div className={cn('text-xs', sourceColor(event.eventSourceName))}>{event.eventSourceName}</div>
-                </td>
-                <td className="px-3 py-1.5">
-                  {event.severity ? (
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'border-0',
-                        event.severity.toLowerCase() === 'severe'
-                          ? 'bg-destructive/10 text-destructive'
-                          : 'bg-muted text-muted-foreground'
+            (() => {
+              const renderCell = (key: SortColumn, event: NonNullable<typeof events>[number]) => {
+                switch (key) {
+                  case 'status':
+                    return (
+                      <td key={key} className="px-3 py-1.5">
+                        {event.eventStatus === 0 ? (
+                          <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20 border-0 text-xs">{t('event.status_open')}</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 text-xs">{t('event.status_closed')}</Badge>
+                        )}
+                      </td>
+                    );
+                  case 'customer':
+                    return (
+                      <td key={key} className="px-3 py-1.5 min-w-[180px]">
+                        <div className="font-medium text-xs group-hover:text-primary transition-colors line-clamp-1">{event.customerName}</div>
+                        <div className="text-xs text-muted-foreground font-mono">{event.accountNumber}</div>
+                      </td>
+                    );
+                  case 'type':
+                    return (
+                      <td key={key} className="px-3 py-1.5">
+                        <div className="font-medium text-xs line-clamp-1">{event.eventTypeName}</div>
+                        <div className={cn('text-xs', sourceColor(event.eventSourceName))}>{event.eventSourceName}</div>
+                      </td>
+                    );
+                  case 'severity':
+                    return (
+                      <td key={key} className="px-3 py-1.5">
+                        {event.severity ? (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'border-0',
+                              event.severity.toLowerCase() === 'severe'
+                                ? 'bg-destructive/10 text-destructive'
+                                : 'bg-muted text-muted-foreground'
+                            )}
+                          >
+                            {event.severity}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    );
+                  case 'date':
+                    return (
+                      <td key={key} className="px-3 py-1.5 whitespace-nowrap">
+                        <div className="text-xs flex items-center gap-1.5 text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5" />
+                          {formatDate(event.dateOccurred)}
+                        </div>
+                      </td>
+                    );
+                  case 'route':
+                    return (
+                      <td key={key} className="px-3 py-1.5">
+                        <div className="font-mono text-xs">{event.route}</div>
+                        <div className="text-muted-foreground font-mono text-xs">{event.vehicle}</div>
+                      </td>
+                    );
+                  case 'qty':
+                    return <td key={key} className="px-3 py-1.5 text-xs font-mono">{event.quantity ?? '—'}</td>;
+                  case 'binSerial':
+                    return <td key={key} className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.binSerialNumber ?? '—'}</td>;
+                  case 'stop':
+                    return <td key={key} className="px-3 py-1.5 text-xs font-mono">{event.stop ?? '—'}</td>;
+                  case 'wo':
+                    return <td key={key} className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.workOrderNumber ?? '—'}</td>;
+                  case 'address':
+                    return <td key={key} className="px-3 py-1.5 text-xs min-w-[160px]">{event.address}</td>;
+                  case 'lob':
+                    return <td key={key} className="px-3 py-1.5 text-xs">{event.lob ?? '—'}</td>;
+                  case 'tabletNotes':
+                    return <td key={key} className="px-3 py-1.5 text-xs min-w-[140px]">{event.tabletNotes ?? '—'}</td>;
+                  case 'chgAmt':
+                    return <td key={key} className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.chargedAmount != null ? formatCurrency(event.chargedAmount) : '—'}</td>;
+                  case 'prevChg':
+                    return <td key={key} className="px-3 py-1.5 text-xs font-mono">{event.prevChargeCount}</td>;
+                  case 'prevTotal':
+                    return <td key={key} className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{formatCurrency(event.prevChargeTotal)}</td>;
+                }
+              };
+
+              const rows: React.ReactNode[] = [];
+              let prevGroup: string | null = null;
+              const colSpan = orderedVisibleCols.length + 3;
+              pagedEvents?.forEach(event => {
+                if (groupBy) {
+                  const gv = groupValue(groupBy, event);
+                  if (gv !== prevGroup) {
+                    prevGroup = gv;
+                    rows.push(
+                      <tr key={`group-${gv}`} className="bg-muted/50">
+                        <td colSpan={colSpan} className="px-3 py-1.5 text-xs font-semibold">
+                          {ALL_COLUMNS.find(c => c.key === groupBy)?.label}: {gv}
+                          <span className="ml-2 font-normal text-muted-foreground">({groupCounts?.get(gv) ?? 0})</span>
+                        </td>
+                      </tr>
+                    );
+                  }
+                }
+                rows.push(
+                  <tr
+                    key={event.id}
+                    onClick={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
+                    className="hover:bg-muted/30 cursor-pointer transition-colors group"
+                  >
+                    <td className="px-3 py-1.5 w-8" onClick={e => e.stopPropagation()}>
+                      {event.eventStatus === 0 ? (
+                        <Checkbox
+                          checked={selectedIds.has(event.id)}
+                          onCheckedChange={(c) => toggleOne(event.id, c === true)}
+                          aria-label={`Select ${event.customerName}`}
+                        />
+                      ) : (
+                        <span className="inline-block w-4" />
                       )}
-                    >
-                      {event.severity}
-                    </Badge>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </td>
-                <td className="px-3 py-1.5 whitespace-nowrap">
-                  <div className="text-xs flex items-center gap-1.5 text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" />
-                    {formatDate(event.dateOccurred)}
-                  </div>
-                </td>
-                <td className="px-3 py-1.5">
-                  <div className="font-mono text-xs">{event.route}</div>
-                  <div className="text-muted-foreground font-mono text-xs">{event.vehicle}</div>
-                </td>
-                {visibleCols.has('qty') && <td className="px-3 py-1.5 text-xs font-mono">{event.quantity ?? '—'}</td>}
-                {visibleCols.has('binSerial') && <td className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.binSerialNumber ?? '—'}</td>}
-                {visibleCols.has('stop') && <td className="px-3 py-1.5 text-xs font-mono">{event.stop ?? '—'}</td>}
-                {visibleCols.has('wo') && <td className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.workOrderNumber ?? '—'}</td>}
-                {visibleCols.has('address') && <td className="px-3 py-1.5 text-xs min-w-[160px]">{event.address}</td>}
-                {visibleCols.has('lob') && <td className="px-3 py-1.5 text-xs">{event.lob ?? '—'}</td>}
-                {visibleCols.has('tabletNotes') && <td className="px-3 py-1.5 text-xs min-w-[140px]">{event.tabletNotes ?? '—'}</td>}
-                {visibleCols.has('chgAmt') && <td className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.chargedAmount != null ? formatCurrency(event.chargedAmount) : '—'}</td>}
-                {visibleCols.has('prevChg') && <td className="px-3 py-1.5 text-xs font-mono">{event.prevChargeCount}</td>}
-                {visibleCols.has('prevTotal') && <td className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{formatCurrency(event.prevChargeTotal)}</td>}
-                <td className="sticky right-[124px] z-10 bg-card border-l px-2 py-1.5" onClick={e => e.stopPropagation()}>
-                  {event.eventStatus === 0 && (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="h-7 w-7 p-0"
-                      onClick={() => setCloseEventId(event.id)}
-                      aria-label={t('preview.close')}
-                      title={t('preview.close')}
-                    >
-                      <XCircle className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </td>
-                <td className="sticky right-0 z-10 bg-card px-3 py-1.5 w-[124px]" onClick={e => e.stopPropagation()}>
-                  <div className="flex items-center justify-end gap-2">
-                  {(event.imageUrls?.length ?? 0) > 0 && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Camera className="h-3.5 w-3.5" />
-                      {event.imageUrls.length}
-                    </span>
-                  )}
-                  {event.imageUrl ? (
-                    <EventThumbnailPreview
-                      event={event}
-                      districtId={districtId}
-                      onCharge={(ids) => { setChargeNearbyPreset(ids); setChargeEventId(event.id); }}
-                      onClose={() => { setCloseNearbyPreset([]); setCloseEventId(event.id); }}
-                      onCloseWithDuplicates={(ids) => { setCloseNearbyPreset(ids); setCloseEventId(event.id); }}
-                      onNavigate={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
-                    />
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic">{t('event.no_photo')}</span>
-                  )}
-                  </div>
-                </td>
-              </tr>
-            ))
+                    </td>
+                    {orderedVisibleCols.map(key => renderCell(key, event))}
+                    <td className="sticky right-[124px] z-10 bg-card border-l px-2 py-1.5" onClick={e => e.stopPropagation()}>
+                      {event.eventStatus === 0 && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 w-7 p-0"
+                          onClick={() => setCloseEventId(event.id)}
+                          aria-label={t('preview.close')}
+                          title={t('preview.close')}
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </td>
+                    <td className="sticky right-0 z-10 bg-card px-3 py-1.5 w-[124px]" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-2">
+                      {(event.imageUrls?.length ?? 0) > 0 && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Camera className="h-3.5 w-3.5" />
+                          {event.imageUrls.length}
+                        </span>
+                      )}
+                      {event.imageUrl ? (
+                        <EventThumbnailPreview
+                          event={event}
+                          districtId={districtId}
+                          onCharge={(ids) => { setChargeNearbyPreset(ids); setChargeEventId(event.id); }}
+                          onClose={() => { setCloseNearbyPreset([]); setCloseEventId(event.id); }}
+                          onCloseWithDuplicates={(ids) => { setCloseNearbyPreset(ids); setCloseEventId(event.id); }}
+                          onNavigate={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">{t('event.no_photo')}</span>
+                      )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              });
+              return rows;
+            })()
         )}
           </tbody>
         </table>
         </div>
-        {(sortedEvents?.length ?? 0) > 0 && (
+        {(displayEvents?.length ?? 0) > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 py-2 border-t bg-muted/20 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <span>
                 {t('district.page_info', {
                   from: (currentPage - 1) * pageSize + 1,
-                  to: Math.min(currentPage * pageSize, sortedEvents?.length ?? 0),
-                  total: sortedEvents?.length ?? 0,
+                  to: Math.min(currentPage * pageSize, displayEvents?.length ?? 0),
+                  total: displayEvents?.length ?? 0,
                 })}
               </span>
               <Select value={String(pageSize)} onValueChange={v => { setPageSize(Number(v)); setPage(1); }}>
@@ -579,6 +920,24 @@ export default function DistrictWorkspace() {
           onSuccess={handleActionSuccess}
         />
       )}
+      <Dialog open={saveViewOpen} onOpenChange={(o) => { setSaveViewOpen(o); if (!o) setNewViewName(''); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('district.save_view')}</DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            placeholder={t('district.view_name')}
+            value={newViewName}
+            onChange={e => setNewViewName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') saveView(); }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveViewOpen(false)}>{t('district.cancel')}</Button>
+            <Button onClick={saveView} disabled={!newViewName.trim()}>{t('district.save')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
