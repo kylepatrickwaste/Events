@@ -43,7 +43,10 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
 
     public async Task<DbDistrict?> GetDistrictAsync(int districtId)
     {
-        const string sql = "SELECT id, number, name, region, active, 0 AS events_count FROM districts WHERE id = @id";
+        // Alias must match the DbDistrict constructor parameter name exactly:
+        // Dapper is not configured with MatchNamesWithUnderscores, so
+        // "events_count" would fail to bind to EventsCount.
+        const string sql = "SELECT id, number, name, region, active, 0 AS EventsCount FROM districts WHERE id = @id";
         return await db.QueryFirstOrDefaultAsync<DbDistrict>(sql, new { id = districtId });
     }
 
