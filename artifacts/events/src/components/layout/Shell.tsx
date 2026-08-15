@@ -207,15 +207,23 @@ function ApiSourceDot() {
   const baseUrl = getBaseUrl();
   const isRemote = Boolean(baseUrl && baseUrl.includes('api.kpcf.us'));
   return (
-    <span
-      title={isRemote ? `Remote API: ${baseUrl}` : 'Local / mock data'}
-      className="flex items-center justify-center"
-    >
+    <span className="flex items-center gap-1.5">
       <span
-        className={`block h-2.5 w-2.5 rounded-full ring-2 ring-background ${
-          isRemote ? 'bg-green-500' : 'bg-red-500'
-        }`}
-      />
+        title={isRemote ? `Remote API: ${baseUrl}` : 'Local / mock data'}
+        className="flex items-center justify-center"
+      >
+        <span
+          className={`block h-2.5 w-2.5 rounded-full ring-2 ring-background ${
+            isRemote ? 'bg-green-500' : 'bg-red-500'
+          }`}
+        />
+      </span>
+      <span
+        title={`Build ${__BUILD_NUMBER__}`}
+        className="text-xs tabular-nums text-muted-foreground"
+      >
+        {__BUILD_NUMBER__}
+      </span>
     </span>
   );
 }

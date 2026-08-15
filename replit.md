@@ -46,7 +46,11 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- **Always increment `buildinfo.txt` (repo root) before every commit + push.** It
+  holds a single integer, injected into the events frontend at build time as
+  `__BUILD_NUMBER__` (via `define` in `artifacts/events/vite.config.ts`) and shown
+  next to the online/offline dot in the header. Vite reads it at config load, so
+  the events workflow must be restarted for a new number to appear.
 
 ## Pointers
 
