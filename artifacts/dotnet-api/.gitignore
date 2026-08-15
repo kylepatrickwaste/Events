@@ -1,0 +1,21 @@
+## .NET
+obj/
+bin/
+*.user
+.vs/
+*.suo
+.idea/
+
+## NuGet
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## Logs
+*.log
+logs/
+
+## OS
+.DS_Store
+Thumbs.db
