@@ -476,42 +476,42 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         int excludeId, int districtId, double anchorLat, double anchorLon,
         DateTimeOffset dateFrom, DateTimeOffset dateTo)
     {
+        // The radius filter is a row-level predicate, not an aggregate one, so it
+        // cannot live in HAVING (SQL Server rejects the non-grouped lat/lon
+        // columns). Computing the distance once in a CTE lets the outer query
+        // filter on the alias in WHERE.
         var sql = $"""
+            WITH nearby AS (
+                SELECT
+                    re.id, re.image_url, re.date_occurred, re.event_status,
+                    re.address, re.customer_name, re.account_number, re.bin_serial_number, re.vehicle,
+                    es.name AS event_source_name,
+                    (2 * 6371000 * ATN2(
+                        SQRT(
+                            POWER(SIN(RADIANS(re.latitude - @anchorLat) / 2), 2)
+                            + COS(RADIANS(@anchorLat)) * COS(RADIANS(re.latitude))
+                            * POWER(SIN(RADIANS(re.longitude - @anchorLon) / 2), 2)
+                        ),
+                        SQRT(1 - (
+                            POWER(SIN(RADIANS(re.latitude - @anchorLat) / 2), 2)
+                            + COS(RADIANS(@anchorLat)) * COS(RADIANS(re.latitude))
+                            * POWER(SIN(RADIANS(re.longitude - @anchorLon) / 2), 2)
+                        ))
+                    )) AS distance_meters
+                FROM route_events re
+                INNER JOIN event_sources es ON es.id = re.event_source_id
+                WHERE re.district_id = @districtId
+                  AND re.id <> @excludeId
+                  AND re.date_occurred >= @dateFrom
+                  AND re.date_occurred <= @dateTo
+            )
             SELECT TOP {_settings.NearbyMaxResults}
-                re.id, re.image_url, re.date_occurred, re.event_status,
-                re.address, re.customer_name, re.account_number, re.bin_serial_number, re.vehicle,
-                es.name AS event_source_name,
-                (2 * 6371000 * ATN2(
-                    SQRT(
-                        POWER(SIN(RADIANS(re.latitude - @anchorLat) / 2), 2)
-                        + COS(RADIANS(@anchorLat)) * COS(RADIANS(re.latitude))
-                        * POWER(SIN(RADIANS(re.longitude - @anchorLon) / 2), 2)
-                    ),
-                    SQRT(1 - (
-                        POWER(SIN(RADIANS(re.latitude - @anchorLat) / 2), 2)
-                        + COS(RADIANS(@anchorLat)) * COS(RADIANS(re.latitude))
-                        * POWER(SIN(RADIANS(re.longitude - @anchorLon) / 2), 2)
-                    ))
-                )) AS distance_meters
-            FROM route_events re
-            INNER JOIN event_sources es ON es.id = re.event_source_id
-            WHERE re.district_id = @districtId
-              AND re.id <> @excludeId
-              AND re.date_occurred >= @dateFrom
-              AND re.date_occurred <= @dateTo
-            HAVING (2 * 6371000 * ATN2(
-                SQRT(
-                    POWER(SIN(RADIANS(re.latitude - @anchorLat) / 2), 2)
-                    + COS(RADIANS(@anchorLat)) * COS(RADIANS(re.latitude))
-                    * POWER(SIN(RADIANS(re.longitude - @anchorLon) / 2), 2)
-                ),
-                SQRT(1 - (
-                    POWER(SIN(RADIANS(re.latitude - @anchorLat) / 2), 2)
-                    + COS(RADIANS(@anchorLat)) * COS(RADIANS(re.latitude))
-                    * POWER(SIN(RADIANS(re.longitude - @anchorLon) / 2), 2)
-                ))
-            )) <= @radiusMeters
-            ORDER BY distance_meters ASC, re.date_occurred ASC
+                id, image_url, date_occurred, event_status,
+                address, customer_name, account_number, bin_serial_number, vehicle,
+                event_source_name, distance_meters
+            FROM nearby
+            WHERE distance_meters <= @radiusMeters
+            ORDER BY distance_meters ASC, date_occurred ASC
             """;
         var result = await db.QueryAsync<dynamic>(sql, new
         {
