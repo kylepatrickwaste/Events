@@ -45,6 +45,11 @@ try
 
     var app = builder.Build();
 
+    // Create tables and seed data on startup (idempotent)
+    var cs = builder.Configuration.GetConnectionString("Default")
+        ?? throw new InvalidOperationException("ConnectionStrings:Default is required.");
+    await DatabaseInitializer.InitializeAsync(cs);
+
     app.UseSerilogRequestLogging();
     app.UseCors();
 
