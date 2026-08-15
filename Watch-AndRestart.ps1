@@ -58,9 +58,11 @@ function Stop-Api([System.Diagnostics.Process]$proc) {
 
 function Pull-Latest {
     Write-Status "Pulling latest from origin/$Branch ..." "Magenta"
-    $out = git -C $RepoRoot pull origin $Branch 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "git pull failed:`n$out" }
-    Write-Status $out "Gray"
+    # --quiet suppresses git's progress lines which go to stderr and confuse PowerShell
+    $out = & git -C $RepoRoot pull origin $Branch --quiet --no-progress 2>&1
+    $exit = $LASTEXITCODE
+    if ($exit -ne 0) { throw "git pull exited $exit :`n$out" }
+    if ($out) { Write-Status "$out" "Gray" }
 }
 
 # ── main loop ────────────────────────────────────────────────────────────────
@@ -86,9 +88,15 @@ try {
             if ($remoteCommit -ne $lastKnownCommit) {
                 Write-Status "New commit detected: $remoteCommit" "Yellow"
                 Stop-Api $apiProcess
-                Pull-Latest
-                $lastKnownCommit = Get-LocalCommit
-                Write-Status "Now at: $lastKnownCommit" "Gray"
+                $apiProcess = $null
+                try {
+                    Pull-Latest
+                    $lastKnownCommit = Get-LocalCommit
+                    Write-Status "Now at: $lastKnownCommit" "Gray"
+                }
+                catch {
+                    Write-Status "Pull failed (will restart API with existing code): $_" "Red"
+                }
                 $apiProcess = Start-Api
             }
             else {
