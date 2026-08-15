@@ -55,18 +55,19 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         var district = await GetDistrictAsync(districtId);
         if (district is null) return null;
 
+        // SQL Server rejects a subquery inside an aggregate function, so the
+        // contract_no_overages exclusion is hoisted into WHERE. It was applied
+        // identically to both branches, so the counts are unchanged.
         const string countsSql = """
             SELECT
-                SUM(CASE WHEN re.event_status = 0 AND NOT EXISTS (
-                    SELECT 1 FROM account_flags af
-                    WHERE af.district_id = re.district_id AND af.account_number = re.account_number AND af.flag = 'contract_no_overages'
-                ) THEN 1 ELSE 0 END) AS open_count,
-                SUM(CASE WHEN re.event_status = 1 AND NOT EXISTS (
-                    SELECT 1 FROM account_flags af
-                    WHERE af.district_id = re.district_id AND af.account_number = re.account_number AND af.flag = 'contract_no_overages'
-                ) THEN 1 ELSE 0 END) AS closed_count
+                SUM(CASE WHEN re.event_status = 0 THEN 1 ELSE 0 END) AS open_count,
+                SUM(CASE WHEN re.event_status = 1 THEN 1 ELSE 0 END) AS closed_count
             FROM route_events re
             WHERE re.district_id = @districtId
+              AND NOT EXISTS (
+                SELECT 1 FROM account_flags af
+                WHERE af.district_id = re.district_id AND af.account_number = re.account_number AND af.flag = 'contract_no_overages'
+              )
             """;
         var counts = await db.QueryFirstAsync<dynamic>(countsSql, new { districtId });
 
@@ -344,8 +345,21 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
             var inWindow = accountCharges.Where(c => (DateTimeOffset)c.date_created >= cutoff).ToList();
             var paid = inWindow.Where(c => (string?)c.payment_status == "PAID").ToList();
             var refunded = inWindow.Where(c => (string?)c.payment_status == "REFUNDED").ToList();
-            decimal Sum(IEnumerable<dynamic> rows) =>
-                rows.Sum(c => Convert.ToDecimal(c.charge_amount ?? 0m) * Convert.ToDecimal(c.charge_quantity ?? 1m));
+            // Enumerable.Sum must not be used over dynamic rows: the lambda's
+            // return type is dynamic, so the overload is picked at runtime and
+            // binds to the int version, throwing on a decimal. Accumulate into
+            // an explicitly typed local instead.
+            static decimal Sum(IEnumerable<dynamic> rows)
+            {
+                decimal total = 0m;
+                foreach (var c in rows)
+                {
+                    decimal amount = Convert.ToDecimal(c.charge_amount ?? 0m);
+                    decimal quantity = Convert.ToDecimal(c.charge_quantity ?? 1m);
+                    total += amount * quantity;
+                }
+                return total;
+            }
             return new ChargeWindowDto(
                 Days: days,
                 EventsCount: eventDates.Count(d => d >= cutoff),
