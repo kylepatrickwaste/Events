@@ -123,12 +123,13 @@
       "offset_min_after": "{{m}}m después",
       "offset_min_before": "{{m}}m antes"
     },
-    "simulate_charge": "Simular $1000 cobrados en el día",
     "event_type": "Evento",
     "details_field": "Detalles",
     "quantity": "Cantidad",
     "latitude": "Latitud",
-    "longitude": "Longitud"
+    "longitude": "Longitud",
+    "location": "Ubicación",
+    "no_location": "No hay coordenadas registradas para este evento"
   },
   "nearby_picker": {
     "label": "Duplicados cercanos — marque para descartar con esta acción",
