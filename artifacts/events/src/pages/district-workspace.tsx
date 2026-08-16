@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRoute, useLocation, Link } from 'wouter';
 import {
@@ -111,6 +111,28 @@ import { NearbyClusterPicker, suggestedDuplicateIds } from '@/components/nearby-
 
 type SortColumn = 'status' | 'customer' | 'type' | 'severity' | 'date' | 'route' | 'qty' | 'binSerial' | 'stop' | 'wo' | 'address' | 'lob' | 'tabletNotes' | 'chgAmt' | 'prevChg' | 'prevTotal';
 
+// Photo preview hover timings (ms). The open delay keeps quick pass-over
+// hovers from popping anything; the close delay is a grace period so the
+// pointer can travel from a thumbnail to the preview (or to the next
+// thumbnail) without the preview blinking shut.
+const PREVIEW_OPEN_DELAY = 150;
+const PREVIEW_CLOSE_DELAY = 220;
+// How long the pointer must settle on a row before we fetch its detail, so
+// sliding through many rows doesn't fan out a request per row.
+const PREVIEW_DETAIL_SETTLE_DELAY = 250;
+// Gap between the preview panel and the frozen photo column.
+const PREVIEW_GAP = 12;
+// Below this much free space left of the frozen panel we can't place the
+// preview beside it, so we fall back to a centered panel.
+const PREVIEW_MIN_WIDTH = 560;
+
+/**
+ * The element the preview should be placed to the left of: the hovered
+ * thumbnail's frozen cell, so the whole pinned panel (close button included)
+ * stays visible and clickable while the preview is open.
+ */
+const previewAnchorFor = (el: HTMLElement): HTMLElement => (el.closest('td') as HTMLElement | null) ?? el;
+
 // Higher rank = more severe; unknown/missing severities sort last
 const SEVERITY_RANK: Record<string, number> = { severe: 2, minimal: 1 };
 const sourceColor = (name: string | null | undefined) => {
@@ -176,6 +198,12 @@ export default function DistrictWorkspace() {
   const [closeEventId, setCloseEventId] = useState<number | null>(null);
   const [closeNearbyPreset, setCloseNearbyPreset] = useState<number[]>([]);
   const [contractAccountsOpen, setContractAccountsOpen] = useState(false);
+  // Exactly one photo preview is open for the whole table. Thumbnails only
+  // report hover/click; this controller decides which event is previewed.
+  const [previewEventId, setPreviewEventId] = useState<number | null>(null);
+  const previewAnchorRef = useRef<HTMLElement | null>(null);
+  const previewOpenTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(() => initialGrid.cfg?.pageSize ?? 10);
   const [visibleCols, setVisibleCols] = useState<Set<string>>(() => {
@@ -441,6 +469,60 @@ export default function DistrictWorkspace() {
     () => displayEvents?.slice((currentPage - 1) * pageSize, currentPage * pageSize),
     [displayEvents, currentPage, pageSize]
   );
+
+  // ---- Photo preview controller -------------------------------------------
+  const previewEvent = useMemo(
+    () => pagedEvents?.find(e => e.id === previewEventId) ?? null,
+    [pagedEvents, previewEventId]
+  );
+
+  const clearPreviewOpenTimer = () => {
+    if (previewOpenTimer.current) { clearTimeout(previewOpenTimer.current); previewOpenTimer.current = null; }
+  };
+  const clearPreviewCloseTimer = () => {
+    if (previewCloseTimer.current) { clearTimeout(previewCloseTimer.current); previewCloseTimer.current = null; }
+  };
+
+  const closePreview = () => {
+    clearPreviewOpenTimer();
+    clearPreviewCloseTimer();
+    setPreviewEventId(null);
+  };
+
+  const schedulePreviewClose = () => {
+    clearPreviewOpenTimer();
+    clearPreviewCloseTimer();
+    previewCloseTimer.current = setTimeout(() => setPreviewEventId(null), PREVIEW_CLOSE_DELAY);
+  };
+
+  // Hovering a thumbnail: swap instantly when a preview is already open,
+  // otherwise wait out the open delay.
+  const handleThumbnailEnter = (id: number, el: HTMLElement) => {
+    clearPreviewOpenTimer();
+    clearPreviewCloseTimer();
+    previewAnchorRef.current = previewAnchorFor(el);
+    if (previewEventId !== null) {
+      setPreviewEventId(id);
+      return;
+    }
+    previewOpenTimer.current = setTimeout(() => setPreviewEventId(id), PREVIEW_OPEN_DELAY);
+  };
+
+  // Leaving a thumbnail cancels a pending open, or starts the grace period so
+  // the pointer can reach the preview or the next thumbnail.
+  const handleThumbnailLeave = () => {
+    clearPreviewOpenTimer();
+    if (previewEventId !== null) schedulePreviewClose();
+  };
+
+  useEffect(() => () => { clearPreviewOpenTimer(); clearPreviewCloseTimer(); }, []);
+
+  // Never leave a preview orphaned when its row leaves the page (pagination,
+  // filtering, sorting or a refetch that drops the event).
+  useEffect(() => {
+    if (previewEventId !== null && !previewEvent) closePreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewEventId, previewEvent]);
 
   const openEvents = useMemo(() => (events ?? []).filter(e => e.eventStatus === 0), [events]);
   const allOpenSelected = openEvents.length > 0 && openEvents.every(e => selectedIds.has(e.id));
@@ -844,12 +926,11 @@ export default function DistrictWorkspace() {
                             </span>
                           )}
                           {event.imageUrl ? (
-                            <EventThumbnailPreview
-                              event={event}
-                              districtId={districtId}
-                              onCharge={(ids) => { setChargeNearbyPreset(ids); setChargeEventId(event.id); }}
-                              onClose={() => { setCloseNearbyPreset([]); setCloseEventId(event.id); }}
-                              onCloseWithDuplicates={(ids) => { setCloseNearbyPreset(ids); setCloseEventId(event.id); }}
+                            <EventThumbnail
+                              imageUrl={event.imageUrl}
+                              alt={`${event.customerName} photo`}
+                              onHoverStart={(el) => handleThumbnailEnter(event.id, el)}
+                              onHoverEnd={handleThumbnailLeave}
                               onNavigate={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
                             />
                           ) : (
@@ -915,6 +996,19 @@ export default function DistrictWorkspace() {
         )}
       </div>
 
+      {previewEvent && (
+        <EventPhotoPreview
+          event={previewEvent}
+          anchorRef={previewAnchorRef}
+          onPointerEnter={clearPreviewCloseTimer}
+          onPointerLeave={schedulePreviewClose}
+          onDismiss={closePreview}
+          onCharge={(ids) => { closePreview(); setChargeNearbyPreset(ids); setChargeEventId(previewEvent.id); }}
+          onClose={() => { closePreview(); setCloseNearbyPreset([]); setCloseEventId(previewEvent.id); }}
+          onCloseWithDuplicates={(ids) => { closePreview(); setCloseNearbyPreset(ids); setCloseEventId(previewEvent.id); }}
+        />
+      )}
+
       <ContractAccountsDialog
         open={contractAccountsOpen}
         onOpenChange={setContractAccountsOpen}
@@ -967,20 +1061,94 @@ export default function DistrictWorkspace() {
     </div>
   );
 }
+/**
+ * Photo cell thumbnail. Purely presentational: it reports hover enter/leave and
+ * clicks to the table's shared preview controller and owns no preview state, so
+ * only one preview is ever on screen no matter how many rows are hovered.
+ */
+function EventThumbnail({ imageUrl, alt, onHoverStart, onHoverEnd, onNavigate }: {
+  imageUrl: string;
+  alt: string;
+  onHoverStart: (el: HTMLElement) => void;
+  onHoverEnd: () => void;
+  onNavigate: () => void;
+}) {
+  return (
+    <div
+      onClick={onNavigate}
+      onMouseEnter={e => onHoverStart(e.currentTarget)}
+      onMouseLeave={onHoverEnd}
+      className="h-10 w-16 rounded overflow-hidden border bg-muted/50 cursor-pointer"
+      data-event-thumbnail=""
+    >
+      <img
+        src={imageUrl}
+        alt={alt}
+        loading="lazy"
+        className="h-full w-full object-cover"
+        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      />
+    </div>
+  );
+}
 
-function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWithDuplicates, onNavigate }: {
+/** Where the preview panel sits relative to the frozen photo column. */
+type PreviewPlacement = { mode: 'beside'; right: number; width: number } | { mode: 'center' };
+
+/**
+ * Place the panel to the left of the frozen photo column so the thumbnails stay
+ * hoverable; if there isn't room for a usable panel (narrow viewport), fall back
+ * to a centered one.
+ */
+const computePreviewPlacement = (anchor: HTMLElement | null): PreviewPlacement => {
+  if (!anchor || !anchor.isConnected) return { mode: 'center' };
+  // clientWidth, not innerWidth: a fixed element is laid out against the
+  // viewport minus the scrollbar, so innerWidth would push the panel off the
+  // left edge by the scrollbar's width.
+  const viewportWidth = document.documentElement.clientWidth;
+  const columnLeft = anchor.getBoundingClientRect().left;
+  const right = Math.max(PREVIEW_GAP, viewportWidth - columnLeft + PREVIEW_GAP);
+  const available = viewportWidth - right - PREVIEW_GAP;
+  if (available < PREVIEW_MIN_WIDTH) return { mode: 'center' };
+  return { mode: 'beside', right, width: Math.min(896, available) };
+};
+
+/**
+ * The single shared photo preview. Mounted by the table for whichever event is
+ * currently being previewed; swapping rows re-renders this same panel rather
+ * than closing and reopening a per-row one.
+ */
+function EventPhotoPreview({ event, anchorRef, onPointerEnter, onPointerLeave, onDismiss, onCharge, onClose, onCloseWithDuplicates }: {
   event: any;
-  districtId: number;
+  anchorRef: React.MutableRefObject<HTMLElement | null>;
+  onPointerEnter: () => void;
+  onPointerLeave: () => void;
+  onDismiss: () => void;
   onCharge: (checkedDuplicateIds: number[]) => void;
   onClose: () => void;
   onCloseWithDuplicates: (ids: number[]) => void;
-  onNavigate: () => void;
 }) {
   const { t } = useI18n();
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const [selectedImage, setSelectedImage] = useState<string>(event.imageUrl);
   const [hoveredImage, setHoveredImage] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
   const [checkedNearby, setCheckedNearby] = useState<Set<number>>(new Set());
+  // Detail (and therefore Nearby Overages) is only requested once the pointer
+  // has settled on a row, so sliding through the column doesn't fan out one
+  // request per row skimmed past.
+  const [settled, setSettled] = useState(false);
+
+  // Reset every piece of per-event state the moment the previewed event
+  // changes, before this render's children see it — otherwise a fast slide can
+  // paint one frame of the previous row's image or checkbox selection.
+  const [renderedEventId, setRenderedEventId] = useState<number>(event.id);
+  if (renderedEventId !== event.id) {
+    setRenderedEventId(event.id);
+    setSelectedImage(event.imageUrl);
+    setHoveredImage(null);
+    setCheckedNearby(new Set());
+    setSettled(false);
+  }
 
   const toggleNearby = (id: number) => {
     setCheckedNearby(prev => {
@@ -990,57 +1158,50 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWi
     });
   };
 
-  // Clear the checkbox selection whenever the preview closes
   useEffect(() => {
-    if (!open) {
-      setCheckedNearby(new Set());
-    }
-  }, [open]);
-  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    setSettled(false);
+    const timer = setTimeout(() => setSettled(true), PREVIEW_DETAIL_SETTLE_DELAY);
+    return () => clearTimeout(timer);
+  }, [event.id]);
 
-  const clearTimers = () => {
-    if (openTimer.current) { clearTimeout(openTimer.current); openTimer.current = null; }
-    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
-  };
-
-  const scheduleOpen = () => {
-    clearTimers();
-    openTimer.current = setTimeout(() => setOpen(true), 150);
-  };
-
-  const scheduleClose = () => {
-    clearTimers();
-    closeTimer.current = setTimeout(() => setOpen(false), 200);
-  };
-
-  // Leaving the thumbnail: if the popup is already open, keep it open (the
-  // popup's own mouse-leave / Escape / backdrop / X handle dismissal). If the
-  // popup hasn't opened yet, just cancel the pending open so quick pass-over
-  // hovers don't trigger it.
-  const handleThumbnailLeave = () => {
-    if (openTimer.current) { clearTimeout(openTimer.current); openTimer.current = null; }
-  };
-
-  const cancelClose = () => {
-    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
-  };
-
-  useEffect(() => () => clearTimers(), []);
-
-  // Close on Escape while open
+  // Escape dismisses.
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onDismiss(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  }, [onDismiss]);
 
-  // Load the full event detail (includes nearby events) once the preview opens
+  // There is no click-blocking backdrop any more (it would steal hover from the
+  // photo column), so outside clicks are caught here instead.
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (target && panelRef.current?.contains(target)) return;
+      onDismiss();
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [onDismiss]);
+
+  // Measured before the first paint so the panel never lands centered and then
+  // jumps sideways.
+  const [placement, setPlacement] = useState<PreviewPlacement>(() => computePreviewPlacement(anchorRef.current));
+  useLayoutEffect(() => {
+    const measure = () => setPlacement(computePreviewPlacement(anchorRef.current));
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+    // Re-measure per previewed event: rows share the frozen column, but the
+    // anchor element itself changes as the pointer moves down the column.
+  }, [anchorRef, event.id]);
+
+  // Load the full event detail (includes nearby events) once the pointer settles
   const { data: detail, isLoading: isLoadingDetail } = useGetEvent(event.id, {
-    query: { enabled: open, queryKey: getGetEventQueryKey(event.id) }
+    query: { enabled: settled, queryKey: getGetEventQueryKey(event.id) }
   });
-  const nearbyEvents = detail?.nearbyEvents;
+  // Guard against a late response for a row we've already slid past.
+  const nearbyEvents = detail?.id === event.id ? detail?.nearbyEvents : undefined;
+  const isLoadingNearby = !settled || isLoadingDetail || detail?.id !== event.id;
 
   // Forward-compatible with a multi-image data model (Task on detail page):
   // if the API exposes an image list use it, otherwise fall back to the single image.
@@ -1049,141 +1210,123 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWi
     : [event.imageUrl];
   const isOpen = event.eventStatus === 0;
 
-  return (
-    <>
-      <div
-        onClick={onNavigate}
-        onMouseEnter={scheduleOpen}
-        onMouseLeave={handleThumbnailLeave}
-        className="h-10 w-16 rounded overflow-hidden border bg-muted/50 cursor-pointer"
-      >
-        <img
-          src={event.imageUrl}
-          alt={`${event.customerName} photo`}
-          loading="lazy"
-          className="h-full w-full object-cover"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-        />
-      </div>
-      {/* Rendered into <body> rather than in place. This component sits inside a
-          `position: sticky` cell with a z-index, which makes that cell its own
-          stacking context — any z-index the popup sets is confined to it, so the
-          sticky cells of later rows paint on top no matter how high we go. The
-          portal is the fix; the z-index below only has to clear the app header. */}
-      {open && createPortal(
-        <>
-          {/* Dim backdrop; click closes the preview */}
-          <div
-            className="fixed inset-0 z-[60] bg-black/40 animate-in fade-in-0"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-label={`${event.customerName} photo preview`}
-            onMouseEnter={cancelClose}
-            onMouseLeave={scheduleClose}
-            onClick={e => e.stopPropagation()}
-            className="fixed left-1/2 top-1/2 z-[60] w-[min(56rem,calc(100vw-2rem))] max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border bg-background p-4 shadow-lg space-y-3 animate-in fade-in-0 zoom-in-95"
-          >
-            <div className="flex gap-3">
-              <div className="flex-1 bg-muted rounded-lg overflow-hidden aspect-video flex items-center justify-center">
-                <img
-                  src={hoveredImage ?? selectedImage}
-                  alt="Event preview"
-                  className="object-contain w-full h-full"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-              </div>
-              {/* Right rail: close, actions, thumbnails */}
-              <div className="flex flex-col items-center gap-2 w-20 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="self-end rounded-sm bg-background/80 p-1 opacity-70 transition-opacity hover:opacity-100"
-                  aria-label="Close preview"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-                {isOpen && (
-                  <div className="flex gap-2">
-                    <Button
-                      size="icon"
-                      className="h-8 w-8 bg-success text-success-foreground hover:bg-success/90"
-                      onClick={() => onCharge(Array.from(checkedNearby))}
-                      title={t('preview.charge_customer')}
-                      aria-label={t('preview.charge_customer')}
-                    >
-                      <DollarSign className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="destructive"
-                      className="h-8 w-8"
-                      onClick={checkedNearby.size > 0 ? () => onCloseWithDuplicates(Array.from(checkedNearby)) : onClose}
-                      title={t('preview.dismiss_event')}
-                      aria-label={t('preview.dismiss_event')}
-                    >
-                      <DoorOpen className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-                {images.length > 1 && (
-                  <div className="flex flex-col gap-2 overflow-y-auto max-h-[50vh] pt-1">
-                    {images.map((url, i) => (
-                      <button
-                        key={i}
-                        onMouseEnter={() => setHoveredImage(url)}
-                        onMouseLeave={() => setHoveredImage(null)}
-                        onFocus={() => setHoveredImage(url)}
-                        onBlur={() => setHoveredImage(null)}
-                        onClick={() => setSelectedImage(url)}
-                        className={cn(
-                          'h-12 w-16 shrink-0 rounded overflow-hidden border-2 transition-colors',
-                          (hoveredImage ?? selectedImage) === url ? 'border-primary' : 'border-transparent hover:border-muted-foreground/40'
-                        )}
-                      >
-                        <img src={url} alt={`Thumbnail ${i + 1}`} className="h-full w-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            {/* Nearby events cluster */}
-            <div className="pt-1">
-              <h4 className="text-sm font-semibold mb-2">{t('event.nearby.title')}</h4>
-              {isLoadingDetail ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              ) : !nearbyEvents || nearbyEvents.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">{t('event.nearby.empty')}</p>
-              ) : (
-                <NearbyClusterPicker
-                  nearby={nearbyEvents}
-                  checked={checkedNearby}
-                  onToggle={toggleNearby}
-                  anchorAccountNumber={event.accountNumber}
-                  title={null}
-                />
-              )}
-              {checkedNearby.size > 0 && (
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="mt-2 w-full"
-                  onClick={() => onCloseWithDuplicates(Array.from(checkedNearby))}
-                >
-                  <XCircle className="h-4 w-4 mr-1" />
-                  {t('close.close_duplicates', { count: checkedNearby.size })}
-                </Button>
-              )}
-            </div>
-          </div>
-        </>,
-        document.body
+  // Rendered into <body> rather than in place. The photo cell is
+  // `position: sticky` with a z-index, which makes it its own stacking context —
+  // any z-index the panel sets would be confined to it, so the sticky cells of
+  // later rows would paint on top no matter how high we go. The portal is the
+  // fix; the z-index below only has to clear the app header.
+  return createPortal(
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-label={`${event.customerName} photo preview`}
+      onMouseEnter={onPointerEnter}
+      onMouseLeave={onPointerLeave}
+      className={cn(
+        'fixed top-1/2 z-[60] max-h-[90vh] -translate-y-1/2 overflow-y-auto rounded-lg border bg-background p-4 shadow-2xl space-y-3 animate-in fade-in-0 zoom-in-95',
+        placement.mode === 'center' && 'left-1/2 -translate-x-1/2 w-[min(56rem,calc(100vw-2rem))]'
       )}
-    </>
+      style={placement.mode === 'beside' ? { right: placement.right, width: placement.width } : undefined}
+      data-testid="event-photo-preview"
+      data-preview-event-id={event.id}
+    >
+      <div className="flex gap-3">
+        <div className="flex-1 bg-muted rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+          <img
+            key={hoveredImage ?? selectedImage}
+            src={hoveredImage ?? selectedImage}
+            alt="Event preview"
+            className="object-contain w-full h-full"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
+        {/* Right rail: close, actions, thumbnails */}
+        <div className="flex flex-col items-center gap-2 w-20 shrink-0">
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="self-end rounded-sm bg-background/80 p-1 opacity-70 transition-opacity hover:opacity-100"
+            aria-label="Close preview"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          {isOpen && (
+            <div className="flex gap-2">
+              <Button
+                size="icon"
+                className="h-8 w-8 bg-success text-success-foreground hover:bg-success/90"
+                onClick={() => onCharge(Array.from(checkedNearby))}
+                title={t('preview.charge_customer')}
+                aria-label={t('preview.charge_customer')}
+              >
+                <DollarSign className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="destructive"
+                className="h-8 w-8"
+                onClick={checkedNearby.size > 0 ? () => onCloseWithDuplicates(Array.from(checkedNearby)) : onClose}
+                title={t('preview.dismiss_event')}
+                aria-label={t('preview.dismiss_event')}
+              >
+                <DoorOpen className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+          {images.length > 1 && (
+            <div className="flex flex-col gap-2 overflow-y-auto max-h-[50vh] pt-1">
+              {images.map((url, i) => (
+                <button
+                  key={i}
+                  onMouseEnter={() => setHoveredImage(url)}
+                  onMouseLeave={() => setHoveredImage(null)}
+                  onFocus={() => setHoveredImage(url)}
+                  onBlur={() => setHoveredImage(null)}
+                  onClick={() => setSelectedImage(url)}
+                  className={cn(
+                    'h-12 w-16 shrink-0 rounded overflow-hidden border-2 transition-colors',
+                    (hoveredImage ?? selectedImage) === url ? 'border-primary' : 'border-transparent hover:border-muted-foreground/40'
+                  )}
+                >
+                  <img src={url} alt={`Thumbnail ${i + 1}`} className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      {/* Nearby events cluster */}
+      <div className="pt-1">
+        <h4 className="text-sm font-semibold mb-2">{t('event.nearby.title')}</h4>
+        {isLoadingNearby ? (
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ) : !nearbyEvents || nearbyEvents.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">{t('event.nearby.empty')}</p>
+        ) : (
+          <NearbyClusterPicker
+            nearby={nearbyEvents}
+            checked={checkedNearby}
+            onToggle={toggleNearby}
+            anchorAccountNumber={event.accountNumber}
+            title={null}
+          />
+        )}
+        {checkedNearby.size > 0 && (
+          <Button
+            size="sm"
+            variant="destructive"
+            className="mt-2 w-full"
+            onClick={() => onCloseWithDuplicates(Array.from(checkedNearby))}
+          >
+            <XCircle className="h-4 w-4 mr-1" />
+            {t('close.close_duplicates', { count: checkedNearby.size })}
+          </Button>
+        )}
+      </div>
+    </div>,
+    document.body
   );
 }
