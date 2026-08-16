@@ -1,5 +1,6 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
+using System.Text.RegularExpressions;
 
 namespace Events.Api.Services;
 
@@ -14,49 +15,168 @@ public static class DatabaseInitializer
         await using var conn = new SqlConnection(connectionString);
         await conn.OpenAsync();
 
-        await DropLegacySnakeCaseTablesAsync(conn);
+        await MigrateLegacySnakeCaseSchemaAsync(conn);
         await CreateTablesAsync(conn);
         await SeedLookupsAsync(conn);
         await SeedRouteEventsAsync(conn);
         await SeedEventActionsAsync(conn);
     }
 
-    // ─── Legacy cleanup ───────────────────────────────────────────────────────
+    // ─── Legacy schema migration ──────────────────────────────────────────────
 
     /// <summary>
-    /// Drops the pre-PascalCase schema so the renamed tables are the only ones
-    /// left. Object names are case-insensitive in SQL Server, so `districts`
-    /// and `Districts` are the same object — the legacy district table is
-    /// therefore detected by one of its snake_case columns rather than by name.
-    /// The seed data is re-created from scratch afterwards.
+    /// The PascalCase schema, used both as the rename target for a legacy
+    /// snake_case database and as the authoritative column list for it.
     /// </summary>
-    private static async Task DropLegacySnakeCaseTablesAsync(SqlConnection conn)
+    private static readonly (string Table, string[] Columns)[] SchemaMap =
     {
-        await conn.ExecuteAsync(@"
-IF OBJECT_ID('route_events','U')  IS NOT NULL
-OR OBJECT_ID('event_actions','U') IS NOT NULL
-OR OBJECT_ID('event_types','U')   IS NOT NULL
-OR OBJECT_ID('event_sources','U') IS NOT NULL
-OR OBJECT_ID('service_codes','U') IS NOT NULL
-OR OBJECT_ID('account_flags','U') IS NOT NULL
-OR COL_LENGTH('Districts','hauling_system') IS NOT NULL
-BEGIN
-    -- Child tables first so foreign keys never block a drop.
-    IF OBJECT_ID('EventActions','U')  IS NOT NULL DROP TABLE EventActions;
-    IF OBJECT_ID('event_actions','U') IS NOT NULL DROP TABLE event_actions;
-    IF OBJECT_ID('AccountFlags','U')  IS NOT NULL DROP TABLE AccountFlags;
-    IF OBJECT_ID('account_flags','U') IS NOT NULL DROP TABLE account_flags;
-    IF OBJECT_ID('RouteEvents','U')   IS NOT NULL DROP TABLE RouteEvents;
-    IF OBJECT_ID('route_events','U')  IS NOT NULL DROP TABLE route_events;
-    IF OBJECT_ID('ServiceCodes','U')  IS NOT NULL DROP TABLE ServiceCodes;
-    IF OBJECT_ID('service_codes','U') IS NOT NULL DROP TABLE service_codes;
-    IF OBJECT_ID('Districts','U')     IS NOT NULL DROP TABLE Districts;
-    IF OBJECT_ID('EventTypes','U')    IS NOT NULL DROP TABLE EventTypes;
-    IF OBJECT_ID('event_types','U')   IS NOT NULL DROP TABLE event_types;
-    IF OBJECT_ID('EventSources','U')  IS NOT NULL DROP TABLE EventSources;
-    IF OBJECT_ID('event_sources','U') IS NOT NULL DROP TABLE event_sources;
-END");
+        ("Districts",    new[] { "Id", "Number", "Name", "Region", "HaulingSystem", "Active" }),
+        ("EventTypes",   new[] { "Id", "Name", "Active" }),
+        ("EventSources", new[] { "Id", "Name", "Active" }),
+        ("ServiceCodes", new[] { "Id", "DistrictId", "Code", "Description", "Amount", "Active" }),
+        ("RouteEvents",  new[]
+        {
+            "Id", "DistrictId", "EventTypeId", "EventSourceId", "ExternalId", "DateOccurred",
+            "Vehicle", "Route", "Latitude", "Longitude", "Address", "CustomerName",
+            "AccountNumber", "BillArea", "BinSerialNumber", "Lob", "RmoStatus", "Details",
+            "Stop", "WorkOrderNumber", "TabletNotes", "Quantity", "ImageUrl", "ImageUrls",
+            "Severity", "CustomerSince", "EventStatus", "DateClosed", "ClosedBy", "CustomerRoutes"
+        }),
+        ("EventActions", new[]
+        {
+            "Id", "RouteEventId", "ActionType", "IsFinal", "Notes", "CloseReason",
+            "ServiceCodeId", "ChargeAmount", "ChargeQuantity", "BilledStatementNumber",
+            "PaymentStatus", "BilledAmount", "CreatedBy", "DateCreated"
+        }),
+        ("AccountFlags", new[] { "Id", "DistrictId", "AccountNumber", "Flag", "CreatedBy", "DateCreated" }),
+    };
+
+    /// <summary>Indexes to rename, as (table, legacy name, new name).</summary>
+    private static readonly (string Table, string Old, string New)[] LegacyIndexNames =
+    {
+        ("RouteEvents",  "route_events_account_date_idx",         "RouteEventsAccountDateIdx"),
+        ("EventActions", "event_actions_route_event_idx",         "EventActionsRouteEventIdx"),
+        ("AccountFlags", "account_flags_district_account_flag_idx", "AccountFlagsDistrictAccountFlagIdx"),
+    };
+
+    /// <summary>
+    /// Constraints to rename. Only the explicitly named ones are listed —
+    /// system-generated names (PK__districts__…) are left alone.
+    /// </summary>
+    private static readonly (string Old, string New)[] LegacyConstraintNames =
+    {
+        ("pk_districts", "PkDistricts"),
+        ("df_districts_active", "DfDistrictsActive"),
+        ("pk_event_types", "PkEventTypes"),
+        ("df_event_types_active", "DfEventTypesActive"),
+        ("pk_event_sources", "PkEventSources"),
+        ("df_event_sources_active", "DfEventSourcesActive"),
+        ("pk_service_codes", "PkServiceCodes"),
+        ("df_service_codes_active", "DfServiceCodesActive"),
+        ("fk_service_codes_district", "FkServiceCodesDistrict"),
+        ("pk_route_events", "PkRouteEvents"),
+        ("df_route_events_image_urls", "DfRouteEventsImageUrls"),
+        ("df_route_events_event_status", "DfRouteEventsEventStatus"),
+        ("df_route_events_customer_routes", "DfRouteEventsCustomerRoutes"),
+        ("chk_route_events_image_urls", "ChkRouteEventsImageUrls"),
+        ("chk_route_events_customer_routes", "ChkRouteEventsCustomerRoutes"),
+        ("fk_route_events_district", "FkRouteEventsDistrict"),
+        ("fk_route_events_event_type", "FkRouteEventsEventType"),
+        ("fk_route_events_event_source", "FkRouteEventsEventSource"),
+        ("pk_event_actions", "PkEventActions"),
+        ("df_event_actions_is_final", "DfEventActionsIsFinal"),
+        ("df_event_actions_date_created", "DfEventActionsDateCreated"),
+        ("fk_event_actions_route_event", "FkEventActionsRouteEvent"),
+        ("fk_event_actions_service_code", "FkEventActionsServiceCode"),
+        ("pk_account_flags", "PkAccountFlags"),
+        ("df_account_flags_flag", "DfAccountFlagsFlag"),
+        ("df_account_flags_date_created", "DfAccountFlagsDateCreated"),
+        ("fk_account_flags_district", "FkAccountFlagsDistrict"),
+        ("UQ_account_flags_district_account_flag", "UqAccountFlagsDistrictAccountFlag"),
+    };
+
+    /// <summary>
+    /// Renames a pre-PascalCase database in place with sp_rename: tables first,
+    /// then columns, then indexes and named constraints. Rows are preserved —
+    /// nothing is dropped and nothing is re-seeded over existing data.
+    ///
+    /// Every statement is guarded, so this is a no-op on a database that is
+    /// already renamed and on an empty one. The guards compare names under a
+    /// binary collation because SQL Server object names are case-insensitive:
+    /// `districts` and `Districts` are the same object, so only a case-sensitive
+    /// check can tell whether a rename is still outstanding.
+    /// </summary>
+    private static async Task MigrateLegacySnakeCaseSchemaAsync(SqlConnection conn)
+    {
+        const string renameTableSql = @"
+IF EXISTS (SELECT 1 FROM sys.tables
+           WHERE SCHEMA_NAME(schema_id) = 'dbo' AND name = @legacy COLLATE Latin1_General_BIN2)
+   AND NOT EXISTS (SELECT 1 FROM sys.tables
+                   WHERE SCHEMA_NAME(schema_id) = 'dbo' AND name = @current COLLATE Latin1_General_BIN2)
+    EXEC sp_rename @qualified, @current;";
+
+        const string renameColumnSql = @"
+IF OBJECT_ID(@table,'U') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM sys.columns
+               WHERE object_id = OBJECT_ID(@table) AND name = @legacy COLLATE Latin1_General_BIN2)
+   AND NOT EXISTS (SELECT 1 FROM sys.columns
+                   WHERE object_id = OBJECT_ID(@table) AND name = @current COLLATE Latin1_General_BIN2)
+    EXEC sp_rename @qualified, @current, 'COLUMN';";
+
+        const string renameIndexSql = @"
+IF OBJECT_ID(@table,'U') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(@table) AND name = @legacy)
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(@table) AND name = @current)
+    EXEC sp_rename @qualified, @current, 'INDEX';";
+
+        const string renameConstraintSql = @"
+IF EXISTS (SELECT 1 FROM sys.objects WHERE SCHEMA_NAME(schema_id) = 'dbo' AND name = @legacy)
+   AND NOT EXISTS (SELECT 1 FROM sys.objects WHERE SCHEMA_NAME(schema_id) = 'dbo' AND name = @current)
+    EXEC sp_rename @qualified, @current;";
+
+        foreach (var (table, _) in SchemaMap)
+        {
+            var legacy = ToSnakeCase(table);
+            await conn.ExecuteAsync(renameTableSql,
+                new { legacy, current = table, qualified = $"dbo.{legacy}" });
+        }
+
+        foreach (var (table, columns) in SchemaMap)
+        {
+            foreach (var column in columns)
+            {
+                var legacy = ToSnakeCase(column);
+                await conn.ExecuteAsync(renameColumnSql, new
+                {
+                    table = $"dbo.{table}",
+                    legacy,
+                    current = column,
+                    qualified = $"dbo.{table}.{legacy}"
+                });
+            }
+        }
+
+        foreach (var (table, oldName, newName) in LegacyIndexNames)
+        {
+            await conn.ExecuteAsync(renameIndexSql, new
+            {
+                table = $"dbo.{table}",
+                legacy = oldName,
+                current = newName,
+                qualified = $"dbo.{table}.{oldName}"
+            });
+        }
+
+        foreach (var (oldName, newName) in LegacyConstraintNames)
+        {
+            await conn.ExecuteAsync(renameConstraintSql,
+                new { legacy = oldName, current = newName, qualified = $"dbo.{oldName}" });
+        }
     }
+
+    /// <summary>`RouteEvents` → `route_events`, `Id` → `id`.</summary>
+    private static string ToSnakeCase(string pascal) =>
+        Regex.Replace(pascal, "(?<!^)([A-Z])", "_$1").ToLowerInvariant();
 
     // ─── Schema ───────────────────────────────────────────────────────────────
 
