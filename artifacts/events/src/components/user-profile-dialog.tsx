@@ -7,7 +7,10 @@ import {
   type District,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRoute } from 'wouter';
 import { useI18n, type Language } from '@/i18n';
+import { AdminUserList } from '@/components/admin-user-list';
+import { OPEN_EXCLUDED_ACCOUNTS_EVENT } from '@/lib/excluded-accounts';
 import { useTheme } from '@/components/theme-provider';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import {
@@ -32,7 +35,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Check, ChevronsUpDown, Moon, Sun, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronsUpDown, FileX2, Moon, Sun, X } from 'lucide-react';
 
 const LANGUAGES: { code: Language; label: string }[] = [
   { code: 'en', label: 'EN' },
@@ -155,6 +158,12 @@ export function UserProfileDialog({ open, onOpenChange }: {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
+
+  // The excluded-accounts dialog belongs to a district and is mounted by the
+  // district workspace, so the button that raises it can only be offered while
+  // a district is actually open.
+  const [inDistrict] = useRoute('/districts/:districtId');
 
   const { data: districts } = useListDistricts({
     query: { enabled: open, queryKey: getListDistrictsQueryKey() },
@@ -207,7 +216,10 @@ export function UserProfileDialog({ open, onOpenChange }: {
 
   return (
     <Dialog open={open} onOpenChange={next => !isPending && onOpenChange(next)}>
-      <DialogContent className="max-w-md" data-testid="profile-dialog">
+      <DialogContent
+        className={cn('max-h-[85vh] overflow-y-auto', isAdmin ? 'max-w-lg' : 'max-w-md')}
+        data-testid="profile-dialog"
+      >
         <DialogHeader>
           <DialogTitle>{t('profile.title')}</DialogTitle>
           <DialogDescription>{t('profile.description')}</DialogDescription>
@@ -306,6 +318,40 @@ export function UserProfileDialog({ open, onOpenChange }: {
 
             <p className="text-xs text-muted-foreground">{t('profile.preferences_hint')}</p>
           </div>
+
+          {/*
+            Administration. Everything here acts immediately or through its own
+            Save button, so it deliberately sits outside the dialog's own Save —
+            which only ever covers your own name and home district.
+          */}
+          {isAdmin && (
+            <div className="space-y-3 rounded-md border bg-muted/30 p-3" data-testid="profile-admin">
+              <p className="text-sm font-medium">{t('profile.administration')}</p>
+
+              {inDistrict && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-full justify-start gap-2"
+                  onClick={() => {
+                    onOpenChange(false);
+                    window.dispatchEvent(new CustomEvent(OPEN_EXCLUDED_ACCOUNTS_EVENT));
+                  }}
+                  data-testid="profile-excluded-accounts"
+                >
+                  <FileX2 className="h-4 w-4" />
+                  {t('contract_accounts.button')}
+                </Button>
+              )}
+
+              <div className="space-y-1.5">
+                <Label className="font-normal">{t('profile.users')}</Label>
+                <AdminUserList enabled={open} />
+                <p className="text-xs text-muted-foreground">{t('profile.users_hint')}</p>
+              </div>
+            </div>
+          )}
 
           {error && (
             <p

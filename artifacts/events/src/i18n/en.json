@@ -88,7 +88,20 @@
     "theme": "Appearance",
     "theme_light": "Light",
     "theme_dark": "Dark",
-    "preferences_hint": "Saved on this computer as soon as you change them."
+    "preferences_hint": "Saved on this computer as soon as you change them.",
+    "administration": "Administration",
+    "users": "Users",
+    "users_hint": "Change anyone's preferred name, home district, role, or roster status.",
+    "users_empty": "Nobody has signed in yet.",
+    "users_load_failed": "Could not load the user list.",
+    "role": "Role",
+    "role_admin": "Admin",
+    "role_agent": "Agent",
+    "active_user": "On the active roster",
+    "self_locked_hint": "You cannot change your own role or roster status.",
+    "user_saved": "User saved",
+    "error_user_save_failed": "Could not save that user. Try again.",
+    "error_user_rejected": "That change was rejected. Check the home district number."
   },
   "event": {
     "back": "Back",

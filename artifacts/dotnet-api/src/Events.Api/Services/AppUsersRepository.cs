@@ -11,11 +11,11 @@ namespace Events.Api.Services;
 /// </summary>
 public class AppUsersRepository(IDbConnection db)
 {
-    private const string SelectColumns = """
-        SELECT Id, ActiveDirectoryName, FriendlyName, HomeDistrictNumber, Role, DateLastSeen
-        FROM AppUsers
-        WHERE ActiveDirectoryName = @adName
-        """;
+    private const string Columns =
+        "Id, ActiveDirectoryName, FriendlyName, HomeDistrictNumber, Role, Active, DateLastSeen";
+
+    private const string SelectColumns =
+        "SELECT " + Columns + " FROM AppUsers WHERE ActiveDirectoryName = @adName";
 
     /// <summary>
     /// Records that this login just showed up: inserts the row on first
@@ -111,5 +111,55 @@ public class AppUsersRepository(IDbConnection db)
 
         return await db.QuerySingleOrDefaultAsync<AppUserDto>(
             SelectColumns, new { adName = activeDirectoryName });
+    }
+
+    /// <summary>
+    /// Every user, administrators first and then alphabetically, for the admin
+    /// roster. Small table — a district has tens of agents, not thousands — so
+    /// it is returned unpaged.
+    /// </summary>
+    public async Task<IReadOnlyList<AppUserDto>> ListAllAsync()
+    {
+        const string sql = "SELECT " + Columns + @" FROM AppUsers
+             ORDER BY CASE WHEN Role = 'Admin' THEN 0 ELSE 1 END,
+                      COALESCE(FriendlyName, ActiveDirectoryName)";
+
+        var rows = await db.QueryAsync<AppUserDto>(sql);
+        return rows.ToList();
+    }
+
+    public Task<AppUserDto?> GetByIdAsync(int id) =>
+        db.QuerySingleOrDefaultAsync<AppUserDto>(
+            "SELECT " + Columns + " FROM AppUsers WHERE Id = @id", new { id });
+
+    /// <summary>
+    /// An administrator's edit of somebody else's row. Wider than
+    /// <see cref="UpdateProfileAsync"/> because it also covers role and active
+    /// status. Returns null when the id matches nothing.
+    /// </summary>
+    public async Task<AppUserDto?> AdminUpdateAsync(
+        int id, string? friendlyName, string? homeDistrictNumber, string? role, bool active)
+    {
+        const string update = """
+            UPDATE AppUsers
+               SET FriendlyName = @friendlyName,
+                   HomeDistrictNumber = @districtNumber,
+                   Role = @role,
+                   Active = @active
+             WHERE Id = @id;
+            """;
+
+        var affected = await db.ExecuteAsync(update, new
+        {
+            id,
+            friendlyName = string.IsNullOrWhiteSpace(friendlyName) ? null : friendlyName.Trim(),
+            districtNumber = string.IsNullOrWhiteSpace(homeDistrictNumber) ? null : homeDistrictNumber.Trim(),
+            role,
+            active,
+        });
+
+        if (affected == 0) return null;
+
+        return await GetByIdAsync(id);
     }
 }

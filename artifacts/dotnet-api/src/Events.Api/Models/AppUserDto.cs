@@ -28,6 +28,13 @@ public record AppUserDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Role { get; init; }
 
+    /// <summary>
+    /// Deactivated users keep their row and their audit history; they are just
+    /// not expected back. Nothing enforces this at sign-in yet — the API has no
+    /// gate of its own, it trusts IIS — so treat it as a roster flag.
+    /// </summary>
+    public bool Active { get; init; } = true;
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public DateTimeOffset? DateLastSeen { get; init; }
 }
@@ -84,4 +91,27 @@ public record UpdateProfileRequest
     /// unknown number is rejected rather than stored.
     /// </summary>
     public string? HomeDistrictNumber { get; init; }
+}
+
+/// <summary>
+/// Request body for <c>PUT /api/users/{id}</c>: everything an administrator may
+/// change about somebody else. Unlike <see cref="UpdateProfileRequest"/> this
+/// can also move a user between roles and take them off the active roster.
+/// </summary>
+public record UpdateUserRequest
+{
+    /// <summary>Preferred display name; blank clears it.</summary>
+    public string? FriendlyName { get; init; }
+
+    /// <summary>District <c>Number</c> to pin, or blank to clear.</summary>
+    public string? HomeDistrictNumber { get; init; }
+
+    /// <summary>
+    /// <c>Admin</c> or <c>Agent</c>. Omitted leaves the existing role alone,
+    /// so a client that does not know about roles cannot blank one out.
+    /// </summary>
+    public string? Role { get; init; }
+
+    /// <summary>Whether the user is still on the active roster.</summary>
+    public bool Active { get; init; } = true;
 }

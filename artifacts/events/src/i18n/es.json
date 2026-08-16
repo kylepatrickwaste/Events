@@ -88,7 +88,20 @@
     "theme": "Apariencia",
     "theme_light": "Claro",
     "theme_dark": "Oscuro",
-    "preferences_hint": "Se guardan en este equipo en cuanto las cambias."
+    "preferences_hint": "Se guardan en este equipo en cuanto las cambias.",
+    "administration": "Administración",
+    "users": "Usuarios",
+    "users_hint": "Cambie el nombre preferido, el distrito principal, el rol o el estado de cualquier usuario.",
+    "users_empty": "Todavía no ha iniciado sesión nadie.",
+    "users_load_failed": "No se pudo cargar la lista de usuarios.",
+    "role": "Rol",
+    "role_admin": "Administrador",
+    "role_agent": "Agente",
+    "active_user": "En la lista activa",
+    "self_locked_hint": "No puede cambiar su propio rol ni su estado en la lista.",
+    "user_saved": "Usuario guardado",
+    "error_user_save_failed": "No se pudo guardar ese usuario. Inténtelo de nuevo.",
+    "error_user_rejected": "Se rechazó el cambio. Compruebe el número de distrito."
   },
   "event": {
     "back": "Volver",

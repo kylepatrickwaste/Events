@@ -5,6 +5,32 @@
  * Route Events API
  * OpenAPI spec version: 0.1.0
  */
+/**
+ * A row from the AppUsers table, as an administrator sees it.
+ */
+export interface AppUser {
+  id: number;
+  /** The Windows / AD login, e.g. WCI\kyle.patrick. */
+  activeDirectoryName: string;
+  friendlyName?: string;
+  homeDistrictNumber?: string;
+  /** Admin or Agent. */
+  role?: string;
+  /** Whether the user is still on the active roster. A roster flag only — the API has no sign-in gate of its own, it trusts IIS. */
+  active: boolean;
+  dateLastSeen?: string;
+}
+
+export interface UpdateUserRequest {
+  /** Preferred display name; blank clears it. */
+  friendlyName?: string;
+  /** District Number to pin, or blank to clear. */
+  homeDistrictNumber?: string;
+  /** Admin or Agent. Omitted leaves the existing role alone, so a client that does not know about roles cannot blank one out. */
+  role?: string;
+  active: boolean;
+}
+
 export interface HealthStatus {
   status: string;
   /** When the server answered. Always emitted; it was missing from this schema while the controller returned it. */

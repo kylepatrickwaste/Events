@@ -107,6 +107,78 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List every application user
+      description: >-
+        The full roster, for the administration section of the profile dialog.
+        Administrators only; everyone else gets 403. Unpaged — this table holds
+        a district's agents, not customers.
+      responses:
+        "200":
+          description: All users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AppUser"
+        "403":
+          description: Caller is not an administrator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+  /users/{id}:
+    put:
+      operationId: updateUser
+      tags: [users]
+      summary: Update another user's record
+      description: >-
+        Saves preferred name, home district, role and active status together.
+        Administrators only. An administrator cannot remove their own admin
+        access or deactivate themselves — that edit has no way back through the
+        UI — and an unknown home district number is rejected rather than stored.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: AppUsers row id.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppUser"
+        "400":
+          description: Unknown district, unknown role, or self-demotion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Caller is not an administrator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
   /districts:
     get:
       operationId: listDistricts
@@ -417,6 +489,52 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
 components:
   schemas:
+    AppUser:
+      type: object
+      description: A row from the AppUsers table, as an administrator sees it.
+      properties:
+        id:
+          type: integer
+        activeDirectoryName:
+          type: string
+          description: The Windows / AD login, e.g. WCI\kyle.patrick.
+        friendlyName:
+          type: string
+        homeDistrictNumber:
+          type: string
+        role:
+          type: string
+          description: Admin or Agent.
+        active:
+          type: boolean
+          description: >-
+            Whether the user is still on the active roster. A roster flag only —
+            the API has no sign-in gate of its own, it trusts IIS.
+        dateLastSeen:
+          type: string
+          format: date-time
+      required:
+        - id
+        - activeDirectoryName
+        - active
+    UpdateUserRequest:
+      type: object
+      properties:
+        friendlyName:
+          type: string
+          description: Preferred display name; blank clears it.
+        homeDistrictNumber:
+          type: string
+          description: District Number to pin, or blank to clear.
+        role:
+          type: string
+          description: >-
+            Admin or Agent. Omitted leaves the existing role alone, so a client
+            that does not know about roles cannot blank one out.
+        active:
+          type: boolean
+      required:
+        - active
     HealthStatus:
       type: object
       properties:

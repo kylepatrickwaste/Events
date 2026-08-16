@@ -9,7 +9,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { Check, ChevronsUpDown, FileX2, ChevronLeft, UserRound } from 'lucide-react';
+import { Check, ChevronsUpDown, ChevronLeft, UserRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n';
 import { useServerStatus } from '@/hooks/use-server-status';
@@ -53,29 +53,6 @@ function EventHeaderCenter() {
         <Skeleton className="h-6 w-32" />
       )}
     </div>
-  );
-}
-
-export const OPEN_EXCLUDED_ACCOUNTS_EVENT = 'open-excluded-accounts';
-
-function HeaderExcludedAccountsButton() {
-  const { t } = useI18n();
-  const [matchesDistrict] = useRoute('/districts/:districtId');
-
-  if (!matchesDistrict) return null;
-
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="h-8"
-      title={t('contract_accounts.button')}
-      aria-label={t('contract_accounts.button')}
-      onClick={() => window.dispatchEvent(new CustomEvent(OPEN_EXCLUDED_ACCOUNTS_EVENT))}
-    >
-      <FileX2 className="h-4 w-4 sm:mr-2" />
-      <span className="hidden sm:inline">{t('contract_accounts.button')}</span>
-    </Button>
   );
 }
 
@@ -250,7 +227,6 @@ export function Header() {
           <HeaderDistrictSwitcher />
         </div>
         <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-4">
-          <HeaderExcludedAccountsButton />
           <HeaderUserName />
           <ApiStatusDot />
         </div>

@@ -1017,4 +1017,41 @@ VALUES
             });
         }
     }
+
+    /// <summary>
+    /// Promotes the logins listed under <c>Access:BootstrapAdmins</c> on every
+    /// start. Re-applied each time rather than seeded once on purpose: it is the
+    /// break-glass path back in if the last administrator is ever demoted, and a
+    /// config edit plus a restart is the only recovery that does not need
+    /// somebody with direct database access.
+    /// </summary>
+    public static async Task EnsureBootstrapAdminsAsync(
+        string connectionString, IEnumerable<string> logins)
+    {
+        var wanted = logins
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .Select(l => l.Trim())
+            .ToList();
+
+        if (wanted.Count == 0) return;
+
+        await using var conn = new SqlConnection(connectionString);
+        await conn.OpenAsync();
+
+        foreach (var login in wanted)
+        {
+            // Match a domain-qualified login as well as a bare one: the config
+            // says 352271, but IIS hands us WCI\352271 on the real servers and
+            // both are the same person.
+            await conn.ExecuteAsync(@"
+UPDATE AppUsers
+   SET Role = 'Admin', Active = 1
+ WHERE ActiveDirectoryName = @login
+    OR RIGHT(ActiveDirectoryName, LEN(@login) + 1) = '\' + @login;
+
+IF @@ROWCOUNT = 0
+INSERT INTO AppUsers (ActiveDirectoryName, Role, Active)
+VALUES (@login, 'Admin', 1);", new { login });
+        }
+    }
 }

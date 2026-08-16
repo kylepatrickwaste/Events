@@ -88,7 +88,20 @@
     "theme": "Apparence",
     "theme_light": "Clair",
     "theme_dark": "Sombre",
-    "preferences_hint": "Enregistrées sur cet ordinateur dès que vous les modifiez."
+    "preferences_hint": "Enregistrées sur cet ordinateur dès que vous les modifiez.",
+    "administration": "Administration",
+    "users": "Utilisateurs",
+    "users_hint": "Modifiez le nom d'affichage, le district d'accueil, le rôle ou le statut de n'importe quel utilisateur.",
+    "users_empty": "Personne ne s'est encore connecté.",
+    "users_load_failed": "Impossible de charger la liste des utilisateurs.",
+    "role": "Rôle",
+    "role_admin": "Administrateur",
+    "role_agent": "Agent",
+    "active_user": "Sur la liste active",
+    "self_locked_hint": "Vous ne pouvez pas modifier votre propre rôle ni votre statut.",
+    "user_saved": "Utilisateur enregistré",
+    "error_user_save_failed": "Impossible d'enregistrer cet utilisateur. Réessayez.",
+    "error_user_rejected": "Modification refusée. Vérifiez le numéro de district."
   },
   "event": {
     "back": "Retour",
