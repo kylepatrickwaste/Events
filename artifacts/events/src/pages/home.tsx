@@ -4,7 +4,7 @@ import { useListDistricts, getListDistrictsQueryKey } from '@workspace/api-clien
 import { useI18n } from '@/i18n';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { MapPin, Search, ChevronRight } from 'lucide-react';
+import { MapPin, Search, DoorOpen } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export const LAST_DISTRICT_KEY = 'last-district-id';
@@ -77,7 +77,7 @@ export default function Home() {
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[1,2,3,4,5,6,7,8].map(i => (
-            <Skeleton key={i} className="h-32 w-full rounded-xl" />
+            <Skeleton key={i} className="h-24 w-full rounded-xl" />
           ))}
         </div>
       ) : filteredDistricts.length === 0 ? (
@@ -91,10 +91,10 @@ export default function Home() {
             <Card
               key={district.id}
               onClick={() => setLocation(`/districts/${district.id}`)}
-              className="group p-5 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all flex flex-col justify-between gap-3"
+              className="group p-3 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all flex flex-col justify-between gap-2"
             >
               <div>
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-1">
                   <span className="font-mono text-sm font-semibold text-secondary px-2 py-0.5 bg-secondary/10 rounded">
                     {district.number}
                   </span>
@@ -102,11 +102,11 @@ export default function Home() {
                     {district.region}
                   </span>
                 </div>
-                <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors leading-tight">
+                <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors leading-tight">
                   {district.name}
                 </h3>
               </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all self-end" />
+              <DoorOpen className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors self-end" />
             </Card>
           ))}
         </div>
