@@ -953,6 +953,7 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWi
 }) {
   const { t } = useI18n();
   const [selectedImage, setSelectedImage] = useState<string>(event.imageUrl);
+  const [hoveredImage, setHoveredImage] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [checkedNearby, setCheckedNearby] = useState<Set<number>>(new Set());
 
@@ -1062,7 +1063,7 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWi
             <div className="flex gap-3">
               <div className="flex-1 bg-muted rounded-lg overflow-hidden aspect-video flex items-center justify-center">
                 <img
-                  src={selectedImage}
+                  src={hoveredImage ?? selectedImage}
                   alt="Event preview"
                   className="object-contain w-full h-full"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -1106,11 +1107,14 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWi
                     {images.map((url, i) => (
                       <button
                         key={i}
-                        onMouseEnter={() => setSelectedImage(url)}
+                        onMouseEnter={() => setHoveredImage(url)}
+                        onMouseLeave={() => setHoveredImage(null)}
+                        onFocus={() => setHoveredImage(url)}
+                        onBlur={() => setHoveredImage(null)}
                         onClick={() => setSelectedImage(url)}
                         className={cn(
                           'h-12 w-16 shrink-0 rounded overflow-hidden border-2 transition-colors',
-                          selectedImage === url ? 'border-primary' : 'border-transparent hover:border-muted-foreground/40'
+                          (hoveredImage ?? selectedImage) === url ? 'border-primary' : 'border-transparent hover:border-muted-foreground/40'
                         )}
                       >
                         <img src={url} alt={`Thumbnail ${i + 1}`} className="h-full w-full object-cover" />

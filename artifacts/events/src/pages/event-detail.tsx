@@ -69,11 +69,13 @@ export default function EventDetailWorkspace() {
 
   // Interaction States
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [hoveredImage, setHoveredImage] = useState<string | null>(null);
   const [checkedNearby, setCheckedNearby] = useState<Set<number>>(new Set());
 
   // Reset local state when eventId changes
   useEffect(() => {
     setSelectedImage(null);
+    setHoveredImage(null);
     setCheckedNearby(new Set());
   }, [eventId]);
 
@@ -105,7 +107,7 @@ export default function EventDetailWorkspace() {
   if (!event) return null;
 
   const images = event.imageUrls?.length ? event.imageUrls : (event.imageUrl ? [event.imageUrl] : []);
-  const displayImage = selectedImage || images[0];
+  const displayImage = hoveredImage || selectedImage || images[0];
 
   const formatOffset = (seconds: number) => {
     const abs = Math.abs(seconds);
@@ -186,8 +188,12 @@ export default function EventDetailWorkspace() {
               <div className="flex gap-2 p-3 bg-muted/30 border-t overflow-x-auto">
                 {images.slice(0, 5).map((img, idx) => (
                   <button 
-                    key={idx} 
+                    key={idx}
                     onClick={() => setSelectedImage(img)}
+                    onMouseEnter={() => setHoveredImage(img)}
+                    onMouseLeave={() => setHoveredImage(null)}
+                    onFocus={() => setHoveredImage(img)}
+                    onBlur={() => setHoveredImage(null)}
                     className={`relative rounded-md overflow-hidden border-2 transition-all w-20 h-16 shrink-0 ${displayImage === img ? 'border-primary shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'}`}
                   >
                     <img src={img} className="w-full h-full object-cover" />
@@ -292,12 +298,18 @@ export default function EventDetailWorkspace() {
               </Button>
             </div>
           )}
-          <Card className="shadow-sm overflow-hidden">
-            <CardContent className="p-0">
-              <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/10">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('event.location')}</span>
-                {/* Share actions live here now that the simulate tile is gone. This
-                    header renders even without coordinates so they never disappear. */}
+          <Card className="shadow-sm">
+            <CardContent className="p-4 bg-muted/10">
+              <div className="text-xs text-muted-foreground flex justify-between items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => triggerTruckDrive()}
+                  data-testid="button-simulate-charge"
+                >
+                  {t('event.simulate_charge')}
+                </Button>
                 <div className="flex gap-2">
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyLink(event.shareLinks?.photo)} title={t('event.copy_link')}>
                     <Camera className="h-3 w-3" />
@@ -307,20 +319,6 @@ export default function EventDetailWorkspace() {
                   </Button>
                 </div>
               </div>
-              {event.latitude != null && event.longitude != null ? (
-                <iframe
-                  title={t('event.location')}
-                  data-testid="map-event-location"
-                  className="block w-full h-52 border-0"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  src={`https://maps.google.com/maps?q=${event.latitude},${event.longitude}&z=16&output=embed`}
-                />
-              ) : (
-                <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-                  {t('event.no_location')}
-                </div>
-              )}
             </CardContent>
           </Card>
 
