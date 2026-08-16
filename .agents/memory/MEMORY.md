@@ -5,4 +5,5 @@
 - [SQL Server case-only renames](sqlserver-case-rename.md) — `districts` and `Districts` are one object; detect a legacy schema by a legacy column, not by table name.
 - [Dapper + SQL Server pitfalls](dapper-sqlserver-pitfalls.md) — snake_case aliases, `Sum` over dynamic, and subqueries in aggregates all compile clean and fail at runtime.
 - [Reachability recovery](reachability-recovery.md) — clearing an "offline" flag doesn't refetch queries that already failed; invalidate the cache on down→up, and test recovery without a reload.
+- [ASP.NET config key collisions](aspnet-config-key-collisions.md) — top-level `UserName`/`Path` keys are silently shadowed by Windows env vars; always nest under a section.
 - [Task-agent merge clobber](task-agent-merge-clobber.md) — a merging task can silently revert main's edits to the same file; no conflict, clean typecheck. Re-diff after every merge.

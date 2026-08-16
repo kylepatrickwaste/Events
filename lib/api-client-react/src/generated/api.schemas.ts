@@ -7,6 +7,8 @@
  */
 export interface HealthStatus {
   status: string;
+  /** When the server answered. Always emitted; it was missing from this schema while the controller returned it. */
+  timestamp?: string;
   /** Build number served from the repo-root buildinfo.txt. Optional so a server that has not been redeployed yet still satisfies the schema. */
   buildNumber?: string;
   /** ASP.NET Core environment name (Production, Development, Replit, …). The UI shows its DEVELOPMENT MODE banner whenever this is anything other than Production. Optional so a server that predates this field still satisfies the schema. */

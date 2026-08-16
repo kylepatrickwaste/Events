@@ -388,6 +388,12 @@ components:
       properties:
         status:
           type: string
+        timestamp:
+          type: string
+          format: date-time
+          description: >-
+            When the server answered. Always emitted; it was missing from this
+            schema while the controller returned it.
         buildNumber:
           type: string
           description: >-
