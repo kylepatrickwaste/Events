@@ -923,6 +923,7 @@ export const getListDistrictAccountFlagsUrl = (districtId: number,) => {
 }
 
 /**
+ * Administrators only; everyone else gets 403. Excluded accounts are an administrative concern, so agents have no way in from the UI and no way in from the API either.
  * @summary List flagged (contract) accounts for a district
  */
 export const listDistrictAccountFlags = async (districtId: number, options?: Parameters<typeof customFetch>[1]): Promise<AccountFlag[]> => {
@@ -947,7 +948,7 @@ export const getListDistrictAccountFlagsQueryKey = (districtId: number,) => {
     }
 
 
-export const getListDistrictAccountFlagsQueryOptions = <TData = Awaited<ReturnType<typeof listDistrictAccountFlags>>, TError = ErrorType<unknown>>(districtId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDistrictAccountFlags>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListDistrictAccountFlagsQueryOptions = <TData = Awaited<ReturnType<typeof listDistrictAccountFlags>>, TError = ErrorType<ErrorMessage>>(districtId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDistrictAccountFlags>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -966,14 +967,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListDistrictAccountFlagsQueryResult = NonNullable<Awaited<ReturnType<typeof listDistrictAccountFlags>>>
-export type ListDistrictAccountFlagsQueryError = ErrorType<unknown>
+export type ListDistrictAccountFlagsQueryError = ErrorType<ErrorMessage>
 
 
 /**
  * @summary List flagged (contract) accounts for a district
  */
 
-export function useListDistrictAccountFlags<TData = Awaited<ReturnType<typeof listDistrictAccountFlags>>, TError = ErrorType<unknown>>(
+export function useListDistrictAccountFlags<TData = Awaited<ReturnType<typeof listDistrictAccountFlags>>, TError = ErrorType<ErrorMessage>>(
  districtId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDistrictAccountFlags>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -1000,6 +1001,7 @@ export const getDeleteAccountFlagUrl = (flagId: number,) => {
 }
 
 /**
+ * Administrators only; everyone else gets 403.
  * @summary Remove an account flag so its events reappear in the queue
  */
 export const deleteAccountFlag = async (flagId: number, options?: Parameters<typeof customFetch>[1]): Promise<AccountFlag> => {

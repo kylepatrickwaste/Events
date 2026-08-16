@@ -293,6 +293,10 @@ paths:
       operationId: listDistrictAccountFlags
       tags: [districts]
       summary: List flagged (contract) accounts for a district
+      description: >-
+        Administrators only; everyone else gets 403. Excluded accounts are an
+        administrative concern, so agents have no way in from the UI and no way
+        in from the API either.
       parameters:
         - name: districtId
           in: path
@@ -307,11 +311,18 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AccountFlag"
+        "403":
+          description: Caller is not an administrator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
   /account-flags/{flagId}:
     delete:
       operationId: deleteAccountFlag
       tags: [districts]
       summary: Remove an account flag so its events reappear in the queue
+      description: Administrators only; everyone else gets 403.
       parameters:
         - name: flagId
           in: path
@@ -324,6 +335,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccountFlag"
+        "403":
+          description: Caller is not an administrator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not found
           content:

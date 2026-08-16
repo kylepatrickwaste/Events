@@ -41,6 +41,7 @@ try
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<CurrentUserAccessor>();
     builder.Services.AddScoped<AppUsersRepository>();
+    builder.Services.AddScoped<AdminAccess>();
     builder.Services.AddScoped<EventsRepository>();
 
     builder.Services.AddControllers()

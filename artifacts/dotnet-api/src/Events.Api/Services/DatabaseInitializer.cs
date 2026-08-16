@@ -1043,15 +1043,16 @@ VALUES
             // Match a domain-qualified login as well as a bare one: the config
             // says 352271, but IIS hands us WCI\352271 on the real servers and
             // both are the same person.
+            // Promote only; deliberately no INSERT. The row is created on first
+            // contact under whatever name IIS reports, and inventing a second one
+            // here under the bare configured spelling would leave the real caller
+            // matched to an Agent row. AdminAccess promotes them on arrival
+            // instead, so a login that has never visited needs nothing here.
             await conn.ExecuteAsync(@"
 UPDATE AppUsers
    SET Role = 'Admin', Active = 1
  WHERE ActiveDirectoryName = @login
-    OR RIGHT(ActiveDirectoryName, LEN(@login) + 1) = '\' + @login;
-
-IF @@ROWCOUNT = 0
-INSERT INTO AppUsers (ActiveDirectoryName, Role, Active)
-VALUES (@login, 'Admin', 1);", new { login });
+    OR RIGHT(ActiveDirectoryName, LEN(@login) + 1) = '\' + @login;", new { login });
         }
     }
 }

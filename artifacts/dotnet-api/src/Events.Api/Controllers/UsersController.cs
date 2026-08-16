@@ -9,7 +9,8 @@ namespace Events.Api.Controllers;
 public class UsersController(
     CurrentUserAccessor currentUser,
     AppUsersRepository users,
-    EventsRepository districts) : ControllerBase
+    EventsRepository districts,
+    AdminAccess admin) : ControllerBase
 {
     /// <summary>
     /// The current-user payload every endpoint here answers with. Friendly name
@@ -97,11 +98,10 @@ public class UsersController(
 
     // ─── Administration ──────────────────────────────────────────────────────
 
-    private const string AdminRole = "Admin";
-    private const string AgentRole = "Agent";
+    private const string AdminRole = AdminAccess.AdminRole;
+    private const string AgentRole = AdminAccess.AgentRole;
 
-    private static bool IsAdminRole(string? role) =>
-        string.Equals(role, AdminRole, StringComparison.OrdinalIgnoreCase);
+    private static bool IsAdminRole(string? role) => AdminAccess.IsAdminRole(role);
 
     /// <summary>
     /// Resolves the caller and refuses anyone who is not an administrator.
@@ -110,8 +110,8 @@ public class UsersController(
     /// </summary>
     private async Task<(AppUserDto? Caller, IActionResult? Failure)> RequireAdminAsync()
     {
-        var caller = await users.EnsureAsync(currentUser.ActiveDirectoryName);
-        if (!IsAdminRole(caller.Role))
+        var (caller, isAdmin) = await admin.ResolveAsync();
+        if (!isAdmin)
         {
             return (null, StatusCode(StatusCodes.Status403Forbidden,
                 new ErrorDto("Administrator access required.")));

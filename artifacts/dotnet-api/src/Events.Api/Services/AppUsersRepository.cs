@@ -162,4 +162,18 @@ public class AppUsersRepository(IDbConnection db)
 
         return await GetByIdAsync(id);
     }
+
+    /// <summary>
+    /// Sets just the role, leaving every other column alone. Used to promote a
+    /// configured break-glass login on first contact.
+    /// </summary>
+    public async Task<AppUserDto?> SetRoleAsync(int id, string role)
+    {
+        var affected = await db.ExecuteAsync(
+            "UPDATE AppUsers SET Role = @role WHERE Id = @id", new { id, role });
+
+        if (affected == 0) return null;
+
+        return await GetByIdAsync(id);
+    }
 }
