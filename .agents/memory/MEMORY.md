@@ -2,4 +2,5 @@
 - [Post-merge seed scripts](post-merge-seeds.md) — merged seed-data tasks need their `lib/db` seed script run manually or users see empty data.
 - [.NET API cutover](dotnet-api-cutover.md) — no backend runs in this repl; a GitHub push IS the deploy, confirmed by polling `buildNumber` on healthz.
 - [Route parity ≠ behavior parity](backend-cutover-parity.md) — matching operationIds to controllers proves nothing; sweep every endpoint before a cutover.
+- [SQL Server case-only renames](sqlserver-case-rename.md) — `districts` and `Districts` are one object; detect a legacy schema by a legacy column, not by table name.
 - [Dapper + SQL Server pitfalls](dapper-sqlserver-pitfalls.md) — snake_case aliases, `Sum` over dynamic, and subqueries in aggregates all compile clean and fail at runtime.
