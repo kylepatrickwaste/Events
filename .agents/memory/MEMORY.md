@@ -13,3 +13,4 @@
 - [Relocating controls into a dialog](dialog-relocated-controls.md) — a moved control inherits its trigger's responsive hiding; the sole opener must never be breakpoint-hidden.
 - [Removing navigation affordances](nav-affordance-removal.md) — a home link is no fallback when `/` redirects; follow the surviving entry point through its own routing first.
 - [Admin-gating a shipped feature](admin-gating.md) — deleting the button leaves every endpoint open, and a break-glass admin must be matched per-request, not seeded at startup.
+- [Locale edits break Fast Refresh](i18n-hmr-invalidation.md) — editing i18n JSON leaves the page throwing "must be used within a Provider"; restart the dev server before e2e.

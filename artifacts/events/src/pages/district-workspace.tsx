@@ -19,10 +19,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Clock, Settings, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, DoorOpen, Plus, Minus, GripVertical, Layers } from 'lucide-react';
+import { Search, Settings, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, DoorOpen, Plus, Minus, GripVertical, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { EventSourceGlyph, EventStatusGlyph, EventTypeGlyph } from '@/components/grid-glyphs';
 import { ChargeEventDialog, CloseEventDialog, BulkCloseDialog } from '@/components/event-action-dialogs';
 import { OPEN_EXCLUDED_ACCOUNTS_EVENT } from '@/lib/excluded-accounts';
 import {
@@ -60,9 +61,21 @@ const BASE_COLUMNS: Array<{ key: SortColumn; label: string }> = [
   { key: 'route', label: 'Vehicle' },
 ];
 const ALL_COLUMNS = [...BASE_COLUMNS, ...OPTIONAL_COLUMNS];
-const DEFAULT_COL_ORDER: SortColumn[] = ALL_COLUMNS.map(c => c.key);
+/**
+ * Reading order for a charge agent: who was it, where, and when -- then how the
+ * event was classified. Address is still an optional column; this only fixes
+ * where it lands when it is switched on.
+ */
+const DEFAULT_COL_ORDER: SortColumn[] = [
+  'customer', 'address', 'date',
+  'status', 'type', 'severity', 'route',
+  'qty', 'binSerial', 'stop', 'wo', 'lob', 'tabletNotes', 'chgAmt', 'prevChg', 'prevTotal',
+];
 const BASE_KEYS = new Set<string>(BASE_COLUMNS.map(c => c.key));
 const VIEWS_KEY = 'grid-views';
+// Versioned: a saved order from before the columns were re-sequenced would pin
+// everyone to the old layout, since a stored order always wins over the default.
+const COL_ORDER_KEY = 'grid-col-order-v2';
 
 type ViewConfig = {
   visibleCols: string[];
@@ -145,13 +158,6 @@ const previewAnchorFor = (el: HTMLElement): HTMLElement => (el.closest('td') as 
 
 // Higher rank = more severe; unknown/missing severities sort last
 const SEVERITY_RANK: Record<string, number> = { severe: 2, minimal: 1 };
-const sourceColor = (name: string | null | undefined) => {
-  const n = (name ?? '').toLowerCase().replace(/\s/g, '');
-  if (n.includes('3rdeye')) return 'text-red-600 dark:text-red-400';
-  if (n.includes('wastevision')) return 'text-blue-600 dark:text-blue-400';
-  if (n.includes('samsara')) return 'text-green-600 dark:text-green-400';
-  return 'text-muted-foreground';
-};
 
 const severityRank = (s: string | null | undefined) =>
   s ? (SEVERITY_RANK[s.toLowerCase()] ?? 0) : 0;
@@ -235,14 +241,14 @@ export default function DistrictWorkspace() {
   const [colOrder, setColOrder] = useState<SortColumn[]>(() => {
     if (initialGrid.cfg) return normalizeOrder(initialGrid.cfg.colOrder);
     try {
-      const raw = localStorage.getItem('grid-col-order');
+      const raw = localStorage.getItem(COL_ORDER_KEY);
       if (raw) return normalizeOrder(JSON.parse(raw) as string[]);
     } catch {}
     return DEFAULT_COL_ORDER;
   });
   const setColOrderPersist = (next: SortColumn[]) => {
     setColOrder(next);
-    try { localStorage.setItem('grid-col-order', JSON.stringify(next)); } catch {}
+    try { localStorage.setItem(COL_ORDER_KEY, JSON.stringify(next)); } catch {}
   };
   const [groupBy, setGroupBy] = useState<SortColumn | null>(() => {
     const fromView = initialGrid.cfg?.groupBy;
@@ -634,7 +640,7 @@ export default function DistrictWorkspace() {
             <DropdownMenuContent align="end" className="w-56 max-h-[70vh] overflow-y-auto">
               <DropdownMenuLabel>{t('district.saved_views')}</DropdownMenuLabel>
               {Object.keys(views).length === 0 ? (
-                <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                <div className="px-2 py-1 text-xs text-muted-foreground">
                   {t('district.no_views')}
                 </div>
               ) : (
@@ -677,7 +683,7 @@ export default function DistrictWorkspace() {
         onDragLeave={() => setDropTarget(prev => (prev === 'groupzone' ? null : prev))}
         onDrop={e => { e.preventDefault(); if (dragCol) setGroupByPersist(dragCol); setDragCol(null); setDropTarget(null); }}
         className={cn(
-          'flex items-center gap-2 mb-2 rounded-lg border border-dashed px-3 py-1.5 text-xs transition-colors',
+          'flex items-center gap-2 mb-2 rounded-lg border border-dashed px-2 py-1 text-xs transition-colors',
           dropTarget === 'groupzone' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground'
         )}
       >
@@ -705,7 +711,7 @@ export default function DistrictWorkspace() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <th className="px-3 py-2 w-8 text-left">
+              <th className="px-2 py-1.5 w-8 text-left">
                 <Checkbox
                   checked={allOpenSelected}
                   onCheckedChange={(c) => toggleAll(c === true)}
@@ -724,13 +730,13 @@ export default function DistrictWorkspace() {
                     onDragOver={e => { if (dragCol && dragCol !== key) { e.preventDefault(); setDropTarget(key); } }}
                     onDrop={e => { e.preventDefault(); if (dragCol && dragCol !== key) moveColumn(dragCol, key); setDragCol(null); setDropTarget(null); }}
                     className={cn(
-                      'px-3 py-2 text-left whitespace-nowrap cursor-move select-none transition-colors',
+                      'px-2 py-1.5 text-left whitespace-nowrap cursor-move select-none transition-colors',
                       dropTarget === key && 'bg-primary/15',
                       dragCol === key && 'opacity-50'
                     )}
                   >
-                    <div className="flex items-center gap-1">
-                      <GripVertical className="h-3 w-3 opacity-30 shrink-0" />
+                    <div className="flex items-center gap-0.5">
+                      <GripVertical className="h-3 w-3 opacity-25 shrink-0" />
                       <SortHeader label={col.label} column={key} sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
                     </div>
                   </th>
@@ -775,36 +781,38 @@ export default function DistrictWorkspace() {
                 switch (key) {
                   case 'status':
                     return (
-                      <td key={key} className="px-3 py-1.5">
-                        {event.eventStatus === 0 ? (
-                          <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20 border-0 text-xs">{t('event.status_open')}</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 text-xs">{t('event.status_closed')}</Badge>
-                        )}
+                      <td key={key} className="px-2 py-1">
+                        <EventStatusGlyph
+                          open={event.eventStatus === 0}
+                          openLabel={t('event.status_open')}
+                          closedLabel={t('event.status_closed')}
+                        />
                       </td>
                     );
                   case 'customer':
                     return (
-                      <td key={key} className="px-3 py-1.5 min-w-[180px]">
+                      <td key={key} className="px-2 py-1 min-w-[140px]">
                         <div className="font-medium text-xs group-hover:text-primary transition-colors line-clamp-1">{event.customerName}</div>
                         <div className="text-xs text-muted-foreground font-mono">{event.accountNumber}</div>
                       </td>
                     );
                   case 'type':
                     return (
-                      <td key={key} className="px-3 py-1.5">
-                        <div className="font-medium text-xs line-clamp-1">{event.eventTypeName}</div>
-                        <div className={cn('text-xs', sourceColor(event.eventSourceName))}>{event.eventSourceName}</div>
+                      <td key={key} className="px-2 py-1">
+                        <div className="flex items-center gap-1.5">
+                          <EventTypeGlyph name={event.eventTypeName} />
+                          <EventSourceGlyph name={event.eventSourceName} />
+                        </div>
                       </td>
                     );
                   case 'severity':
                     return (
-                      <td key={key} className="px-3 py-1.5">
+                      <td key={key} className="px-2 py-1">
                         {event.severity ? (
                           <Badge
                             variant="outline"
                             className={cn(
-                              'border-0',
+                              'border-0 px-1.5 py-0 text-[10px]',
                               event.severity.toLowerCase() === 'severe'
                                 ? 'bg-destructive/10 text-destructive'
                                 : 'bg-muted text-muted-foreground'
@@ -819,40 +827,37 @@ export default function DistrictWorkspace() {
                     );
                   case 'date':
                     return (
-                      <td key={key} className="px-3 py-1.5 whitespace-nowrap">
-                        <div className="text-xs flex items-center gap-1.5 text-muted-foreground">
-                          <Clock className="h-3.5 w-3.5" />
-                          {formatDate(event.dateOccurred)}
-                        </div>
+                      <td key={key} className="px-2 py-1 whitespace-nowrap">
+                        <div className="text-xs text-muted-foreground">{formatDate(event.dateOccurred)}</div>
                       </td>
                     );
                   case 'route':
                     return (
-                      <td key={key} className="px-3 py-1.5">
+                      <td key={key} className="px-2 py-1">
                         <div className="font-mono text-xs">{event.route}</div>
                         <div className="text-muted-foreground font-mono text-xs">{event.vehicle}</div>
                       </td>
                     );
                   case 'qty':
-                    return <td key={key} className="px-3 py-1.5 text-xs font-mono">{event.quantity ?? '—'}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs font-mono">{event.quantity ?? '—'}</td>;
                   case 'binSerial':
-                    return <td key={key} className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.binSerialNumber ?? '—'}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs font-mono whitespace-nowrap">{event.binSerialNumber ?? '—'}</td>;
                   case 'stop':
-                    return <td key={key} className="px-3 py-1.5 text-xs font-mono">{event.stop ?? '—'}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs font-mono">{event.stop ?? '—'}</td>;
                   case 'wo':
-                    return <td key={key} className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.workOrderNumber ?? '—'}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs font-mono whitespace-nowrap">{event.workOrderNumber ?? '—'}</td>;
                   case 'address':
-                    return <td key={key} className="px-3 py-1.5 text-xs min-w-[160px]">{event.address}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs min-w-[130px]">{event.address}</td>;
                   case 'lob':
-                    return <td key={key} className="px-3 py-1.5 text-xs">{event.lob ?? '—'}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs">{event.lob ?? '—'}</td>;
                   case 'tabletNotes':
-                    return <td key={key} className="px-3 py-1.5 text-xs min-w-[140px]">{event.tabletNotes ?? '—'}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs min-w-[115px]">{event.tabletNotes ?? '—'}</td>;
                   case 'chgAmt':
-                    return <td key={key} className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{event.chargedAmount != null ? formatCurrency(event.chargedAmount) : '—'}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs font-mono whitespace-nowrap">{event.chargedAmount != null ? formatCurrency(event.chargedAmount) : '—'}</td>;
                   case 'prevChg':
-                    return <td key={key} className="px-3 py-1.5 text-xs font-mono">{event.prevChargeCount}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs font-mono">{event.prevChargeCount}</td>;
                   case 'prevTotal':
-                    return <td key={key} className="px-3 py-1.5 text-xs font-mono whitespace-nowrap">{formatCurrency(event.prevChargeTotal)}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs font-mono whitespace-nowrap">{formatCurrency(event.prevChargeTotal)}</td>;
                 }
               };
 
@@ -866,7 +871,7 @@ export default function DistrictWorkspace() {
                     prevGroup = gv;
                     rows.push(
                       <tr key={`group-${gv}`} className="bg-muted/50">
-                        <td colSpan={colSpan - 1} className="px-3 py-1.5 text-xs font-semibold">
+                        <td colSpan={colSpan - 1} className="px-2 py-1 text-xs font-semibold">
                           {ALL_COLUMNS.find(c => c.key === groupBy)?.label}: {gv}
                           <span className="ml-2 font-normal text-muted-foreground">({groupCounts?.get(gv) ?? 0})</span>
                         </td>
@@ -874,7 +879,7 @@ export default function DistrictWorkspace() {
                             panel has a hole at every group break and the label scrolls
                             through it. Opaque equivalent of this row's bg-muted/50. */}
                         <td
-                          className="sticky right-0 z-10 border-l px-2 py-1.5 w-[160px]"
+                          className="sticky right-0 z-10 border-l px-2 py-1 w-[160px]"
                           style={{
                             backgroundColor: 'hsl(var(--card))',
                             backgroundImage: 'linear-gradient(hsl(var(--muted) / 0.5), hsl(var(--muted) / 0.5))',
@@ -891,7 +896,7 @@ export default function DistrictWorkspace() {
                     onClick={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
                     className="hover:bg-muted/30 cursor-pointer transition-colors group"
                   >
-                    <td className="px-3 py-1.5 w-8" onClick={e => e.stopPropagation()}>
+                    <td className="px-2 py-1 w-8" onClick={e => e.stopPropagation()}>
                       {event.eventStatus === 0 ? (
                         <Checkbox
                           checked={selectedIds.has(event.id)}
@@ -903,7 +908,7 @@ export default function DistrictWorkspace() {
                       )}
                     </td>
                     {orderedVisibleCols.map(key => renderCell(key, event))}
-                    <td className="sticky right-0 z-10 bg-card border-l px-2 py-1.5 w-[160px]" style={{boxShadow: '-4px 0 6px -2px rgba(0,0,0,0.08)'}} onClick={e => e.stopPropagation()}>
+                    <td className="sticky right-0 z-10 bg-card border-l px-2 py-1 w-[160px]" style={{boxShadow: '-4px 0 6px -2px rgba(0,0,0,0.08)'}} onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-between gap-1 min-w-0">
                         <div className="shrink-0 w-7">
                           {event.eventStatus === 0 && (
