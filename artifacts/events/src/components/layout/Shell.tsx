@@ -158,14 +158,14 @@ function HeaderDistrictSwitcher() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" role="combobox" aria-expanded={open} className="h-8 max-w-[120px] sm:max-w-[220px] justify-between">
+        <Button variant="outline" size="sm" role="combobox" aria-expanded={open} className="h-8 w-[240px] sm:w-[440px] max-w-full justify-between">
           <span className="truncate font-mono text-xs">
             {district ? `${district.number} – ${district.name}` : t('district.switch_district')}
           </span>
           <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0" align="end">
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[300px] p-0" align="start">
         <Command>
           <CommandInput placeholder={t('district.search_district')} />
           <CommandList>
@@ -245,12 +245,12 @@ export function Header() {
             {t('app.title')}
           </span>
         </Link>
-        <div className="flex flex-1 items-center justify-center min-w-[2rem]">
+        <div className="flex flex-1 items-center justify-center min-w-0">
           <EventHeaderCenter />
+          <HeaderDistrictSwitcher />
         </div>
         <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-4">
           <HeaderExcludedAccountsButton />
-          <HeaderDistrictSwitcher />
           <HeaderUserName />
           <ApiStatusDot />
         </div>

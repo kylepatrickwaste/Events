@@ -1,0 +1,428 @@
+/**********************************************************************************
+  PART 1 of 2  --  SCHEMA-FIT SCRIPT
+  Make the simplified "Events" database able to hold EVERY column from the
+  complex "RouteEvents" (RouteEventsDB.sql) source, per the request to preserve
+  all information.
+
+  Strategy chosen: ADD COLUMNS to fit the orphan source columns onto the existing
+  Events tables, and CREATE new tables only where the source data is genuinely
+  relational and has no home in the 10-table design.
+
+  Ignored source tables (per rule -- CUBE suffix, or z / z_ prefix):
+        RouteEventsCube , z_RE_IMPORT_CHECK , z_RE_TEMP
+
+  ------------------------------------------------------------------------------
+  COVERAGE MATRIX  (44 in-scope source tables)
+  ------------------------------------------------------------------------------
+  A. FITS AN EXISTING Events TABLE (with ALTER ADD for orphan columns)
+     Districts                 -> Districts     (+ audit, ToolboxDist, IsRmoPreselected)
+     EventTypes                -> EventTypes    (+ audit)
+     EventSources              -> EventSources  (+ audit)
+     FileImports               -> FileImports   (+ Active, audit)
+     ServiceCodeXDistrict      -> ServiceCodes  (Name->Code; + PreferRMOAmount, ReplacedBy, audit)
+     RouteEvents               -> RouteEvents   (+ DateCreated, CustomerNumber, EventUrl,
+                                                  FinalActionXRouteEventId, RouteType,
+                                                  EquipmentType, BodyType, Stop* parcels,
+                                                  StopLatitude/Longitude, AssociationMatch)
+     ActionXRouteEvent
+       + ChargeXAction         -> EventActions  (charge-line grain; + ActionId, ChargeXActionId,
+                                                  CloseReasonId/Details, batch ids, charge cust/acct,
+                                                  BilledInfoLookUpOn, audit)
+     AddressEditHistory
+       + QuantityEditHistory   -> EventEditHistory (+ ActionId)
+     ExcludedAccounts          -> AccountFlags  (Flag='excluded'; + CustomerNumber, audit)
+     UserInfo                  -> AppUsers       (NtUsername->ActiveDirectoryName; clean fit)
+
+  B. ABSORBED BY DENORMALIZATION (no table needed; catalog collapses to a string)
+     Actions                   -> EventActions.ActionType
+     CloseReasonXAction        -> EventActions.CloseReason
+     ExcludedReasons           -> ExcludedAccountScopes.ExcludedReason (see new table)
+
+  C. NEW TABLES REQUIRED -- relational event-domain data with no home
+     ExcludedAccountScopes     <- ExcludedAccountXEventTypeXEventSource
+                                  + ExcludedReasonsXExcludedAccounts (many per account,
+                                    so cannot collapse into AccountFlags' unique key)
+     ServiceCodeEventTypes     <- ServiceCodeXEventType
+     EmailXRouteEvent          <- EmailXRouteEvent
+     AddressLookupRequests     <- AddressLookupRequests
+     AddressLookupResults      <- AddressLookupResults
+     FeatureXDistrict          <- FeatureXDistrict
+     FeatureEditHistory        <- FeatureEditHistory
+
+  D. ANCILLARY / STANDALONE DATA -- not part of the event/charge domain model.
+     These carry telematics, reporting rollups, or operational logs. They have no
+     FK relationship to the redesigned tables. They are recreated verbatim in the
+     Events DB (Section D) so no data is lost, but they are intentionally left OUT
+     of the simplified model -- delete the ones you don't need.
+        Telematics/report : HealthReport, HealthReportBadPingData, HealthReportDate,
+                            CoachingData, SafetyData, ReversingData, MOABSessionData,
+                            RouteEventsSummary, EventsClosedNotCharged, WVPilotVehicles,
+                            RolloutSchedule, CurrExRate, CurrencyExchangeReportDate
+        Operational logs  : FileImportsDupLog, RouteEventDupDismissLog,
+                            RouteEventsDeDupeLog, RouteEventsExported,
+                            RouteEventsImportCheck, RouteEventsPreChange
+        One-off staging   : RMOKnoxvilleExcludedAccountXEventTypeXEvents_AaronFelts,
+                            RMOKnoxvilleExemptAccountLoad_AaronFelts
+
+  ==> ANSWER: Yes, all information CAN be stored in the Events database, but not in
+      only 10 tables. The event/charge domain fits with column additions + 7 small
+      relational tables (Sections B/C). The ancillary/log/staging data (Section D)
+      is independent of the redesign and is preserved as carry-over tables.
+
+  NOTE ON KEYS: source RouteEvents.Id / ActionXRouteEvent.RouteEventId are BIGINT;
+      Events.RouteEvents.Id / EventActions.RouteEventId are INT. Preserving original
+      ids (IDENTITY_INSERT) requires every migrated id to fit in INT
+      (<= 2,147,483,647). If your ids exceed that, change those columns to BIGINT
+      first (ALTER shown at the very bottom, commented out).
+**********************************************************************************/
+
+USE [Events];
+GO
+SET XACT_ABORT ON;
+GO
+
+/*==============================================================================
+  SECTION A -- ALTER: add orphan source columns to existing Events tables
+  (all nullable so they can be added without touching existing rows)
+==============================================================================*/
+
+-------------------------------------------------- Districts
+ALTER TABLE dbo.Districts ADD
+    ToolboxDist       nvarchar(10)      NULL,
+    IsRmoPreselected  bit               NULL,
+    CreatedBy         nvarchar(50)      NULL,
+    DateCreated       datetimeoffset(7) NULL,
+    UpdatedBy         nvarchar(50)      NULL,
+    DateUpdated       datetimeoffset(7) NULL;
+GO
+
+-------------------------------------------------- EventTypes
+ALTER TABLE dbo.EventTypes ADD
+    CreatedBy   nvarchar(50)      NULL,
+    DateCreated datetimeoffset(7) NULL,
+    UpdatedBy   nvarchar(50)      NULL,
+    DateUpdated datetimeoffset(7) NULL;
+GO
+
+-------------------------------------------------- EventSources
+ALTER TABLE dbo.EventSources ADD
+    CreatedBy   nvarchar(50)      NULL,
+    DateCreated datetimeoffset(7) NULL,
+    UpdatedBy   nvarchar(50)      NULL,
+    DateUpdated datetimeoffset(7) NULL;
+GO
+
+-------------------------------------------------- FileImports
+ALTER TABLE dbo.FileImports ADD
+    Active      bit               NULL,
+    CreatedBy   nvarchar(50)      NULL,
+    UpdatedBy   nvarchar(50)      NULL,
+    DateUpdated datetimeoffset(7) NULL;
+GO
+
+-------------------------------------------------- ServiceCodes
+ALTER TABLE dbo.ServiceCodes ADD
+    PreferRMOAmount bit               NULL,
+    ReplacedBy      int               NULL,
+    CreatedBy       nvarchar(50)      NULL,
+    DateCreated     datetimeoffset(7) NULL,
+    UpdatedBy       nvarchar(50)      NULL,
+    DateUpdated     datetimeoffset(7) NULL;
+GO
+
+-------------------------------------------------- RouteEvents
+ALTER TABLE dbo.RouteEvents ADD
+    DateCreated              datetimeoffset(7) NULL,
+    CustomerNumber           bigint            NULL,
+    EventUrl                 nvarchar(255)     NULL,
+    FinalActionXRouteEventId bigint            NULL,
+    RouteType                nvarchar(50)      NULL,
+    StopNumber               int               NULL,
+    EquipmentType            nvarchar(50)      NULL,
+    BodyType                 char(10)          NULL,
+    StopLatitude             float             NULL,
+    StopLongitude            float             NULL,
+    StopParcelID             char(50)          NULL,
+    EventParcelID            char(50)          NULL,
+    AssociationMatch         char(10)          NULL;
+GO
+
+-------------------------------------------------- EventActions
+ALTER TABLE dbo.EventActions ADD
+    ActionId           int               NULL,
+    ChargeXActionId    bigint            NULL,
+    CloseReasonId      int               NULL,
+    CloseReasonDetails nvarchar(100)     NULL,
+    ChargeBatchId      int               NULL,
+    ChargeBatchLineItemId int            NULL,
+    ChargeCustomerNumber  int            NULL,
+    ChargeAccountNumber   nvarchar(30)   NULL,
+    BilledInfoLookUpOn datetime          NULL,
+    DateUpdated        datetimeoffset(7) NULL,
+    UpdatedBy          nvarchar(50)      NULL;
+GO
+
+-------------------------------------------------- EventEditHistory
+ALTER TABLE dbo.EventEditHistory ADD
+    ActionId int NULL;                 -- from AddressEditHistory.ActionId
+GO
+
+-------------------------------------------------- AccountFlags
+ALTER TABLE dbo.AccountFlags ADD
+    CustomerNumber int               NULL,
+    UpdatedBy      nvarchar(50)      NULL,
+    DateUpdated    datetimeoffset(7) NULL;
+GO
+
+
+/*==============================================================================
+  SECTION C -- CREATE: new relational tables for event-domain data
+==============================================================================*/
+
+-------------------------------------------------- ExcludedAccountScopes
+-- Preserves the two many-to-one exclusion junctions that cannot collapse into
+-- AccountFlags (its UNIQUE (DistrictId,AccountNumber,Flag) allows only one row
+-- per account/flag, but an account can have many type/source and reason rows).
+CREATE TABLE dbo.ExcludedAccountScopes (
+    Id            int IDENTITY(1,1) NOT NULL,
+    AccountFlagId int               NOT NULL,   -- -> AccountFlags.Id
+    EventTypeId   int               NULL,       -- -> EventTypes.Id
+    EventSourceId int               NULL,       -- -> EventSources.Id
+    ExcludedReason nvarchar(50)     NULL,       -- was ExcludedReasons.Name
+    Notes         nvarchar(500)     NULL,
+    Active        bit               NOT NULL CONSTRAINT DF_EAS_Active DEFAULT (1),
+    CreatedBy     nvarchar(50)      NULL,
+    DateCreated   datetimeoffset(7) NOT NULL CONSTRAINT DF_EAS_DateCreated DEFAULT (sysdatetimeoffset()),
+    CONSTRAINT PK_ExcludedAccountScopes PRIMARY KEY CLUSTERED (Id)
+);
+ALTER TABLE dbo.ExcludedAccountScopes ADD CONSTRAINT FK_EAS_AccountFlags
+    FOREIGN KEY (AccountFlagId) REFERENCES dbo.AccountFlags (Id);
+ALTER TABLE dbo.ExcludedAccountScopes ADD CONSTRAINT FK_EAS_EventTypes
+    FOREIGN KEY (EventTypeId) REFERENCES dbo.EventTypes (Id);
+ALTER TABLE dbo.ExcludedAccountScopes ADD CONSTRAINT FK_EAS_EventSources
+    FOREIGN KEY (EventSourceId) REFERENCES dbo.EventSources (Id);
+GO
+
+-------------------------------------------------- ServiceCodeEventTypes
+-- was ServiceCodeXEventType (which service codes apply to which event types)
+CREATE TABLE dbo.ServiceCodeEventTypes (
+    Id            int IDENTITY(1,1) NOT NULL,
+    ServiceCodeId int               NOT NULL,   -- -> ServiceCodes.Id (was ServiceCodeXDistrictId)
+    EventTypeId   int               NOT NULL,   -- -> EventTypes.Id
+    Active        bit               NOT NULL CONSTRAINT DF_SCET_Active DEFAULT (1),
+    CreatedBy     nvarchar(50)      NULL,
+    DateCreated   datetimeoffset(7) NOT NULL CONSTRAINT DF_SCET_DateCreated DEFAULT (sysdatetimeoffset()),
+    UpdatedBy     nvarchar(50)      NULL,
+    DateUpdated   datetimeoffset(7) NULL,
+    CONSTRAINT PK_ServiceCodeEventTypes PRIMARY KEY CLUSTERED (Id)
+);
+ALTER TABLE dbo.ServiceCodeEventTypes ADD CONSTRAINT FK_SCET_ServiceCodes
+    FOREIGN KEY (ServiceCodeId) REFERENCES dbo.ServiceCodes (Id);
+ALTER TABLE dbo.ServiceCodeEventTypes ADD CONSTRAINT FK_SCET_EventTypes
+    FOREIGN KEY (EventTypeId) REFERENCES dbo.EventTypes (Id);
+GO
+
+-------------------------------------------------- EmailXRouteEvent
+CREATE TABLE dbo.EmailXRouteEvent (
+    Id           bigint IDENTITY(1,1) NOT NULL,
+    RouteEventId int              NOT NULL,      -- -> RouteEvents.Id (was EventId)
+    FromAddress  nvarchar(100)    NOT NULL,
+    ToAddress    nvarchar(100)    NOT NULL,
+    CCAddresses  nvarchar(500)    NULL,
+    Subject      nvarchar(500)    NOT NULL,
+    Body         nvarchar(2000)   NOT NULL,
+    Attachments  nvarchar(500)    NULL,
+    CreatedBy    nvarchar(50)     NOT NULL,
+    CreatedAt    datetimeoffset(7) NOT NULL CONSTRAINT DF_EmailXRE_CreatedAt DEFAULT (sysdatetimeoffset()),
+    CONSTRAINT PK_EmailXRouteEvent PRIMARY KEY CLUSTERED (Id)
+);
+ALTER TABLE dbo.EmailXRouteEvent ADD CONSTRAINT FK_EmailXRE_RouteEvents
+    FOREIGN KEY (RouteEventId) REFERENCES dbo.RouteEvents (Id);
+GO
+
+-------------------------------------------------- AddressLookupRequests
+CREATE TABLE dbo.AddressLookupRequests (
+    Id                          int IDENTITY(1,1) NOT NULL,
+    RouteEventId                int               NOT NULL,   -- -> RouteEvents.Id
+    CurrentEventAddress         nvarchar(200)     NULL,
+    SelectedAddressLookupResultId int             NULL,       -- -> AddressLookupResults.Id
+    CreatedBy                   nvarchar(50)      NOT NULL,
+    DateCreated                 datetimeoffset(7) NOT NULL CONSTRAINT DF_ALR_DateCreated DEFAULT (sysdatetimeoffset()),
+    CONSTRAINT PK_AddressLookupRequests PRIMARY KEY CLUSTERED (Id)
+);
+ALTER TABLE dbo.AddressLookupRequests ADD CONSTRAINT FK_ALR_RouteEvents
+    FOREIGN KEY (RouteEventId) REFERENCES dbo.RouteEvents (Id);
+GO
+
+-------------------------------------------------- AddressLookupResults
+CREATE TABLE dbo.AddressLookupResults (
+    Id                     int IDENTITY(1,1) NOT NULL,
+    AddressLookupRequestId int             NOT NULL,          -- -> AddressLookupRequests.Id
+    [Match]                int             NOT NULL,
+    Name                   nvarchar(200)   NOT NULL,
+    AccountNumber          nvarchar(50)    NOT NULL,
+    Address                nvarchar(200)   NOT NULL,
+    Distance               decimal(5,1)    NOT NULL,
+    Source                 int             NOT NULL,
+    Latitude               float           NULL,              -- from geography Location.Lat
+    Longitude              float           NULL,              -- from geography Location.Long
+    CONSTRAINT PK_AddressLookupResults PRIMARY KEY CLUSTERED (Id)
+);
+ALTER TABLE dbo.AddressLookupResults ADD CONSTRAINT FK_ALRes_ALReq
+    FOREIGN KEY (AddressLookupRequestId) REFERENCES dbo.AddressLookupRequests (Id);
+GO
+
+-------------------------------------------------- FeatureXDistrict
+CREATE TABLE dbo.FeatureXDistrict (
+    DistrictId int NOT NULL,           -- -> Districts.Id
+    FeatureId  int NOT NULL,
+    CONSTRAINT PK_FeatureXDistrict PRIMARY KEY CLUSTERED (DistrictId, FeatureId)
+);
+ALTER TABLE dbo.FeatureXDistrict ADD CONSTRAINT FK_FXD_Districts
+    FOREIGN KEY (DistrictId) REFERENCES dbo.Districts (Id);
+GO
+
+-------------------------------------------------- FeatureEditHistory
+CREATE TABLE dbo.FeatureEditHistory (
+    Id          int IDENTITY(1,1) NOT NULL,
+    DistrictId  int               NOT NULL,   -- -> Districts.Id
+    FeatureId   int               NOT NULL,
+    Activity    nvarchar(10)      NOT NULL,
+    CreatedBy   nvarchar(50)      NOT NULL,
+    DateCreated datetimeoffset(7) NOT NULL CONSTRAINT DF_FEH_DateCreated DEFAULT (sysdatetimeoffset()),
+    CONSTRAINT PK_FeatureEditHistory PRIMARY KEY CLUSTERED (Id)
+);
+ALTER TABLE dbo.FeatureEditHistory ADD CONSTRAINT FK_FEH_Districts
+    FOREIGN KEY (DistrictId) REFERENCES dbo.Districts (Id);
+GO
+
+
+/*==============================================================================
+  SECTION D -- CREATE: ancillary / standalone carry-over tables (OPTIONAL)
+  Not part of the simplified model. Recreated so no source data is lost.
+  Delete any you don't intend to keep. No FKs -- these are independent datasets.
+==============================================================================*/
+
+CREATE TABLE dbo.EventsClosedNotCharged (
+    Region varchar(20) NULL, Division varchar(50) NULL, DistrictNumber nvarchar(10) NOT NULL,
+    ClosedReason nvarchar(500) NOT NULL, DateOccurred datetimeoffset(7) NULL,
+    DateClosed datetimeoffset(7) NULL, DateCreated datetimeoffset(7) NULL, Id bigint NULL,
+    ReasonCode nvarchar(50) NOT NULL, ToolboxDist nvarchar(10) NULL);
+GO
+CREATE TABLE dbo.CoachingData (
+    ID uniqueidentifier NOT NULL CONSTRAINT PK_CoachingData PRIMARY KEY, FileImportId int NOT NULL,
+    ImportDate datetime NOT NULL, DistrictNumber nvarchar(10) NOT NULL, Coach nvarchar(100) NOT NULL,
+    InfractionsCoached nvarchar(50) NOT NULL, InfractionsRepeated nvarchar(50) NOT NULL,
+    Effectiveness nvarchar(50) NOT NULL, NoAction nvarchar(50) NOT NULL, DaysToCoach nvarchar(50) NOT NULL,
+    LastLogin datetime NOT NULL);
+GO
+CREATE TABLE dbo.CurrencyExchangeReportDate (Effectivedate date NULL);
+GO
+CREATE TABLE dbo.CurrExRate (
+    Company nvarchar(8) NOT NULL, SourceCurrCode nvarchar(4) NOT NULL, EffectiveDate date NULL,
+    CurrentRate decimal(16,6) NOT NULL, SysDate date NULL, SysTime int NOT NULL, EntryPerson nvarchar(75) NOT NULL,
+    Reference nvarchar(30) NOT NULL, TargetCurrCode nvarchar(4) NOT NULL, RateGrpCode nvarchar(12) NOT NULL,
+    SysRowID uniqueidentifier NOT NULL);   -- source SysRevID (timestamp) omitted; regenerates on insert
+GO
+CREATE TABLE dbo.HealthReport (
+    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_HealthReport PRIMARY KEY, FileImportId int NOT NULL,
+    ImportDate datetime NOT NULL, HealthDate date NOT NULL, DistrictNumber nvarchar(10) NOT NULL,
+    Suffix nvarchar(10) NOT NULL, Vehicle nvarchar(50) NOT NULL, Overall nvarchar(50) NOT NULL,
+    Camera nvarchar(50) NOT NULL, GPS nvarchar(50) NOT NULL, SDCard nvarchar(50) NOT NULL, Ping nvarchar(50) NOT NULL,
+    J939 nvarchar(50) NOT NULL, PSV nvarchar(50) NOT NULL, LastIgnition datetime NOT NULL, LastIdle datetime NOT NULL,
+    LastEvent datetime NOT NULL, BodyType nvarchar(10) NOT NULL, Inactive nvarchar(50) NOT NULL,
+    MilesYesterday nvarchar(50) NOT NULL, MilesToday nvarchar(50) NOT NULL);
+GO
+CREATE TABLE dbo.HealthReportBadPingData (
+    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_HRBadPing PRIMARY KEY, FileImportId int NOT NULL,
+    ImportDate datetime NOT NULL, HealthDate date NOT NULL, DistrictNumber nvarchar(10) NOT NULL,
+    Suffix nvarchar(10) NOT NULL, Vehicle nvarchar(50) NOT NULL, Overall nvarchar(50) NOT NULL,
+    Camera nvarchar(50) NOT NULL, GPS nvarchar(50) NOT NULL, SDCard nvarchar(50) NOT NULL, Ping nvarchar(50) NOT NULL,
+    J939 nvarchar(50) NOT NULL, PSV nvarchar(50) NOT NULL, LastIgnition datetime NOT NULL, LastIdle datetime NOT NULL,
+    LastEvent datetime NOT NULL, BodyType nvarchar(10) NOT NULL);
+GO
+CREATE TABLE dbo.HealthReportDate (healthdate date NULL);
+GO
+CREATE TABLE dbo.MOABSessionData (
+    ID uniqueidentifier NOT NULL CONSTRAINT PK_MOAB PRIMARY KEY, DistrictNumber char(10) NOT NULL,
+    SessionID uniqueidentifier NOT NULL, SessionDate date NOT NULL, SessionStart datetime NOT NULL,
+    SessionFinish datetime NOT NULL, SessionDurationSeconds float NOT NULL, SessionDurationHours float NOT NULL,
+    SessionOperator varchar(max) NOT NULL, SessionVehicle varchar(max) NOT NULL, SessionRoute varchar(max) NOT NULL);
+GO
+CREATE TABLE dbo.ReversingData (
+    ID uniqueidentifier NOT NULL CONSTRAINT PK_ReversingData PRIMARY KEY, FileImportId int NOT NULL,
+    ImportDate datetime NOT NULL, EventID bigint NOT NULL, EventDate datetime NOT NULL,
+    DistrictNumber nvarchar(10) NOT NULL, Vehicle nvarchar(50) NOT NULL, BodyType nvarchar(50) NOT NULL,
+    Latitude float NULL, Longitude float NULL, Duration nvarchar(50) NOT NULL, Distance nvarchar(50) NOT NULL);
+GO
+CREATE TABLE dbo.RolloutSchedule (
+    Region varchar(50) NULL, District varchar(50) NULL, [Dig(NEW)qty] varchar(50) NULL,
+    [MV(FIXES)qty] varchar(50) NULL, Cameras varchar(50) NULL, StartDate varchar(50) NULL, InstallStatus varchar(50) NULL);
+GO
+CREATE TABLE dbo.RouteEventsSummary (
+    ID uniqueidentifier NOT NULL CONSTRAINT PK_RESummary PRIMARY KEY, FileImportId int NOT NULL,
+    ImportDate datetime NOT NULL, SummaryDate date NOT NULL, DistrictNumber nvarchar(10) NOT NULL,
+    Vehicle nvarchar(50) NOT NULL, VIN nvarchar(50) NOT NULL, LOB nvarchar(50) NOT NULL, Type nvarchar(50) NOT NULL,
+    EventDate date NOT NULL, TotalEvents float NOT NULL, TotalOverloads float NOT NULL);
+GO
+CREATE TABLE dbo.SafetyData (
+    ID uniqueidentifier NOT NULL CONSTRAINT PK_SafetyData PRIMARY KEY, FileImportId int NOT NULL,
+    ImportDate datetime NOT NULL, EventId bigint NOT NULL, EventDate datetime NOT NULL, EventTimeZone nvarchar(50) NOT NULL,
+    DistrictNumber nvarchar(10) NOT NULL, Severity nvarchar(100) NOT NULL, Vehicle nvarchar(50) NOT NULL,
+    Driver nvarchar(50) NOT NULL, Observations nvarchar(500) NOT NULL);
+GO
+CREATE TABLE dbo.WVPilotVehicles (
+    VehicleID int NULL, VehicleName varchar(100) NULL, VehicleNumber varchar(50) NULL,
+    DateInserted datetime NULL, Vin varchar(100) NULL, IsActive bit NULL);
+GO
+CREATE TABLE dbo.FileImportsDupLog (
+    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_FIDupLog PRIMARY KEY, FileimportId int NOT NULL,
+    DuplicatesRemoved int NOT NULL, DistrictNumber varchar(50) NULL, Error bit NOT NULL, ErrorNumber int NULL,
+    ErrorSeverity int NULL, ErrorState int NULL, ErrorProcedure nvarchar(128) NULL, ErrorLine int NULL,
+    ErrorMessage nvarchar(4000) NULL, CreatedDate datetime2(0) NOT NULL);
+GO
+CREATE TABLE dbo.RouteEventDupDismissLog (
+    DupLogId int IDENTITY(1,1) NOT NULL CONSTRAINT PK_REDupDismiss PRIMARY KEY, DistrictNumber varchar(10) NOT NULL,
+    IDKept int NOT NULL, IDDismissed int NOT NULL, DetectedDate datetime2(0) NOT NULL);
+GO
+CREATE TABLE dbo.RouteEventsDeDupeLog (
+    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_REDeDupe PRIMARY KEY, FileImportId int NOT NULL,
+    DupRouteEventId bigint NOT NULL, KeptRouteEventID bigint NOT NULL, Created datetime NOT NULL,
+    DistrictNumber varchar(10) NULL);
+GO
+CREATE TABLE dbo.RouteEventsExported (
+    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_REExported PRIMARY KEY, RouteEventId int NULL,
+    Exported int NULL, ExportedDate datetime NULL, ExportedFor int NULL);
+GO
+CREATE TABLE dbo.RouteEventsImportCheck (datecreated date NULL, ImportCounts int NULL, NotifyDate datetime NULL);
+GO
+CREATE TABLE dbo.RouteEventsPreChange (
+    Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_REPreChange PRIMARY KEY, DistrictId int NOT NULL,
+    EventTypeId int NOT NULL, EventSourceId int NOT NULL, ExternalId nvarchar(50) NOT NULL, DateCreated datetimeoffset(7) NOT NULL,
+    DateOccurred datetimeoffset(7) NOT NULL, EventDetails nvarchar(50) NULL, Vehicle nvarchar(20) NULL, Route nvarchar(20) NULL,
+    Latitude float NULL, Longitude float NULL, Address nvarchar(200) NULL, CustomerName nvarchar(100) NULL,
+    AccountNumber nvarchar(30) NULL, CustomerNumber bigint NULL, LineOfBusiness nvarchar(40) NULL, Quantity decimal(9,2) NULL,
+    WorkOrder int NULL, ImageUrl nvarchar(255) NULL, EventUrl nvarchar(255) NULL, FinalActionXRouteEventId bigint NULL,
+    DateClosed datetimeoffset(7) NULL, ClosedBy nvarchar(50) NULL, FileImportId int NULL, TabletNotes nvarchar(75) NULL,
+    RouteType nvarchar(50) NULL, StopNumber int NULL, EquipmentType nvarchar(50) NULL, EventStatus int NOT NULL);
+GO
+CREATE TABLE dbo.RMOKnoxvilleExcludedAccountXEventTypeXEvents_AaronFelts (
+    Id int NOT NULL, ExcludedAccountId int NOT NULL, [NULL] nvarchar(1) NULL, EventTypeId tinyint NOT NULL,
+    Active tinyint NOT NULL, CreatedBy nvarchar(50) NOT NULL, Getdate nvarchar(1) NULL);
+GO
+CREATE TABLE dbo.RMOKnoxvilleExemptAccountLoad_AaronFelts (
+    Id int NOT NULL, DistrictId tinyint NOT NULL, CustomerNumber int NOT NULL, AccountNumber nvarchar(50) NOT NULL,
+    Name nvarchar(50) NOT NULL, Active tinyint NOT NULL, CreatedBy nvarchar(50) NOT NULL, DateCreated date NOT NULL,
+    UpdatedBy nvarchar(1) NULL, DateUpdated nvarchar(1) NULL);
+GO
+
+/*------------------------------------------------------------------------------
+  OPTIONAL: widen the surrogate keys to BIGINT to match the source (run BEFORE
+  the migration if any source id exceeds 2,147,483,647). Requires dropping/re-
+  adding dependent FKs; shown as a reminder, not runnable as-is.
+--------------------------------------------------------------------------------
+  -- ALTER TABLE dbo.RouteEvents  ALTER COLUMN Id           bigint ... (drop FKs first)
+  -- ALTER TABLE dbo.EventActions ALTER COLUMN RouteEventId bigint ...
+------------------------------------------------------------------------------*/
+PRINT 'Schema-fit complete: Events DB can now hold every in-scope RouteEvents column.';
+GO
