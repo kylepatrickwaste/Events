@@ -5,9 +5,12 @@
     "select_district": "Seleccione un distrito para comenzar",
     "search_districts": "Buscar distritos...",
     "no_districts_found": "No se encontraron distritos.",
-    "last_district": "Llevándote a tu último distrito…",
     "view_all_districts": "Ver todos los distritos",
-    "districts_load_failed": "No se pudieron cargar los distritos: el servidor no respondió."
+    "districts_load_failed": "No se pudieron cargar los distritos: el servidor no respondió.",
+    "development_mode": "Modo de desarrollo",
+    "home_district_loading": "Llevándote a tu distrito principal…",
+    "choose_district": "Elige tu distrito",
+    "signed_in_as": "Sesión iniciada como {{name}}"
   },
   "nav": {
     "home": "Inicio",
@@ -57,7 +60,18 @@
     "clear_group": "Quitar agrupación",
     "save": "Guardar",
     "cancel": "Cancelar",
-    "events_load_failed": "No se pudieron cargar los eventos: el servidor no respondió. La cola no está vacía."
+    "events_load_failed": "No se pudieron cargar los eventos: el servidor no respondió. La cola no está vacía.",
+    "set_home": "Establecer como distrito principal",
+    "is_home": "Tu distrito principal",
+    "home_confirm_title": "¿Establecer distrito principal?",
+    "home_confirm_body": "¿Abrir {{district}} automáticamente la próxima vez que entres a Route Events?",
+    "home_confirm_action": "Establecer como principal",
+    "clear_home_title": "¿Quitar el distrito principal?",
+    "clear_home_body": "Route Events mostrará el selector de distritos en tu próxima visita.",
+    "clear_home_action": "Quitar",
+    "home_set_toast": "{{district}} ahora es tu distrito principal",
+    "home_cleared_toast": "Distrito principal eliminado",
+    "home_failed_toast": "No se pudo guardar tu distrito principal"
   },
   "event": {
     "back": "Volver",

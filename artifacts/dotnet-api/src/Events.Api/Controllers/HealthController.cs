@@ -6,7 +6,7 @@ namespace Events.Api.Controllers;
 
 [ApiController]
 [Route("api")]
-public class HealthController : ControllerBase
+public class HealthController(IWebHostEnvironment env) : ControllerBase
 {
     [HttpGet("healthz")]
     public IActionResult HealthCheck() =>
@@ -15,5 +15,6 @@ public class HealthController : ControllerBase
             Status = "ok",
             Timestamp = DateTimeOffset.UtcNow,
             BuildNumber = BuildInfo.ReadBuildNumber(),
+            Environment = env.EnvironmentName,
         });
 }

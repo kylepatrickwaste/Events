@@ -9,6 +9,24 @@ export interface HealthStatus {
   status: string;
   /** Build number served from the repo-root buildinfo.txt. Optional so a server that has not been redeployed yet still satisfies the schema. */
   buildNumber?: string;
+  /** ASP.NET Core environment name (Production, Development, Replit, …). The UI shows its DEVELOPMENT MODE banner whenever this is anything other than Production. Optional so a server that predates this field still satisfies the schema. */
+  environment?: string;
+}
+
+export interface LoginName {
+  /** What the UI displays: the friendly name when the user has one, otherwise the raw AD login. Never empty. */
+  userName: string;
+  /** The Windows / AD login, e.g. WCI\kyle.patrick. */
+  activeDirectoryName: string;
+  friendlyName?: string;
+  /** District Number (not Id) the app should open straight into. Number rather than Id because the API re-seeds on every start and reassigns identity values. */
+  homeDistrictNumber?: string;
+  role?: string;
+}
+
+export interface SetHomeDistrictRequest {
+  /** District Number to pin, or omit to clear the home district. */
+  districtNumber?: string;
 }
 
 export interface ErrorMessage {

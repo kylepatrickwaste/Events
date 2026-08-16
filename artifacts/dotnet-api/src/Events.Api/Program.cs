@@ -23,6 +23,12 @@ try
         opts.AddDefaultPolicy(p =>
             p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
+    // Windows Authentication. On the real servers IIS performs the handshake
+    // and populates User.Identity; off IIS (Replit, local Kestrel) no handler
+    // runs and CurrentUserAccessor falls back to the appsettings overlay.
+    builder.Services.AddAuthentication(
+        Microsoft.AspNetCore.Server.IISIntegration.IISDefaults.AuthenticationScheme);
+
     // SQL connection factory
     builder.Services.AddScoped<IDbConnection>(_ =>
     {
@@ -32,6 +38,9 @@ try
     });
 
     // Repository / services
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<CurrentUserAccessor>();
+    builder.Services.AddScoped<AppUsersRepository>();
     builder.Services.AddScoped<EventsRepository>();
 
     builder.Services.AddControllers()

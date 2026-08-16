@@ -33,10 +33,12 @@ import type {
   EventType,
   HealthStatus,
   ListEventsParams,
+  LoginName,
   NoteInput,
   RouteEventDetail,
   RouteEventListItem,
-  ServiceCode
+  ServiceCode,
+  SetHomeDistrictRequest
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -143,6 +145,156 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
+
+export const getGetLoginNameUrl = () => {
+
+
+
+
+  return `/api/login-name`
+}
+
+/**
+ * Returns the display name for the signed-in user plus their home district. Records the visit, creating the AppUsers row on first contact, so no separate registration step exists.
+ * @summary Resolve the current user
+ */
+export const getLoginName = async ( options?: Parameters<typeof customFetch>[1]): Promise<LoginName> => {
+
+  return customFetch<LoginName>(getGetLoginNameUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLoginNameQueryKey = () => {
+    return [
+    `/api/login-name`
+    ] as const;
+    }
+
+
+export const getGetLoginNameQueryOptions = <TData = Awaited<ReturnType<typeof getLoginName>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLoginName>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLoginNameQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLoginName>>> = ({ signal }) => getLoginName({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLoginName>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLoginNameQueryResult = NonNullable<Awaited<ReturnType<typeof getLoginName>>>
+export type GetLoginNameQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Resolve the current user
+ */
+
+export function useGetLoginName<TData = Awaited<ReturnType<typeof getLoginName>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLoginName>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLoginNameQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetHomeDistrictUrl = () => {
+
+
+
+
+  return `/api/home-district`
+}
+
+/**
+ * Sets the current user's home district, or clears it when districtNumber is omitted.
+ * @summary Pin the district the app opens into
+ */
+export const setHomeDistrict = async (setHomeDistrictRequest: SetHomeDistrictRequest, options?: Parameters<typeof customFetch>[1]): Promise<LoginName> => {
+
+  return customFetch<LoginName>(getSetHomeDistrictUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(setHomeDistrictRequest)
+  }
+);}
+
+
+
+
+
+export const getSetHomeDistrictMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setHomeDistrict>>, TError,{data: BodyType<SetHomeDistrictRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setHomeDistrict>>, TError,{data: BodyType<SetHomeDistrictRequest>}, TContext> => {
+
+const mutationKey = ['setHomeDistrict'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setHomeDistrict>>, {data: BodyType<SetHomeDistrictRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setHomeDistrict(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetHomeDistrictMutationResult = NonNullable<Awaited<ReturnType<typeof setHomeDistrict>>>
+    export type SetHomeDistrictMutationBody = BodyType<SetHomeDistrictRequest>
+    export type SetHomeDistrictMutationError = ErrorType<ErrorMessage>
+
+    /**
+ * @summary Pin the district the app opens into
+ */
+export const useSetHomeDistrict = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setHomeDistrict>>, TError,{data: BodyType<SetHomeDistrictRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setHomeDistrict>>,
+        TError,
+        {data: BodyType<SetHomeDistrictRequest>},
+        TContext
+      > => {
+      return useMutation(getSetHomeDistrictMutationOptions(options));
+    }
 
 export const getListDistrictsUrl = () => {
 

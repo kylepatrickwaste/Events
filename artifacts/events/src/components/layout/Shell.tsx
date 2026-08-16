@@ -9,11 +9,24 @@ import { useTheme } from '@/components/theme-provider';
 import { useServerStatus } from '@/hooks/use-server-status';
 import { ApiUnreachableDialog } from '@/components/api-unreachable-dialog';
 import logoUrl from '@assets/Waste_Connections_Logo_Symbol_-_2_Color-_12-10-09_-_transparen_1786045458506.png';
-import { Moon, Sun, ChevronLeft } from 'lucide-react';
+import { Moon, Sun, ChevronLeft, Home, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useListDistricts, getListDistrictsQueryKey, useGetEvent, getGetEventQueryKey, useGetDistrictSummary, getGetDistrictSummaryQueryKey } from '@workspace/api-client-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import { useListDistricts, getListDistrictsQueryKey, useGetEvent, getGetEventQueryKey, useGetDistrictSummary, getGetDistrictSummaryQueryKey, getGetLoginNameQueryKey, useSetHomeDistrict } from '@workspace/api-client-react';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { TruckDrive } from './TruckDrive';
 
 function HeaderDistrictStats() {
@@ -152,6 +165,141 @@ function HeaderExcludedAccountsButton() {
   );
 }
 
+/**
+ * Pins the district the app opens straight into on the next visit. Only shown
+ * on district pages, where "this district" is unambiguous. Clicking it while it
+ * is already the home district offers to clear it, so there is a way back to
+ * the picker without hunting for `?browse=1`.
+ */
+function HeaderHomeDistrictButton() {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [matchesDistrict, params] = useRoute('/districts/:districtId');
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const districtId = matchesDistrict ? Number(params?.districtId) : NaN;
+
+  const { data: districts } = useListDistricts({
+    query: { enabled: matchesDistrict, queryKey: getListDistrictsQueryKey() },
+  });
+  const { data: user } = useCurrentUser();
+
+  const district = districts?.find(d => d.id === districtId);
+  const isHome = !!district && !!user?.homeDistrictNumber && user.homeDistrictNumber === district.number;
+
+  const { mutate, isPending } = useSetHomeDistrict({
+    mutation: {
+      onSuccess: (updated) => {
+        setConfirmOpen(false);
+        // The response is the fresh user, so seed the cache with it rather than
+        // refetching just to learn what we were told.
+        queryClient.setQueryData(getGetLoginNameQueryKey(), updated);
+        toast({
+          description: updated.homeDistrictNumber
+            ? t('district.home_set_toast', { district: district?.name ?? '' })
+            : t('district.home_cleared_toast'),
+        });
+      },
+      onError: () => {
+        setConfirmOpen(false);
+        toast({ variant: 'destructive', description: t('district.home_failed_toast') });
+      },
+    },
+  });
+
+  if (!matchesDistrict || !district) return null;
+
+  const label = isHome ? t('district.is_home') : t('district.set_home');
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className={cn('h-8 w-8 shrink-0', isHome ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}
+        title={label}
+        aria-label={label}
+        aria-pressed={isHome}
+        onClick={() => setConfirmOpen(true)}
+      >
+        <Home className={cn('h-4 w-4', isHome && 'fill-current')} />
+      </Button>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isHome ? t('district.clear_home_title') : t('district.home_confirm_title')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isHome
+                ? t('district.clear_home_body')
+                : t('district.home_confirm_body', { district: district.name })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>{t('district.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isPending}
+              onClick={(e) => {
+                // Hold the dialog open until the request settles, so a failure
+                // is reported against the thing the user was looking at.
+                e.preventDefault();
+                mutate({ data: { districtNumber: isHome ? undefined : district.number } });
+              }}
+            >
+              {isHome ? t('district.clear_home_action') : t('district.home_confirm_action')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+/** Who the API thinks you are. Friendly name when known, raw AD login otherwise. */
+function HeaderUserName() {
+  const { t } = useI18n();
+  const { data: user } = useCurrentUser();
+
+  if (!user?.userName) return null;
+
+  return (
+    <span
+      className="hidden md:flex min-w-0 items-center gap-1.5 text-sm"
+      title={t('app.signed_in_as', { name: user.activeDirectoryName })}
+      data-testid="header-username"
+    >
+      <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <span className="truncate max-w-[9rem] font-medium text-foreground">{user.userName}</span>
+    </span>
+  );
+}
+
+/**
+ * Loud reminder that this is not production. The same bundle is served by every
+ * environment, so `import.meta.env.DEV` alone is not enough — a production build
+ * pointed at a non-production API still needs the warning.
+ */
+function DevelopmentBanner() {
+  const { t } = useI18n();
+  const { environment } = useServerStatus();
+  const isNonProdApi = !!environment && environment.toLowerCase() !== 'production';
+
+  if (!import.meta.env.DEV && !isNonProdApi) return null;
+
+  return (
+    <div
+      role="status"
+      data-testid="development-banner"
+      className="w-full bg-destructive px-4 py-1 text-center text-xs font-bold uppercase tracking-widest text-destructive-foreground"
+    >
+      {t('app.development_mode')}
+      {environment ? <span className="ml-2 font-normal normal-case opacity-80">({environment})</span> : null}
+    </div>
+  );
+}
+
 function HeaderDistrictSwitcher() {
   const { t } = useI18n();
   const [, setLocation] = useLocation();
@@ -265,6 +413,7 @@ export function Header() {
         </div>
         <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-4">
           <HeaderExcludedAccountsButton />
+          <HeaderHomeDistrictButton />
           <HeaderDistrictSwitcher />
           <div ref={langRef} className="hidden sm:flex items-center space-x-1 text-sm text-muted-foreground">
             <button 
@@ -288,6 +437,7 @@ export function Header() {
               FR
             </button>
           </div>
+          <HeaderUserName />
           <Button
             variant="ghost"
             size="icon"
@@ -308,6 +458,7 @@ export function Header() {
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background">
+      <DevelopmentBanner />
       <Header />
       <main className="flex-1">
         {children}

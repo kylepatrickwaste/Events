@@ -16,10 +16,17 @@ public class AppSettings
     public int SuggestedDuplicateWindowMinutes { get; set; } = 5;
 }
 
-public class EventsRepository(IDbConnection db, IConfiguration cfg)
+public class EventsRepository(IDbConnection db, IConfiguration cfg, CurrentUserAccessor currentUser)
 {
     private readonly AppSettings _settings = cfg.GetSection("AppSettings").Get<AppSettings>() ?? new();
-    private string CurrentUser => _settings.CurrentUser;
+
+    /// <summary>
+    /// Audit stamp written to CreatedBy / ClosedBy. Resolved per request from
+    /// the appsettings overlay or the IIS Windows identity —
+    /// <c>AppSettings:CurrentUser</c> is now only the last-resort fallback
+    /// inside <see cref="CurrentUserAccessor"/>, not the primary source.
+    /// </summary>
+    private string CurrentUser => currentUser.ActiveDirectoryName;
     private const string ContractCloseReason = "Contract - No Overages";
 
     // ─── Districts ────────────────────────────────────────────────────────────

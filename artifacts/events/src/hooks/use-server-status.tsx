@@ -14,6 +14,12 @@ export interface ServerStatus {
   isChecking: boolean;
   /** Build number reported by whichever API the client is pointed at. */
   buildNumber?: string;
+  /**
+   * ASP.NET environment name the API reports ("Production", "Development",
+   * "Replit", …). The same bundle is served everywhere, so this is the only
+   * honest signal of which backend the UI is driving.
+   */
+  environment?: string;
   /** Run a health check immediately. */
   retry: () => void;
 }
@@ -61,11 +67,12 @@ export function ServerStatusProvider({ children }: { children: React.ReactNode }
       isReachable: !isError,
       isChecking: isFetching,
       buildNumber: data?.buildNumber,
+      environment: data?.environment,
       retry: () => {
         void refetch();
       },
     }),
-    [isError, isFetching, data?.buildNumber, refetch],
+    [isError, isFetching, data?.buildNumber, data?.environment, refetch],
   );
 
   return <ServerStatusContext.Provider value={value}>{children}</ServerStatusContext.Provider>;

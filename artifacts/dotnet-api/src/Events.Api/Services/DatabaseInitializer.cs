@@ -295,6 +295,25 @@ CREATE TABLE EventActions (
         await conn.ExecuteAsync(@"
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='EventActionsRouteEventIdx')
     CREATE INDEX EventActionsRouteEventIdx ON EventActions(RouteEventId);");
+
+        // Users are created on first contact by AppUsersRepository, not seeded.
+        // HomeDistrictNumber stores the district Number rather than a FK to
+        // Districts(Id) on purpose: the seed routines below reassign identity
+        // values on every start, so an Id would silently point at a different
+        // district after a re-seed.
+        await conn.ExecuteAsync(@"
+IF OBJECT_ID('AppUsers','U') IS NULL
+CREATE TABLE AppUsers (
+    Id                  INT              IDENTITY(1,1) PRIMARY KEY,
+    ActiveDirectoryName NVARCHAR(256)    NOT NULL,
+    FriendlyName        NVARCHAR(256)    NULL,
+    HomeDistrictNumber  NVARCHAR(50)     NULL,
+    Role                NVARCHAR(50)     NULL DEFAULT 'Agent',
+    DateLastSeen        DATETIMEOFFSET   NULL,
+    Active              BIT              NOT NULL DEFAULT 1,
+    DateCreated         DATETIMEOFFSET   NOT NULL DEFAULT SYSDATETIMEOFFSET(),
+    CONSTRAINT UqAppUsersActiveDirectoryName UNIQUE (ActiveDirectoryName)
+);");
     }
 
     // ─── Lookup seed data ─────────────────────────────────────────────────────

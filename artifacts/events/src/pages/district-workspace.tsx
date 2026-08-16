@@ -107,7 +107,6 @@ const loadInitialGridState = () => {
 };
 import { ContractAccountsDialog } from '@/components/contract-accounts-dialog';
 import { LoadError } from '@/components/load-error';
-import { LAST_DISTRICT_KEY } from '@/pages/home';
 import { NearbyClusterPicker, suggestedDuplicateIds } from '@/components/nearby-cluster-picker';
 
 type SortColumn = 'status' | 'customer' | 'type' | 'severity' | 'date' | 'route' | 'qty' | 'binSerial' | 'stop' | 'wo' | 'address' | 'lob' | 'tabletNotes' | 'chgAmt' | 'prevChg' | 'prevTotal';
@@ -308,11 +307,6 @@ export default function DistrictWorkspace() {
       setSortDirection('asc');
     }
   };
-
-  // Remember this district as the last one visited
-  useEffect(() => {
-    if (districtId) localStorage.setItem(LAST_DISTRICT_KEY, String(districtId));
-  }, [districtId]);
 
   // Reset selection when district or filters change
   useEffect(() => {

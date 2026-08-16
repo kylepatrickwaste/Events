@@ -5,9 +5,12 @@
     "select_district": "Sélectionnez un district pour commencer",
     "search_districts": "Rechercher des districts...",
     "no_districts_found": "Aucun district trouvé.",
-    "last_district": "Redirection vers votre dernier district…",
     "view_all_districts": "Voir tous les districts",
-    "districts_load_failed": "Impossible de charger les districts : le serveur n'a pas répondu."
+    "districts_load_failed": "Impossible de charger les districts : le serveur n'a pas répondu.",
+    "development_mode": "Mode développement",
+    "home_district_loading": "Redirection vers votre district principal…",
+    "choose_district": "Choisissez votre district",
+    "signed_in_as": "Connecté en tant que {{name}}"
   },
   "nav": {
     "home": "Accueil",
@@ -57,7 +60,18 @@
     "clear_group": "Supprimer le regroupement",
     "save": "Enregistrer",
     "cancel": "Annuler",
-    "events_load_failed": "Impossible de charger les événements : le serveur n'a pas répondu. La file n'est pas vide."
+    "events_load_failed": "Impossible de charger les événements : le serveur n'a pas répondu. La file n'est pas vide.",
+    "set_home": "Définir comme district principal",
+    "is_home": "Votre district principal",
+    "home_confirm_title": "Définir le district principal ?",
+    "home_confirm_body": "Ouvrir {{district}} automatiquement lors de votre prochaine visite sur Route Events ?",
+    "home_confirm_action": "Définir comme principal",
+    "clear_home_title": "Retirer le district principal ?",
+    "clear_home_body": "Route Events affichera le sélecteur de districts lors de votre prochaine visite.",
+    "clear_home_action": "Retirer",
+    "home_set_toast": "{{district}} est maintenant votre district principal",
+    "home_cleared_toast": "District principal retiré",
+    "home_failed_toast": "Impossible d'enregistrer votre district principal"
   },
   "event": {
     "back": "Retour",

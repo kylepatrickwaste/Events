@@ -23,4 +23,14 @@ public record HealthStatusDto
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? BuildNumber { get; init; }
+
+    /// <summary>
+    /// ASP.NET Core environment name (<c>Production</c>, <c>Development</c>,
+    /// <c>Replit</c>, …). The UI shows its DEVELOPMENT MODE banner whenever
+    /// this is anything other than <c>Production</c>, so it has to come from
+    /// the server rather than from how the bundle was built — the same bundle
+    /// is served by every environment.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Environment { get; init; }
 }

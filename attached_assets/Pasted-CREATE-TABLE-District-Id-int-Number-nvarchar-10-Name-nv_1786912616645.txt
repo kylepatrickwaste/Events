@@ -1,0 +1,107 @@
+CREATE TABLE [District] (
+    [Id] int,
+    [Number] nvarchar(10),
+    [Name] nvarchar(100),
+    [Region] nvarchar(50),
+    [HaulingSystem] int,
+    [Active] bit
+);
+
+CREATE TABLE [EventType] (
+    [Id] int,
+    [Name] nvarchar(50),
+    [Active] bit
+);
+
+CREATE TABLE [EventSource] (
+    [Id] int,
+    [Name] nvarchar(20),
+    [Active] bit
+);
+
+CREATE TABLE [ServiceCode] (
+    [Id] int,
+    [DistrictId] int,
+    [Code] nvarchar(50),
+    [Description] nvarchar(50),
+    [Amount] money,
+    [Active] bit
+);
+
+CREATE TABLE [RouteEvent] (
+    [Id] bigint,
+    [DistrictId] int,
+    [EventTypeId] int,
+    [EventSourceId] int,
+    [ExternalId] nvarchar(50),
+    [DateOccurred] datetimeoffset,
+    [Vehicle] nvarchar(20),
+    [Route] nvarchar(20),
+    [Location] geography,
+    [Address] nvarchar(200),
+    [CustomerName] nvarchar(100),
+    [AccountNumber] nvarchar(30),
+    [Quantity] decimal(9,2),
+    [ImageUrl] nvarchar(max),
+    [EventStatus] int,
+    [DateClosed] datetimeoffset,
+    [ClosedBy] nvarchar(50),
+    [FileImportId] int
+);
+
+CREATE TABLE [EventAction] (
+    [Id] bigint,
+    [RouteEventId] bigint,
+    [ActionType] nvarchar(50),
+    [IsFinal] bit,
+    [Notes] nvarchar(500),
+    [CloseReason] nvarchar(100),
+    [ServiceCodeId] int,
+    [ChargeAmount] money,
+    [ChargeQuantity] decimal(9,2),
+    [BilledStatementNumber] nvarchar(30),
+    [BilledAmount] money,
+    [CreatedBy] nvarchar(50),
+    [DateCreated] datetimeoffset
+);
+
+CREATE TABLE [ExcludedAccount] (
+    [Id] int,
+    [DistrictId] int,
+    [AccountNumber] nvarchar(50),
+    [Name] nvarchar(250),
+    [EventTypeId] int,
+    [EventSourceId] int,
+    [Reason] nvarchar(50),
+    [Notes] nvarchar(500),
+    [Active] bit
+);
+
+CREATE TABLE [FileImport] (
+    [Id] int,
+    [FileName] nvarchar(100),
+    [DateCreated] datetimeoffset
+);
+
+CREATE TABLE [EventEditHistory] (
+    [Id] bigint,
+    [RouteEventId] bigint,
+    [Field] nvarchar(50),
+    [OldValue] nvarchar(500),
+    [NewValue] nvarchar(500),
+    [CreatedBy] nvarchar(50),
+    [DateCreated] datetimeoffset
+);
+
+-- Foreign keys
+ALTER TABLE [RouteEvent] ADD FOREIGN KEY ([DistrictId]) REFERENCES [District] ([Id]);
+ALTER TABLE [RouteEvent] ADD FOREIGN KEY ([EventTypeId]) REFERENCES [EventType] ([Id]);
+ALTER TABLE [RouteEvent] ADD FOREIGN KEY ([EventSourceId]) REFERENCES [EventSource] ([Id]);
+ALTER TABLE [RouteEvent] ADD FOREIGN KEY ([FileImportId]) REFERENCES [FileImport] ([Id]);
+ALTER TABLE [EventAction] ADD FOREIGN KEY ([RouteEventId]) REFERENCES [RouteEvent] ([Id]);
+ALTER TABLE [EventAction] ADD FOREIGN KEY ([ServiceCodeId]) REFERENCES [ServiceCode] ([Id]);
+ALTER TABLE [ServiceCode] ADD FOREIGN KEY ([DistrictId]) REFERENCES [District] ([Id]);
+ALTER TABLE [ExcludedAccount] ADD FOREIGN KEY ([DistrictId]) REFERENCES [District] ([Id]);
+ALTER TABLE [ExcludedAccount] ADD FOREIGN KEY ([EventTypeId]) REFERENCES [EventType] ([Id]);
+ALTER TABLE [ExcludedAccount] ADD FOREIGN KEY ([EventSourceId]) REFERENCES [EventSource] ([Id]);
+ALTER TABLE [EventEditHistory] ADD FOREIGN KEY ([RouteEventId]) REFERENCES [RouteEvent] ([Id]);

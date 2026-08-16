@@ -14,6 +14,8 @@ tags:
     description: District operations
   - name: events
     description: Route event operations
+  - name: users
+    description: Current-user and preference operations
 paths:
   /healthz:
     get:
@@ -28,6 +30,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /login-name:
+    get:
+      operationId: getLoginName
+      tags: [users]
+      summary: Resolve the current user
+      description: >-
+        Returns the display name for the signed-in user plus their home
+        district. Records the visit, creating the AppUsers row on first contact,
+        so no separate registration step exists.
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginName"
+  /home-district:
+    put:
+      operationId: setHomeDistrict
+      tags: [users]
+      summary: Pin the district the app opens into
+      description: >-
+        Sets the current user's home district, or clears it when districtNumber
+        is omitted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetHomeDistrictRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginName"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
   /districts:
     get:
       operationId: listDistricts
@@ -348,8 +393,45 @@ components:
           description: >-
             Build number served from the repo-root buildinfo.txt. Optional so a
             server that has not been redeployed yet still satisfies the schema.
+        environment:
+          type: string
+          description: >-
+            ASP.NET Core environment name (Production, Development, Replit, …).
+            The UI shows its DEVELOPMENT MODE banner whenever this is anything
+            other than Production. Optional so a server that predates this field
+            still satisfies the schema.
       required:
         - status
+    LoginName:
+      type: object
+      properties:
+        userName:
+          type: string
+          description: >-
+            What the UI displays: the friendly name when the user has one,
+            otherwise the raw AD login. Never empty.
+        activeDirectoryName:
+          type: string
+          description: The Windows / AD login, e.g. WCI\kyle.patrick.
+        friendlyName:
+          type: string
+        homeDistrictNumber:
+          type: string
+          description: >-
+            District Number (not Id) the app should open straight into. Number
+            rather than Id because the API re-seeds on every start and reassigns
+            identity values.
+        role:
+          type: string
+      required:
+        - userName
+        - activeDirectoryName
+    SetHomeDistrictRequest:
+      type: object
+      properties:
+        districtNumber:
+          type: string
+          description: District Number to pin, or omit to clear the home district.
     ErrorMessage:
       type: object
       properties:
