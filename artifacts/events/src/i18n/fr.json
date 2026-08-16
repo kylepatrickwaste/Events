@@ -58,6 +58,7 @@
     "cancel": "Annuler"
   },
   "event": {
+    "back": "Retour",
     "detail": "Détail de l'Événement",
     "detail_severe": "Détail de l'Événement - Surcharge Sévère",
     "detail_minimal": "Détail de l'Événement - Surcharge Minime",
@@ -123,12 +124,13 @@
       "offset_min_after": "{{m}}m après",
       "offset_min_before": "{{m}}m avant"
     },
-    "simulate_charge": "Simuler 1000 $ facturés pour la journée",
     "event_type": "Événement",
     "details_field": "Détails",
     "quantity": "Quantité",
     "latitude": "Latitude",
-    "longitude": "Longitude"
+    "longitude": "Longitude",
+    "location": "Emplacement",
+    "no_location": "Aucune coordonnée enregistrée pour cet événement"
   },
   "nearby_picker": {
     "label": "Doublons à proximité — cochez pour les rejeter avec cette action",

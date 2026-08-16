@@ -58,6 +58,7 @@
     "cancel": "Cancel"
   },
   "event": {
+    "back": "Back",
     "detail": "Event Detail",
     "detail_severe": "Event Detail - Severe Overload",
     "detail_minimal": "Event Detail - Minimal Overload",
@@ -123,12 +124,13 @@
       "offset_min_after": "{{m}}m after",
       "offset_min_before": "{{m}}m before"
     },
-    "simulate_charge": "Simulate $1000 charged for the day",
     "event_type": "Event",
     "details_field": "Details",
     "quantity": "Quantity",
     "latitude": "Latitude",
-    "longitude": "Longitude"
+    "longitude": "Longitude",
+    "location": "Location",
+    "no_location": "No coordinates recorded for this event"
   },
   "nearby_picker": {
     "label": "Nearby duplicates — check to dismiss with this action",
