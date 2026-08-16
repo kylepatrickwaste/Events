@@ -76,8 +76,14 @@ const VIEWS_KEY = 'grid-views';
 // Versioned: a saved order from before the columns were re-sequenced would pin
 // everyone to the old layout, since a stored order always wins over the default.
 const COL_ORDER_KEY = 'grid-col-order-v2';
+// A view saved before the columns were re-sequenced carries the old order, and a
+// view's order wins over the default -- so an old view would quietly undo the new
+// layout. Stamping the version lets us keep everything else the view remembers
+// and drop only its stale ordering.
+const VIEW_CONFIG_VERSION = 2;
 
 type ViewConfig = {
+  v: number;
   visibleCols: string[];
   colOrder: string[];
   groupBy: string | null;
@@ -96,9 +102,11 @@ const sanitizeConfig = (cfg: unknown): ViewConfig | null => {
   if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return null;
   const c = cfg as Record<string, unknown>;
   if (!Array.isArray(c.visibleCols) || !Array.isArray(c.colOrder)) return null;
+  const stale = c.v !== VIEW_CONFIG_VERSION;
   return {
+    v: VIEW_CONFIG_VERSION,
     visibleCols: c.visibleCols.filter((k): k is string => typeof k === 'string'),
-    colOrder: c.colOrder.filter((k): k is string => typeof k === 'string'),
+    colOrder: stale ? [...DEFAULT_COL_ORDER] : c.colOrder.filter((k): k is string => typeof k === 'string'),
     groupBy: typeof c.groupBy === 'string' ? c.groupBy : null,
     sortColumn: typeof c.sortColumn === 'string' ? c.sortColumn : null,
     sortDirection: c.sortDirection === 'desc' ? 'desc' : 'asc',
@@ -302,6 +310,7 @@ export default function DistrictWorkspace() {
     const name = newViewName.trim();
     if (!name) return;
     const cfg: ViewConfig = {
+      v: VIEW_CONFIG_VERSION,
       visibleCols: [...visibleCols],
       colOrder,
       groupBy,

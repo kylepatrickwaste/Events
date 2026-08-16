@@ -26,3 +26,13 @@ had to be written twice.
 **Environment:** `dotnet` is not on PATH. Prepend the SDK's `bin` directory
 (under `/nix/store/...-dotnet-sdk-*/bin`) — the binary is in `bin/`, not the SDK
 root. Resolve the exact path with a glob rather than hardcoding a store hash.
+
+## Don't test while you push
+
+Because the push *is* the deploy, the API goes down for a minute or two right
+after it. An e2e run started in that window fails with a wall of CORS errors and
+the app's "Can't reach the server" dialog — which looks exactly like a broken
+frontend change and sends you debugging the wrong thing.
+
+**How to apply:** sequence them. Poll healthz for the new build number (or simply
+don't push) before handing the app to a test agent.
