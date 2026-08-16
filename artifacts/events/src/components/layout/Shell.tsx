@@ -160,7 +160,7 @@ function HeaderDistrictSwitcher() {
   const [open, setOpen] = React.useState(false);
 
   const districtId = Number((matchesDistrict ? params?.districtId : eventParams?.districtId) ?? NaN);
-  const show = matchesDistrict || matchesEvent;
+  const show = matchesDistrict && !matchesEvent;
 
   const { data: districts } = useListDistricts({
     query: { enabled: show, queryKey: getListDistrictsQueryKey() },
