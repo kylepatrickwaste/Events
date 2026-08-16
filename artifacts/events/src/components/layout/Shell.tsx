@@ -70,7 +70,7 @@ function DistrictHeaderCenter() {
         <ChevronLeft className="h-5 w-5" />
       </Link>
       {district ? (
-        <span className="flex items-center gap-2 min-w-0">
+        <span className="hidden sm:flex items-center gap-2 min-w-0">
           <Link
             href="/?browse=1"
             className="min-w-0 rounded-sm font-bold text-base sm:text-lg leading-none truncate hover:text-primary hover:underline underline-offset-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -92,7 +92,7 @@ function DistrictHeaderCenter() {
           </Link>
         </span>
       ) : (
-        <Skeleton className="h-6 w-32" />
+        <Skeleton className="hidden sm:block h-6 w-32" />
       )}
     </div>
   );
@@ -141,10 +141,12 @@ function HeaderExcludedAccountsButton() {
       variant="outline"
       size="sm"
       className="h-8"
+      title={t('contract_accounts.button')}
+      aria-label={t('contract_accounts.button')}
       onClick={() => window.dispatchEvent(new CustomEvent(OPEN_EXCLUDED_ACCOUNTS_EVENT))}
     >
-      <FileX2 className="h-4 w-4 mr-2" />
-      {t('contract_accounts.button')}
+      <FileX2 className="h-4 w-4 sm:mr-2" />
+      <span className="hidden sm:inline">{t('contract_accounts.button')}</span>
     </Button>
   );
 }
@@ -169,7 +171,7 @@ function HeaderDistrictSwitcher() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" role="combobox" aria-expanded={open} className="h-8 max-w-[220px] justify-between">
+        <Button variant="outline" size="sm" role="combobox" aria-expanded={open} className="h-8 max-w-[120px] sm:max-w-[220px] justify-between">
           <span className="truncate font-mono text-xs">
             {district ? `${district.number} – ${district.name}` : t('district.switch_district')}
           </span>
@@ -250,7 +252,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background shadow-sm">
       <TruckDrive startRef={titleRef} endRef={langRef} />
-      <div className="container relative flex h-14 items-center gap-4">
+      <div className="container relative flex h-14 items-center gap-2 sm:gap-4">
         <Link href="/" ref={titleRef} className="flex shrink-0 items-center gap-2 hover:opacity-90 transition-opacity">
           <img src={logoUrl} alt="Waste Connections" className="h-8 w-auto object-contain" />
           <span className="font-bold hidden sm:inline-block text-primary">
@@ -258,14 +260,14 @@ export function Header() {
           </span>
         </Link>
         <HeaderDistrictStats />
-        <div className="flex flex-1 items-center justify-center min-w-0">
+        <div className="flex flex-1 items-center justify-center min-w-[2rem]">
           <DistrictHeaderCenter />
           <EventHeaderCenter />
         </div>
-        <div className="flex shrink-0 items-center justify-end space-x-4">
+        <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-4">
           <HeaderExcludedAccountsButton />
           <HeaderDistrictSwitcher />
-          <div ref={langRef} className="flex items-center space-x-1 text-sm text-muted-foreground">
+          <div ref={langRef} className="hidden sm:flex items-center space-x-1 text-sm text-muted-foreground">
             <button 
               onClick={() => setLanguage('en')}
               className={`hover:text-foreground transition-colors ${language === 'en' ? 'text-foreground font-semibold' : ''}`}
