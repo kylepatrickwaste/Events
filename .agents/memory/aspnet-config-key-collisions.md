@@ -17,10 +17,13 @@ which nothing sets by accident.
 
 The failure is quiet and looks like a deployment problem, not a code problem:
 appsettings plainly contains the value you expect, the app reads a different
-one, and nothing logs a warning. It bit the Route Events API — the deployed
-backend resolved the service account number instead of the configured user, and
-the same collision would have outranked the real IIS Windows-authenticated
-identity in production, silently mis-stamping every audit column.
+one, and nothing logs a warning.
+
+Worse, the shadowed value can look *correct* and hide the bug. On a developer's
+own Windows box `USERNAME` is that developer's login, so the resolved identity
+looks right; only on a server does it become the service or app-pool account and
+start mis-stamping audit columns for every user. Do not treat a plausible-looking
+value as evidence the key is being read from where you think.
 
 **How to apply:** whenever an identity/config value falls back through a chain
 like "config → ambient identity → default", verify the *deployed* resolution by
