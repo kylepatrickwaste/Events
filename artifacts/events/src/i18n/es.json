@@ -21,6 +21,7 @@
   },
   "district": {
     "columns": "Columnas",
+    "customize": "Personalizar",
     "summary": "Resumen",
     "open_events": "Eventos Abiertos",
     "closed_events": "Eventos Cerrados",

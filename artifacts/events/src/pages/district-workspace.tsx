@@ -19,13 +19,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Clock, Columns3, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, DoorOpen, Plus, Minus, GripVertical, Layers } from 'lucide-react';
+import { Search, Clock, Settings, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, DoorOpen, Plus, Minus, GripVertical, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ChargeEventDialog, CloseEventDialog, BulkCloseDialog } from '@/components/event-action-dialogs';
 import { OPEN_EXCLUDED_ACCOUNTS_EVENT } from '@/lib/excluded-accounts';
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const OPTIONAL_COLUMNS: Array<{ key: SortColumn; label: string }> = [
@@ -612,52 +622,42 @@ export default function DistrictWorkspace() {
             </Button>
           )}
 
-          <div className="flex items-center gap-1 w-full sm:w-auto sm:ml-auto">
-            <Select value={currentView || undefined} onValueChange={applyView}>
-              <SelectTrigger className="h-9 w-full sm:w-44 bg-background">
-                <SelectValue placeholder={t('district.saved_views')} />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.keys(views).length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">{t('district.no_views')}</div>
-                ) : (
-                  Object.keys(views).sort().map(name => (
-                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 w-9 p-0 shrink-0"
-              onClick={() => setSaveViewOpen(true)}
-              aria-label={t('district.save_view')}
-              title={t('district.save_view')}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 w-9 p-0 shrink-0"
-              onClick={deleteView}
-              disabled={!currentView}
-              aria-label={t('district.delete_view')}
-              title={t('district.delete_view')}
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
-          </div>
-
+          {/* Saved views and column visibility are both "how I want this grid
+              to look", so they share one menu rather than three controls. */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                <Columns3 className="h-4 w-4 mr-2" />
-                {t('district.columns')}
+              <Button variant="outline" size="sm" className="w-full sm:w-auto sm:ml-auto">
+                <Settings className="h-4 w-4 mr-2" />
+                {t('district.customize')}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-56 max-h-[70vh] overflow-y-auto">
+              <DropdownMenuLabel>{t('district.saved_views')}</DropdownMenuLabel>
+              {Object.keys(views).length === 0 ? (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                  {t('district.no_views')}
+                </div>
+              ) : (
+                <DropdownMenuRadioGroup value={currentView} onValueChange={applyView}>
+                  {Object.keys(views).sort().map(name => (
+                    <DropdownMenuRadioItem key={name} value={name}>
+                      {name}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              )}
+              <DropdownMenuItem onSelect={() => setSaveViewOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t('district.save_view')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={deleteView} disabled={!currentView}>
+                <Minus className="h-4 w-4 mr-2" />
+                {t('district.delete_view')}
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuLabel>{t('district.columns')}</DropdownMenuLabel>
               {OPTIONAL_COLUMNS.map(c => (
                 <DropdownMenuCheckboxItem
                   key={c.key}
