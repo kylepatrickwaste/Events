@@ -75,7 +75,7 @@
   },
   "profile": {
     "title": "Tu perfil",
-    "description": "Cambia el nombre que muestra Route Events y el distrito con el que se abre.",
+    "description": "Cambia el nombre que muestra Route Events, el distrito con el que abre y la apariencia de la aplicación.",
     "ad_login": "Cuenta de Windows",
     "preferred_name": "Nombre preferido",
     "preferred_name_placeholder": "p. ej. Kyle Patrick",
@@ -87,7 +87,13 @@
     "use_typed_district": "Usar el número de distrito «{{number}}»",
     "saved": "Perfil guardado",
     "error_unknown_district": "El número de distrito «{{number}}» no corresponde a ningún distrito. Elige uno de la lista o bórralo.",
-    "error_save_failed": "Tu perfil no se guardó. El servidor no respondió."
+    "error_save_failed": "Tu perfil no se guardó. El servidor no respondió.",
+    "preferences": "Preferencias",
+    "language": "Idioma",
+    "theme": "Apariencia",
+    "theme_light": "Claro",
+    "theme_dark": "Oscuro",
+    "preferences_hint": "Se guardan en este equipo en cuanto las cambias."
   },
   "event": {
     "back": "Volver",

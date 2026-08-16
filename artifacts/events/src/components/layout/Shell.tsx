@@ -4,12 +4,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Check, ChevronsUpDown, FileX2, AlertTriangle, CheckCircle2, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useI18n, Language } from '@/i18n';
-import { useTheme } from '@/components/theme-provider';
+import { useI18n } from '@/i18n';
 import { useServerStatus } from '@/hooks/use-server-status';
 import { ApiUnreachableDialog } from '@/components/api-unreachable-dialog';
 import logoUrl from '@assets/Waste_Connections_Logo_Symbol_-_2_Color-_12-10-09_-_transparen_1786045458506.png';
-import { Moon, Sun, ChevronLeft, Home, UserRound } from 'lucide-react';
+import { ChevronLeft, Home, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -404,14 +403,15 @@ function ApiStatusDot() {
 }
 
 export function Header() {
-  const { t, language, setLanguage } = useI18n();
-  const { theme, setTheme } = useTheme();
+  const { t } = useI18n();
   const titleRef = React.useRef<HTMLAnchorElement>(null);
-  const langRef = React.useRef<HTMLDivElement>(null);
+  // Language and theme moved into the profile dialog, so the truck now parks at
+  // the right-hand control cluster instead of the old language switcher.
+  const controlsRef = React.useRef<HTMLDivElement>(null);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background shadow-sm">
-      <TruckDrive startRef={titleRef} endRef={langRef} />
+      <TruckDrive startRef={titleRef} endRef={controlsRef} />
       <div className="container relative flex h-14 items-center gap-2 sm:gap-4">
         <Link href="/" ref={titleRef} className="flex shrink-0 items-center gap-2 hover:opacity-90 transition-opacity">
           <img src={logoUrl} alt="Waste Connections" className="h-8 w-auto object-contain" />
@@ -424,43 +424,11 @@ export function Header() {
           <DistrictHeaderCenter />
           <EventHeaderCenter />
         </div>
-        <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-4">
+        <div ref={controlsRef} className="flex shrink-0 items-center justify-end gap-1 sm:gap-4">
           <HeaderExcludedAccountsButton />
           <HeaderHomeDistrictButton />
           <HeaderDistrictSwitcher />
-          <div ref={langRef} className="hidden sm:flex items-center space-x-1 text-sm text-muted-foreground">
-            <button 
-              onClick={() => setLanguage('en')}
-              className={`hover:text-foreground transition-colors ${language === 'en' ? 'text-foreground font-semibold' : ''}`}
-            >
-              EN
-            </button>
-            <span>|</span>
-            <button 
-              onClick={() => setLanguage('es')}
-              className={`hover:text-foreground transition-colors ${language === 'es' ? 'text-foreground font-semibold' : ''}`}
-            >
-              ES
-            </button>
-            <span>|</span>
-            <button 
-              onClick={() => setLanguage('fr')}
-              className={`hover:text-foreground transition-colors ${language === 'fr' ? 'text-foreground font-semibold' : ''}`}
-            >
-              FR
-            </button>
-          </div>
           <HeaderUserName />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
-          </Button>
           <ApiStatusDot />
         </div>
       </div>

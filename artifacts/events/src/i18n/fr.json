@@ -75,7 +75,7 @@
   },
   "profile": {
     "title": "Votre profil",
-    "description": "Modifiez le nom affiché par Route Events et le district dans lequel il s'ouvre.",
+    "description": "Modifiez le nom affiché par Route Events, le district d'ouverture et l'apparence de l'application.",
     "ad_login": "Compte Windows",
     "preferred_name": "Nom préféré",
     "preferred_name_placeholder": "ex. Kyle Patrick",
@@ -87,7 +87,13 @@
     "use_typed_district": "Utiliser le numéro de district « {{number}} »",
     "saved": "Profil enregistré",
     "error_unknown_district": "Le numéro de district « {{number}} » ne correspond à aucun district. Choisissez-en un dans la liste ou effacez-le.",
-    "error_save_failed": "Votre profil n'a pas été enregistré. Le serveur n'a pas répondu."
+    "error_save_failed": "Votre profil n'a pas été enregistré. Le serveur n'a pas répondu.",
+    "preferences": "Préférences",
+    "language": "Langue",
+    "theme": "Apparence",
+    "theme_light": "Clair",
+    "theme_dark": "Sombre",
+    "preferences_hint": "Enregistrées sur cet ordinateur dès que vous les modifiez."
   },
   "event": {
     "back": "Retour",

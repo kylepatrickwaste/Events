@@ -7,7 +7,8 @@ import {
   type District,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useI18n } from '@/i18n';
+import { useI18n, type Language } from '@/i18n';
+import { useTheme } from '@/components/theme-provider';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import {
   Dialog,
@@ -31,7 +32,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Check, ChevronsUpDown, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronsUpDown, Moon, Sun, X } from 'lucide-react';
+
+const LANGUAGES: { code: Language; label: string }[] = [
+  { code: 'en', label: 'EN' },
+  { code: 'es', label: 'ES' },
+  { code: 'fr', label: 'FR' },
+];
 
 /**
  * Picks a home district by its user-facing Number. A typed number that matches
@@ -143,7 +150,8 @@ export function UserProfileDialog({ open, onOpenChange }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { t } = useI18n();
+  const { t, language, setLanguage } = useI18n();
+  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
@@ -235,6 +243,68 @@ export function UserProfileDialog({ open, onOpenChange }: {
               onChange={setDistrictNumber}
             />
             <p className="text-xs text-muted-foreground">{t('profile.home_district_hint')}</p>
+          </div>
+
+          {/*
+            Language and theme are deliberately NOT part of the Save button: they
+            apply and persist the moment they are clicked, exactly as they did in
+            the header. Routing them through Save would mean Cancel had to undo a
+            theme the user can already see applied behind the dialog.
+          */}
+          <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+            <p className="text-sm font-medium">{t('profile.preferences')}</p>
+
+            <div className="flex items-center justify-between gap-3">
+              <Label className="font-normal">{t('profile.language')}</Label>
+              <div className="flex items-center gap-1" role="group" aria-label={t('profile.language')}>
+                {LANGUAGES.map(({ code, label }) => (
+                  <Button
+                    key={code}
+                    type="button"
+                    size="sm"
+                    variant={language === code ? 'default' : 'outline'}
+                    aria-pressed={language === code}
+                    className="h-7 w-11 px-0 text-xs"
+                    onClick={() => setLanguage(code)}
+                    data-testid={`profile-language-${code}`}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <Label className="font-normal">{t('profile.theme')}</Label>
+              <div className="flex items-center gap-1" role="group" aria-label={t('profile.theme')}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={theme === 'dark' ? 'outline' : 'default'}
+                  aria-pressed={theme !== 'dark'}
+                  className="h-7 gap-1.5 px-2.5 text-xs"
+                  onClick={() => setTheme('light')}
+                  data-testid="profile-theme-light"
+                >
+                  <Sun className="h-3.5 w-3.5" />
+                  {t('profile.theme_light')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={theme === 'dark' ? 'default' : 'outline'}
+                  aria-pressed={theme === 'dark'}
+                  className="h-7 gap-1.5 px-2.5 text-xs"
+                  onClick={() => setTheme('dark')}
+                  data-testid="profile-theme-dark"
+                >
+                  <Moon className="h-3.5 w-3.5" />
+                  {t('profile.theme_dark')}
+                </Button>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">{t('profile.preferences_hint')}</p>
           </div>
 
           {error && (

@@ -75,7 +75,7 @@
   },
   "profile": {
     "title": "Your profile",
-    "description": "Change the name Route Events shows and the district it opens into.",
+    "description": "Change the name Route Events shows, the district it opens into, and how the app looks.",
     "ad_login": "Windows account",
     "preferred_name": "Preferred name",
     "preferred_name_placeholder": "e.g. Kyle Patrick",
@@ -87,7 +87,13 @@
     "use_typed_district": "Use district number \"{{number}}\"",
     "saved": "Profile saved",
     "error_unknown_district": "District number \"{{number}}\" doesn't match any district. Pick one from the list or clear it.",
-    "error_save_failed": "Your profile wasn't saved. The server didn't respond."
+    "error_save_failed": "Your profile wasn't saved. The server didn't respond.",
+    "preferences": "Preferences",
+    "language": "Language",
+    "theme": "Appearance",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "preferences_hint": "Saved on this computer as soon as you change them."
   },
   "event": {
     "back": "Back",
