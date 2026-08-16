@@ -13,17 +13,26 @@ public sealed class CurrentUserAccessor(IConfiguration cfg, IHttpContextAccessor
     private const string Fallback = "Unknown";
 
     /// <summary>
-    /// A <c>UserName</c> key in the active appsettings overlay wins (only the
-    /// Replit and Development overlays define it); otherwise the Windows
-    /// identity, which IIS Windows Authentication populates on the real
+    /// An <c>AppSettings:UserName</c> key in the active appsettings overlay
+    /// wins (only the Replit and Development overlays define it); otherwise the
+    /// Windows identity, which IIS Windows Authentication populates on the real
     /// servers; otherwise the legacy single-user setting; otherwise a
     /// placeholder.
     /// </summary>
+    /// <remarks>
+    /// The key is deliberately nested rather than a top-level <c>UserName</c>.
+    /// ASP.NET's environment-variable provider is case-insensitive and outranks
+    /// appsettings, so a bare <c>UserName</c> is silently shadowed by Windows'
+    /// standard <c>USERNAME</c> variable — which resolves to the service or app
+    /// pool account and would beat the real authenticated user in production.
+    /// Overriding the nested key requires <c>AppSettings__UserName</c>, which
+    /// nothing sets by accident.
+    /// </remarks>
     public string ActiveDirectoryName
     {
         get
         {
-            var configured = cfg["UserName"];
+            var configured = cfg["AppSettings:UserName"];
             if (!string.IsNullOrWhiteSpace(configured)) return configured.Trim();
 
             var windows = http.HttpContext?.User.Identity?.Name;
