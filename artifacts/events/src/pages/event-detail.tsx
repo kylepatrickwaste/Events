@@ -203,17 +203,10 @@ export default function EventDetailWorkspace() {
   const previewNearby = event.nearbyEvents?.find(n => n.id === previewNearbyId) ?? null;
   const previewNearbyImages = previewNearby ? nearbyPhotos(previewNearby) : [];
 
+  // No back control on this page: the shell header's customer-name link points
+  // at this same district grid, so the page starts straight at the card.
   return (
-    <div className="container mx-auto py-3 px-4 max-w-7xl">
-      {/* The header's customer-name link goes to the same place, but it reads as
-          a title rather than a control, so give the page its own back button. */}
-      <Link
-        href={`/districts/${districtId}`}
-        className="group mb-3 -ml-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
-        {t('event.back')}
-      </Link>
+    <div className="container mx-auto pt-2 pb-3 px-4 max-w-7xl">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Image, Stats, Details */}
         <div className="lg:col-span-2 space-y-6">
