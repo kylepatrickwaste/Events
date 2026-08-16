@@ -274,13 +274,17 @@ function HeaderUserName() {
       <button
         type="button"
         aria-haspopup="dialog"
-        className="hidden md:flex min-w-0 items-center gap-1.5 rounded-md px-1 py-0.5 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        // Must stay visible at every width: this is the only way into the profile
+        // dialog, which now owns the language and theme controls. Below `md` it
+        // collapses to the icon alone rather than disappearing.
+        className="flex min-w-0 items-center gap-1.5 rounded-md px-1 py-0.5 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={t('app.signed_in_as', { name: user.activeDirectoryName })}
         title={t('app.signed_in_as', { name: user.activeDirectoryName })}
         data-testid="header-username"
         onClick={() => setProfileOpen(true)}
       >
         <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span className="truncate max-w-[9rem] font-medium">{user.userName}</span>
+        <span className="hidden md:inline truncate max-w-[9rem] font-medium">{user.userName}</span>
       </button>
 
       <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />

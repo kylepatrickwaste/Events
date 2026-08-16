@@ -36,7 +36,7 @@ export function TruckDrive({ startRef, endRef }: {
     if (!run || !coords || !truckRef.current) return;
     const el = truckRef.current;
     el.style.display = 'block';
-    const distance = coords.to - coords.from - 56; // stop as nose hits the switcher
+    const distance = coords.to - coords.from - 56; // stop as nose hits the control cluster
     const anim = el.animate(
       [
         { transform: 'translateX(0)', opacity: 0 },

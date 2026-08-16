@@ -8,3 +8,4 @@
 - [ASP.NET config key collisions](aspnet-config-key-collisions.md) — top-level `UserName`/`Path` keys are silently shadowed by Windows env vars; always nest under a section.
 - [Local API stubbing](local-api-stubbing.md) — no backend runs here; stub `/api` inside the Vite dev server, not as a background process, to verify UI writes.
 - [Task-agent merge clobber](task-agent-merge-clobber.md) — a merging task can silently revert main's edits to the same file; no conflict, clean typecheck. Re-diff after every merge.
+- [Relocating controls into a dialog](dialog-relocated-controls.md) — a moved control inherits its trigger's responsive hiding; the sole opener must never be breakpoint-hidden.
