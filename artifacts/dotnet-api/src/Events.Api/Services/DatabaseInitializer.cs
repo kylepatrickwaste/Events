@@ -17,6 +17,7 @@ public static class DatabaseInitializer
 
         await MigrateLegacySnakeCaseSchemaAsync(conn);
         await CreateTablesAsync(conn);
+        await AddMissingColumnsAsync(conn);
         await SeedLookupsAsync(conn);
         await SeedRouteEventsAsync(conn);
         await SeedEventActionsAsync(conn);
@@ -40,7 +41,8 @@ public static class DatabaseInitializer
             "Vehicle", "Route", "Latitude", "Longitude", "Address", "CustomerName",
             "AccountNumber", "BillArea", "BinSerialNumber", "Lob", "RmoStatus", "Details",
             "Stop", "WorkOrderNumber", "TabletNotes", "Quantity", "ImageUrl", "ImageUrls",
-            "Severity", "CustomerSince", "EventStatus", "DateClosed", "ClosedBy", "CustomerRoutes"
+            "Severity", "CustomerSince", "EventStatus", "DateClosed", "ClosedBy", "CustomerRoutes",
+            "FileImportId"
         }),
         ("EventActions", new[]
         {
@@ -48,7 +50,19 @@ public static class DatabaseInitializer
             "ServiceCodeId", "ChargeAmount", "ChargeQuantity", "BilledStatementNumber",
             "PaymentStatus", "BilledAmount", "CreatedBy", "DateCreated"
         }),
-        ("AccountFlags", new[] { "Id", "DistrictId", "AccountNumber", "Flag", "CreatedBy", "DateCreated" }),
+        ("AccountFlags", new[]
+        {
+            "Id", "DistrictId", "AccountNumber", "Flag", "CreatedBy", "DateCreated",
+            "Name", "EventTypeId", "EventSourceId", "Notes", "Active"
+        }),
+        // Never existed in the snake_case era, so the rename pass below is a
+        // guarded no-op for these. They are listed to keep this the single
+        // authoritative column list.
+        ("FileImports",      new[] { "Id", "FileName", "DateCreated" }),
+        ("EventEditHistory", new[]
+        {
+            "Id", "RouteEventId", "Field", "OldValue", "NewValue", "CreatedBy", "DateCreated"
+        }),
     };
 
     /// <summary>Indexes to rename, as (table, legacy name, new name).</summary>
@@ -221,17 +235,36 @@ CREATE TABLE ServiceCodes (
     Active      BIT            NOT NULL DEFAULT 1
 );");
 
+        // `Flag` is this schema's name for what the target schema calls
+        // `Reason`; the other exclusion columns below match it one for one.
+        // A NULL EventTypeId/EventSourceId means the exclusion applies to
+        // every type/source rather than being scoped to one.
         await conn.ExecuteAsync(@"
 IF OBJECT_ID('AccountFlags','U') IS NULL
 CREATE TABLE AccountFlags (
     Id            INT              IDENTITY(1,1) PRIMARY KEY,
     DistrictId    INT              NOT NULL REFERENCES Districts(Id),
     AccountNumber NVARCHAR(50)     NOT NULL,
+    Name          NVARCHAR(250)    NULL,
+    EventTypeId   INT              NULL REFERENCES EventTypes(Id),
+    EventSourceId INT              NULL REFERENCES EventSources(Id),
     Flag          NVARCHAR(100)    NOT NULL DEFAULT 'contract_no_overages',
+    Notes         NVARCHAR(500)    NULL,
+    Active        BIT              NOT NULL DEFAULT 1,
     CreatedBy     NVARCHAR(100)    NOT NULL,
     DateCreated   DATETIMEOFFSET   NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     CONSTRAINT UqAccountFlagsDistrictAccountFlag
         UNIQUE (DistrictId, AccountNumber, Flag)
+);");
+
+        // Import provenance for RouteEvents. Created before RouteEvents so the
+        // FileImportId foreign key below has something to point at.
+        await conn.ExecuteAsync(@"
+IF OBJECT_ID('FileImports','U') IS NULL
+CREATE TABLE FileImports (
+    Id          INT              IDENTITY(1,1) PRIMARY KEY,
+    FileName    NVARCHAR(255)    NOT NULL,
+    DateCreated DATETIMEOFFSET   NOT NULL DEFAULT SYSDATETIMEOFFSET()
 );");
 
         await conn.ExecuteAsync(@"
@@ -266,7 +299,8 @@ CREATE TABLE RouteEvents (
     EventStatus     INT              NOT NULL DEFAULT 0,
     DateClosed      DATETIMEOFFSET   NULL,
     ClosedBy        NVARCHAR(100)    NULL,
-    CustomerRoutes  NVARCHAR(MAX)    NOT NULL DEFAULT '[]'
+    CustomerRoutes  NVARCHAR(MAX)    NOT NULL DEFAULT '[]',
+    FileImportId    INT              NULL REFERENCES FileImports(Id)
 );");
 
         await conn.ExecuteAsync(@"
@@ -296,6 +330,24 @@ CREATE TABLE EventActions (
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='EventActionsRouteEventIdx')
     CREATE INDEX EventActionsRouteEventIdx ON EventActions(RouteEventId);");
 
+        // Per-field audit trail: one row per changed value, so a single edit
+        // that touches three fields writes three rows.
+        await conn.ExecuteAsync(@"
+IF OBJECT_ID('EventEditHistory','U') IS NULL
+CREATE TABLE EventEditHistory (
+    Id           INT              IDENTITY(1,1) PRIMARY KEY,
+    RouteEventId INT              NOT NULL REFERENCES RouteEvents(Id),
+    Field        NVARCHAR(50)     NOT NULL,
+    OldValue     NVARCHAR(500)    NULL,
+    NewValue     NVARCHAR(500)    NULL,
+    CreatedBy    NVARCHAR(100)    NOT NULL,
+    DateCreated  DATETIMEOFFSET   NOT NULL DEFAULT SYSDATETIMEOFFSET()
+);");
+
+        await conn.ExecuteAsync(@"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='EventEditHistoryRouteEventIdx')
+    CREATE INDEX EventEditHistoryRouteEventIdx ON EventEditHistory(RouteEventId);");
+
         // Users are created on first contact by AppUsersRepository, not seeded.
         // HomeDistrictNumber stores the district Number rather than a FK to
         // Districts(Id) on purpose: the seed routines below reassign identity
@@ -314,6 +366,46 @@ CREATE TABLE AppUsers (
     DateCreated         DATETIMEOFFSET   NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     CONSTRAINT UqAppUsersActiveDirectoryName UNIQUE (ActiveDirectoryName)
 );");
+    }
+
+    // ─── Column back-fill ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Columns added to tables that already exist in a deployed database.
+    /// <see cref="CreateTablesAsync"/> only runs its CREATE when the table is
+    /// absent, so a database created before these columns existed would never
+    /// pick them up without this pass. Each entry is the exact text that
+    /// follows <c>ALTER TABLE &lt;table&gt; ADD</c>.
+    /// </summary>
+    private static readonly (string Table, string Column, string Definition)[] AddedColumns =
+    {
+        ("AccountFlags", "Name",          "Name NVARCHAR(250) NULL"),
+        ("AccountFlags", "EventTypeId",   "EventTypeId INT NULL CONSTRAINT FkAccountFlagsEventType REFERENCES EventTypes(Id)"),
+        ("AccountFlags", "EventSourceId", "EventSourceId INT NULL CONSTRAINT FkAccountFlagsEventSource REFERENCES EventSources(Id)"),
+        ("AccountFlags", "Notes",         "Notes NVARCHAR(500) NULL"),
+        ("AccountFlags", "Active",        "Active BIT NOT NULL CONSTRAINT DfAccountFlagsActive DEFAULT 1"),
+        ("RouteEvents",  "FileImportId",  "FileImportId INT NULL CONSTRAINT FkRouteEventsFileImport REFERENCES FileImports(Id)"),
+    };
+
+    /// <summary>
+    /// Adds any column in <see cref="AddedColumns"/> that the live database is
+    /// missing. Idempotent: a column that is already present is skipped, so
+    /// this is a no-op on a freshly created database.
+    ///
+    /// The NOT NULL entries carry a named DEFAULT because SQL Server needs one
+    /// to back-fill existing rows; without it the ALTER fails on any table that
+    /// already holds data.
+    /// </summary>
+    private static async Task AddMissingColumnsAsync(SqlConnection conn)
+    {
+        foreach (var (table, column, definition) in AddedColumns)
+        {
+            // Identifiers cannot be parameterised, but none of these values are
+            // user input — they are the compile-time constants above.
+            await conn.ExecuteAsync($@"
+IF OBJECT_ID('dbo.{table}','U') IS NOT NULL AND COL_LENGTH('dbo.{table}','{column}') IS NULL
+    ALTER TABLE {table} ADD {definition};");
+        }
     }
 
     // ─── Lookup seed data ─────────────────────────────────────────────────────
