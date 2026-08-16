@@ -1000,7 +1000,7 @@ const NEARBY_PREVIEW_MIN_WIDTH = 320;
  * pointer never has to reach the panel, so moving between rows only swaps the
  * image inside a panel that is already open.
  */
-function NearbyPhotoPreview({ images, alt, anchorRef, rowId, onPointerEnter, onPointerLeave }: {
+function NearbyPhotoPreview({ images, alt, anchorRef, rowId, onPointerEnter, onPointerLeave, onDismiss }: {
   images: string[];
   alt: string;
   anchorRef: React.MutableRefObject<HTMLElement | null>;
