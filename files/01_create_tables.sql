@@ -13,202 +13,202 @@
 -- ============================================================
 
 -- --------------------------------------------------------
--- 1.  districts
+-- 1.  Districts
 -- --------------------------------------------------------
-IF OBJECT_ID(N'dbo.districts', N'U') IS NULL
+IF OBJECT_ID(N'dbo.Districts', N'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.districts (
-        id             INT           IDENTITY(1,1) NOT NULL,
-        number         NVARCHAR(255) NOT NULL,
-        name           NVARCHAR(255) NOT NULL,
-        region         NVARCHAR(255) NOT NULL,
-        hauling_system INT           NULL,
-        active         BIT           NOT NULL CONSTRAINT df_districts_active DEFAULT 1,
-        CONSTRAINT pk_districts PRIMARY KEY (id)
+    CREATE TABLE dbo.Districts (
+        Id             INT           IDENTITY(1,1) NOT NULL,
+        Number         NVARCHAR(255) NOT NULL,
+        Name           NVARCHAR(255) NOT NULL,
+        Region         NVARCHAR(255) NOT NULL,
+        HaulingSystem INT           NULL,
+        Active         BIT           NOT NULL CONSTRAINT DfDistrictsActive DEFAULT 1,
+        CONSTRAINT PkDistricts PRIMARY KEY (Id)
     );
 END
 GO
 
 -- --------------------------------------------------------
--- 2.  event_types
+-- 2.  EventTypes
 -- --------------------------------------------------------
-IF OBJECT_ID(N'dbo.event_types', N'U') IS NULL
+IF OBJECT_ID(N'dbo.EventTypes', N'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.event_types (
-        id     INT           IDENTITY(1,1) NOT NULL,
-        name   NVARCHAR(255) NOT NULL,
-        active BIT           NOT NULL CONSTRAINT df_event_types_active DEFAULT 1,
-        CONSTRAINT pk_event_types PRIMARY KEY (id)
+    CREATE TABLE dbo.EventTypes (
+        Id     INT           IDENTITY(1,1) NOT NULL,
+        Name   NVARCHAR(255) NOT NULL,
+        Active BIT           NOT NULL CONSTRAINT DfEventTypesActive DEFAULT 1,
+        CONSTRAINT PkEventTypes PRIMARY KEY (Id)
     );
 END
 GO
 
 -- --------------------------------------------------------
--- 3.  event_sources
+-- 3.  EventSources
 -- --------------------------------------------------------
-IF OBJECT_ID(N'dbo.event_sources', N'U') IS NULL
+IF OBJECT_ID(N'dbo.EventSources', N'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.event_sources (
-        id     INT           IDENTITY(1,1) NOT NULL,
-        name   NVARCHAR(255) NOT NULL,
-        active BIT           NOT NULL CONSTRAINT df_event_sources_active DEFAULT 1,
-        CONSTRAINT pk_event_sources PRIMARY KEY (id)
+    CREATE TABLE dbo.EventSources (
+        Id     INT           IDENTITY(1,1) NOT NULL,
+        Name   NVARCHAR(255) NOT NULL,
+        Active BIT           NOT NULL CONSTRAINT DfEventSourcesActive DEFAULT 1,
+        CONSTRAINT PkEventSources PRIMARY KEY (Id)
     );
 END
 GO
 
 -- --------------------------------------------------------
--- 4.  service_codes
+-- 4.  ServiceCodes
 -- --------------------------------------------------------
-IF OBJECT_ID(N'dbo.service_codes', N'U') IS NULL
+IF OBJECT_ID(N'dbo.ServiceCodes', N'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.service_codes (
-        id          INT            IDENTITY(1,1) NOT NULL,
-        district_id INT            NOT NULL,
-        code        NVARCHAR(255)  NOT NULL,
-        description NVARCHAR(MAX)  NOT NULL,
-        amount      DECIMAL(12, 4) NOT NULL,
-        active      BIT            NOT NULL CONSTRAINT df_service_codes_active DEFAULT 1,
-        CONSTRAINT pk_service_codes     PRIMARY KEY (id),
-        CONSTRAINT fk_service_codes_district
-            FOREIGN KEY (district_id) REFERENCES dbo.districts(id)
+    CREATE TABLE dbo.ServiceCodes (
+        Id          INT            IDENTITY(1,1) NOT NULL,
+        DistrictId INT            NOT NULL,
+        Code        NVARCHAR(255)  NOT NULL,
+        Description NVARCHAR(MAX)  NOT NULL,
+        Amount      DECIMAL(12, 4) NOT NULL,
+        Active      BIT            NOT NULL CONSTRAINT DfServiceCodesActive DEFAULT 1,
+        CONSTRAINT PkServiceCodes     PRIMARY KEY (Id),
+        CONSTRAINT FkServiceCodesDistrict
+            FOREIGN KEY (DistrictId) REFERENCES dbo.Districts(Id)
     );
 END
 GO
 
 -- --------------------------------------------------------
--- 5.  route_events
+-- 5.  RouteEvents
 -- --------------------------------------------------------
-IF OBJECT_ID(N'dbo.route_events', N'U') IS NULL
+IF OBJECT_ID(N'dbo.RouteEvents', N'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.route_events (
-        id                INT            IDENTITY(1,1) NOT NULL,
-        district_id       INT            NOT NULL,
-        event_type_id     INT            NOT NULL,
-        event_source_id   INT            NOT NULL,
-        external_id       NVARCHAR(255)  NULL,
-        date_occurred     DATETIMEOFFSET NOT NULL,
-        vehicle           NVARCHAR(255)  NOT NULL,
-        route             NVARCHAR(255)  NOT NULL,
-        latitude          FLOAT          NOT NULL,
-        longitude         FLOAT          NOT NULL,
-        address           NVARCHAR(MAX)  NOT NULL,
-        customer_name     NVARCHAR(MAX)  NOT NULL,
-        account_number    NVARCHAR(255)  NOT NULL,
-        bill_area         NVARCHAR(255)  NULL,
-        bin_serial_number NVARCHAR(255)  NULL,
-        lob               NVARCHAR(255)  NULL,
-        rmo_status        NVARCHAR(255)  NULL,
-        details           NVARCHAR(MAX)  NULL,
-        stop              NVARCHAR(255)  NULL,
-        work_order_number NVARCHAR(255)  NULL,
-        tablet_notes      NVARCHAR(MAX)  NULL,
-        quantity          DECIMAL(9, 2)  NULL,
-        image_url         NVARCHAR(MAX)  NULL,
+    CREATE TABLE dbo.RouteEvents (
+        Id                INT            IDENTITY(1,1) NOT NULL,
+        DistrictId       INT            NOT NULL,
+        EventTypeId     INT            NOT NULL,
+        EventSourceId   INT            NOT NULL,
+        ExternalId       NVARCHAR(255)  NULL,
+        DateOccurred     DATETIMEOFFSET NOT NULL,
+        Vehicle           NVARCHAR(255)  NOT NULL,
+        Route             NVARCHAR(255)  NOT NULL,
+        Latitude          FLOAT          NOT NULL,
+        Longitude         FLOAT          NOT NULL,
+        Address           NVARCHAR(MAX)  NOT NULL,
+        CustomerName     NVARCHAR(MAX)  NOT NULL,
+        AccountNumber    NVARCHAR(255)  NOT NULL,
+        BillArea         NVARCHAR(255)  NULL,
+        BinSerialNumber NVARCHAR(255)  NULL,
+        Lob               NVARCHAR(255)  NULL,
+        RmoStatus        NVARCHAR(255)  NULL,
+        Details           NVARCHAR(MAX)  NULL,
+        Stop              NVARCHAR(255)  NULL,
+        WorkOrderNumber NVARCHAR(255)  NULL,
+        TabletNotes      NVARCHAR(MAX)  NULL,
+        Quantity          DECIMAL(9, 2)  NULL,
+        ImageUrl         NVARCHAR(MAX)  NULL,
         -- JSON array of additional photo URLs; imageUrl is the primary photo
-        image_urls        NVARCHAR(MAX)  NOT NULL
-            CONSTRAINT df_route_events_image_urls    DEFAULT N'[]'
-            CONSTRAINT chk_route_events_image_urls   CHECK  (ISJSON(image_urls) = 1),
-        severity          NVARCHAR(255)  NULL,
-        customer_since    DATETIMEOFFSET NULL,
+        ImageUrls        NVARCHAR(MAX)  NOT NULL
+            CONSTRAINT DfRouteEventsImageUrls    DEFAULT N'[]'
+            CONSTRAINT ChkRouteEventsImageUrls   CHECK  (ISJSON(ImageUrls) = 1),
+        Severity          NVARCHAR(255)  NULL,
+        CustomerSince    DATETIMEOFFSET NULL,
         -- 0 = open, 1 = closed
-        event_status      INT            NOT NULL CONSTRAINT df_route_events_event_status DEFAULT 0,
-        date_closed       DATETIMEOFFSET NULL,
-        closed_by         NVARCHAR(255)  NULL,
+        EventStatus      INT            NOT NULL CONSTRAINT DfRouteEventsEventStatus DEFAULT 0,
+        DateClosed       DATETIMEOFFSET NULL,
+        ClosedBy         NVARCHAR(255)  NULL,
         -- JSON array of CustomerRouteJson objects
-        customer_routes   NVARCHAR(MAX)  NOT NULL
-            CONSTRAINT df_route_events_customer_routes  DEFAULT N'[]'
-            CONSTRAINT chk_route_events_customer_routes CHECK  (ISJSON(customer_routes) = 1),
-        CONSTRAINT pk_route_events PRIMARY KEY (id),
-        CONSTRAINT fk_route_events_district
-            FOREIGN KEY (district_id)     REFERENCES dbo.districts(id),
-        CONSTRAINT fk_route_events_event_type
-            FOREIGN KEY (event_type_id)   REFERENCES dbo.event_types(id),
-        CONSTRAINT fk_route_events_event_source
-            FOREIGN KEY (event_source_id) REFERENCES dbo.event_sources(id)
+        CustomerRoutes   NVARCHAR(MAX)  NOT NULL
+            CONSTRAINT DfRouteEventsCustomerRoutes  DEFAULT N'[]'
+            CONSTRAINT ChkRouteEventsCustomerRoutes CHECK  (ISJSON(CustomerRoutes) = 1),
+        CONSTRAINT PkRouteEvents PRIMARY KEY (Id),
+        CONSTRAINT FkRouteEventsDistrict
+            FOREIGN KEY (DistrictId)     REFERENCES dbo.Districts(Id),
+        CONSTRAINT FkRouteEventsEventType
+            FOREIGN KEY (EventTypeId)   REFERENCES dbo.EventTypes(Id),
+        CONSTRAINT FkRouteEventsEventSource
+            FOREIGN KEY (EventSourceId) REFERENCES dbo.EventSources(Id)
     );
 END
 GO
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE name = N'route_events_account_date_idx'
-      AND object_id = OBJECT_ID(N'dbo.route_events')
+    WHERE Name = N'RouteEventsAccountDateIdx'
+      AND object_id = OBJECT_ID(N'dbo.RouteEvents')
 )
 BEGIN
-    CREATE INDEX route_events_account_date_idx
-        ON dbo.route_events (account_number, date_occurred);
+    CREATE INDEX RouteEventsAccountDateIdx
+        ON dbo.RouteEvents (AccountNumber, DateOccurred);
 END
 GO
 
 -- --------------------------------------------------------
--- 6.  event_actions
+-- 6.  EventActions
 -- --------------------------------------------------------
-IF OBJECT_ID(N'dbo.event_actions', N'U') IS NULL
+IF OBJECT_ID(N'dbo.EventActions', N'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.event_actions (
-        id                      INT            IDENTITY(1,1) NOT NULL,
-        route_event_id          INT            NOT NULL,
-        action_type             NVARCHAR(255)  NOT NULL,
-        is_final                BIT            NOT NULL CONSTRAINT df_event_actions_is_final DEFAULT 0,
-        notes                   NVARCHAR(MAX)  NULL,
-        close_reason            NVARCHAR(MAX)  NULL,
-        service_code_id         INT            NULL,
-        charge_amount           DECIMAL(12, 4) NULL,
-        charge_quantity         DECIMAL(9, 2)  NULL,
-        billed_statement_number NVARCHAR(255)  NULL,
-        payment_status          NVARCHAR(255)  NULL,
-        billed_amount           DECIMAL(12, 4) NULL,
-        created_by              NVARCHAR(255)  NOT NULL,
-        date_created            DATETIMEOFFSET NOT NULL
-            CONSTRAINT df_event_actions_date_created DEFAULT SYSDATETIMEOFFSET(),
-        CONSTRAINT pk_event_actions PRIMARY KEY (id),
-        CONSTRAINT fk_event_actions_route_event
-            FOREIGN KEY (route_event_id)  REFERENCES dbo.route_events(id),
-        CONSTRAINT fk_event_actions_service_code
-            FOREIGN KEY (service_code_id) REFERENCES dbo.service_codes(id)
+    CREATE TABLE dbo.EventActions (
+        Id                      INT            IDENTITY(1,1) NOT NULL,
+        RouteEventId          INT            NOT NULL,
+        ActionType             NVARCHAR(255)  NOT NULL,
+        IsFinal                BIT            NOT NULL CONSTRAINT DfEventActionsIsFinal DEFAULT 0,
+        Notes                   NVARCHAR(MAX)  NULL,
+        CloseReason            NVARCHAR(MAX)  NULL,
+        ServiceCodeId         INT            NULL,
+        ChargeAmount           DECIMAL(12, 4) NULL,
+        ChargeQuantity         DECIMAL(9, 2)  NULL,
+        BilledStatementNumber NVARCHAR(255)  NULL,
+        PaymentStatus          NVARCHAR(255)  NULL,
+        BilledAmount           DECIMAL(12, 4) NULL,
+        CreatedBy              NVARCHAR(255)  NOT NULL,
+        DateCreated            DATETIMEOFFSET NOT NULL
+            CONSTRAINT DfEventActionsDateCreated DEFAULT SYSDATETIMEOFFSET(),
+        CONSTRAINT PkEventActions PRIMARY KEY (Id),
+        CONSTRAINT FkEventActionsRouteEvent
+            FOREIGN KEY (RouteEventId)  REFERENCES dbo.RouteEvents(Id),
+        CONSTRAINT FkEventActionsServiceCode
+            FOREIGN KEY (ServiceCodeId) REFERENCES dbo.ServiceCodes(Id)
     );
 END
 GO
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE name = N'event_actions_route_event_idx'
-      AND object_id = OBJECT_ID(N'dbo.event_actions')
+    WHERE Name = N'EventActionsRouteEventIdx'
+      AND object_id = OBJECT_ID(N'dbo.EventActions')
 )
 BEGIN
-    CREATE INDEX event_actions_route_event_idx
-        ON dbo.event_actions (route_event_id);
+    CREATE INDEX EventActionsRouteEventIdx
+        ON dbo.EventActions (RouteEventId);
 END
 GO
 
 -- --------------------------------------------------------
--- 7.  account_flags
+-- 7.  AccountFlags
 -- --------------------------------------------------------
-IF OBJECT_ID(N'dbo.account_flags', N'U') IS NULL
+IF OBJECT_ID(N'dbo.AccountFlags', N'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.account_flags (
-        id             INT            IDENTITY(1,1) NOT NULL,
-        district_id    INT            NOT NULL,
-        account_number NVARCHAR(255)  NOT NULL,
-        flag           NVARCHAR(255)  NOT NULL CONSTRAINT df_account_flags_flag DEFAULT N'contract_no_overages',
-        created_by     NVARCHAR(255)  NOT NULL,
-        date_created   DATETIMEOFFSET NOT NULL
-            CONSTRAINT df_account_flags_date_created DEFAULT SYSDATETIMEOFFSET(),
-        CONSTRAINT pk_account_flags PRIMARY KEY (id),
-        CONSTRAINT fk_account_flags_district
-            FOREIGN KEY (district_id) REFERENCES dbo.districts(id)
+    CREATE TABLE dbo.AccountFlags (
+        Id             INT            IDENTITY(1,1) NOT NULL,
+        DistrictId    INT            NOT NULL,
+        AccountNumber NVARCHAR(255)  NOT NULL,
+        Flag           NVARCHAR(255)  NOT NULL CONSTRAINT DfAccountFlagsFlag DEFAULT N'contract_no_overages',
+        CreatedBy     NVARCHAR(255)  NOT NULL,
+        DateCreated   DATETIMEOFFSET NOT NULL
+            CONSTRAINT DfAccountFlagsDateCreated DEFAULT SYSDATETIMEOFFSET(),
+        CONSTRAINT PkAccountFlags PRIMARY KEY (Id),
+        CONSTRAINT FkAccountFlagsDistrict
+            FOREIGN KEY (DistrictId) REFERENCES dbo.Districts(Id)
     );
 END
 GO
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE name = N'account_flags_district_account_flag_idx'
-      AND object_id = OBJECT_ID(N'dbo.account_flags')
+    WHERE Name = N'AccountFlagsDistrictAccountFlagIdx'
+      AND object_id = OBJECT_ID(N'dbo.AccountFlags')
 )
 BEGIN
-    CREATE UNIQUE INDEX account_flags_district_account_flag_idx
-        ON dbo.account_flags (district_id, account_number, flag);
+    CREATE UNIQUE INDEX AccountFlagsDistrictAccountFlagIdx
+        ON dbo.AccountFlags (DistrictId, AccountNumber, Flag);
 END
 GO

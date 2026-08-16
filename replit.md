@@ -32,7 +32,7 @@ auto-deploys from the GitHub `main` branch, so a push is the deploy step.
 ## Architecture decisions
 
 - **The frontend talks directly to `https://api.kpcf.us`.** `setBaseUrl()` is called once in `artifacts/events/src/main.tsx`; the generated client emits relative `/api/...` paths and that base is prepended. There is no backend in this workspace and no local fallback — if the external API is down, the app has no data.
-- Schema creation and mock seed data are handled by the .NET app's `DatabaseInitializer` on startup (idempotent). Actions ("charge", "email", "close", "note") are recorded in `event_actions`, and closing sets `event_status=1` on the event.
+- Schema creation and mock seed data are handled by the .NET app's `DatabaseInitializer` on startup (idempotent). Actions ("charge", "email", "close", "note") are recorded in `EventActions`, and closing sets `EventStatus=1` on the event. Tables and columns are PascalCase with no underscores (`RouteEvents`, `AccountFlags.AccountNumber`); the camelCase JSON contract is unchanged.
 - Maps use keyless OpenStreetMap embed iframes (no Google Maps API key).
 - Email "send" is mock: it records an action, no real email is sent.
 - Customer route overview stored as JSON on the event rather than a separate table.

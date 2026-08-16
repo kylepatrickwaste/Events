@@ -26,27 +26,25 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
 
     public async Task<List<DistrictDto>> ListDistrictsAsync()
     {
+        // Columns match DistrictDto member-for-member, so Dapper materialises
+        // the DTO directly — no dynamic row plumbing needed.
         const string sql = """
-            SELECT d.id, d.number, d.name, d.region,
-                   COUNT(re.id) AS events_count
-            FROM districts d
-            LEFT JOIN route_events re ON re.district_id = d.id
-            WHERE d.active = 1
-            GROUP BY d.id, d.number, d.name, d.region
-            ORDER BY d.number
+            SELECT d.Id, d.Number, d.Name, d.Region,
+                   COUNT(re.Id) AS EventsCount
+            FROM Districts d
+            LEFT JOIN RouteEvents re ON re.DistrictId = d.Id
+            WHERE d.Active = 1
+            GROUP BY d.Id, d.Number, d.Name, d.Region
+            ORDER BY d.Number
             """;
-        var rows = await db.QueryAsync<dynamic>(sql);
-        return rows.Select(r => new DistrictDto(
-            (int)r.id, (string)r.number, (string)r.name, (string?)r.region, (int)r.events_count
-        )).ToList();
+        return (await db.QueryAsync<DistrictDto>(sql)).ToList();
     }
 
     public async Task<DbDistrict?> GetDistrictAsync(int districtId)
     {
-        // Alias must match the DbDistrict constructor parameter name exactly:
-        // Dapper is not configured with MatchNamesWithUnderscores, so
-        // "events_count" would fail to bind to EventsCount.
-        const string sql = "SELECT id, number, name, region, active, 0 AS EventsCount FROM districts WHERE id = @id";
+        // EventsCount is not a column on Districts — this lookup only needs the
+        // district row itself, so the count is selected as a literal zero.
+        const string sql = "SELECT Id, Number, Name, Region, Active, 0 AS EventsCount FROM Districts WHERE Id = @id";
         return await db.QueryFirstOrDefaultAsync<DbDistrict>(sql, new { id = districtId });
     }
 
@@ -60,76 +58,73 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         // identically to both branches, so the counts are unchanged.
         const string countsSql = """
             SELECT
-                SUM(CASE WHEN re.event_status = 0 THEN 1 ELSE 0 END) AS open_count,
-                SUM(CASE WHEN re.event_status = 1 THEN 1 ELSE 0 END) AS closed_count
-            FROM route_events re
-            WHERE re.district_id = @districtId
+                SUM(CASE WHEN re.EventStatus = 0 THEN 1 ELSE 0 END) AS OpenCount,
+                SUM(CASE WHEN re.EventStatus = 1 THEN 1 ELSE 0 END) AS ClosedCount
+            FROM RouteEvents re
+            WHERE re.DistrictId = @districtId
               AND NOT EXISTS (
-                SELECT 1 FROM account_flags af
-                WHERE af.district_id = re.district_id AND af.account_number = re.account_number AND af.flag = 'contract_no_overages'
+                SELECT 1 FROM AccountFlags af
+                WHERE af.DistrictId = re.DistrictId AND af.AccountNumber = re.AccountNumber AND af.Flag = 'contract_no_overages'
               )
             """;
         var counts = await db.QueryFirstAsync<dynamic>(countsSql, new { districtId });
 
         const string chargesSql = """
             SELECT
-                SUM(CASE WHEN ea.action_type = 'charge' AND CAST(ea.date_created AS DATE) = CAST(GETUTCDATE() AS DATE) THEN 1 ELSE 0 END) AS charged_today,
-                ISNULL(SUM(CASE WHEN ea.action_type = 'charge' THEN ea.charge_amount * ISNULL(ea.charge_quantity, 1) ELSE 0 END), 0) AS total_charged
-            FROM event_actions ea
-            INNER JOIN route_events re ON re.id = ea.route_event_id
-            WHERE re.district_id = @districtId
+                SUM(CASE WHEN ea.ActionType = 'charge' AND CAST(ea.DateCreated AS DATE) = CAST(GETUTCDATE() AS DATE) THEN 1 ELSE 0 END) AS ChargedToday,
+                ISNULL(SUM(CASE WHEN ea.ActionType = 'charge' THEN ea.ChargeAmount * ISNULL(ea.ChargeQuantity, 1) ELSE 0 END), 0) AS TotalCharged
+            FROM EventActions ea
+            INNER JOIN RouteEvents re ON re.Id = ea.RouteEventId
+            WHERE re.DistrictId = @districtId
               AND NOT EXISTS (
-                SELECT 1 FROM account_flags af
-                WHERE af.district_id = re.district_id AND af.account_number = re.account_number AND af.flag = 'contract_no_overages'
+                SELECT 1 FROM AccountFlags af
+                WHERE af.DistrictId = re.DistrictId AND af.AccountNumber = re.AccountNumber AND af.Flag = 'contract_no_overages'
               )
             """;
         var charges = await db.QueryFirstAsync<dynamic>(chargesSql, new { districtId });
 
         const string byTypeSql = """
-            SELECT et.id AS event_type_id, et.name AS event_type_name,
-                   SUM(CASE WHEN re.event_status = 0 THEN 1 ELSE 0 END) AS open_count
-            FROM route_events re
-            INNER JOIN event_types et ON et.id = re.event_type_id
-            WHERE re.district_id = @districtId
+            SELECT et.Id AS EventTypeId, et.Name AS EventTypeName,
+                   SUM(CASE WHEN re.EventStatus = 0 THEN 1 ELSE 0 END) AS OpenCount
+            FROM RouteEvents re
+            INNER JOIN EventTypes et ON et.Id = re.EventTypeId
+            WHERE re.DistrictId = @districtId
               AND NOT EXISTS (
-                SELECT 1 FROM account_flags af
-                WHERE af.district_id = re.district_id AND af.account_number = re.account_number AND af.flag = 'contract_no_overages'
+                SELECT 1 FROM AccountFlags af
+                WHERE af.DistrictId = re.DistrictId AND af.AccountNumber = re.AccountNumber AND af.Flag = 'contract_no_overages'
               )
-            GROUP BY et.id, et.name
-            ORDER BY et.name
+            GROUP BY et.Id, et.Name
+            ORDER BY et.Name
             """;
         var byType = (await db.QueryAsync<dynamic>(byTypeSql, new { districtId })).ToList();
 
         return new DistrictSummaryDto(
             DistrictId: districtId,
-            OpenCount: (int)(counts.open_count ?? 0),
-            ClosedCount: (int)(counts.closed_count ?? 0),
-            ChargedToday: (decimal)(charges.charged_today ?? 0),
-            TotalChargedAmount: (decimal)(charges.total_charged ?? 0),
+            OpenCount: (int)(counts.OpenCount ?? 0),
+            ClosedCount: (int)(counts.ClosedCount ?? 0),
+            ChargedToday: (decimal)(charges.ChargedToday ?? 0),
+            TotalChargedAmount: (decimal)(charges.TotalCharged ?? 0),
             ByEventType: byType.Select(r => new EventTypeSummaryDto(
-                (int)r.event_type_id, (string)r.event_type_name, (int)r.open_count)).ToList()
+                (int)r.EventTypeId, (string)r.EventTypeName, (int)r.OpenCount)).ToList()
         );
     }
 
     public async Task<List<ServiceCodeDto>> ListServiceCodesAsync(int districtId)
     {
         const string sql = """
-            SELECT id, district_id, code, description, amount FROM service_codes
-            WHERE district_id = @districtId AND active = 1
-            ORDER BY code
+            SELECT Id, DistrictId, Code, Description, Amount FROM ServiceCodes
+            WHERE DistrictId = @districtId AND Active = 1
+            ORDER BY Code
             """;
-        var rows = await db.QueryAsync<dynamic>(sql, new { districtId });
-        return rows.Select(r => new ServiceCodeDto(
-            (int)r.id, (int)r.district_id, (string)r.code, (string)r.description, (decimal)r.amount
-        )).ToList();
+        return (await db.QueryAsync<ServiceCodeDto>(sql, new { districtId })).ToList();
     }
 
     public async Task<List<AccountFlagDto>> ListAccountFlagsAsync(int districtId)
     {
         const string sql = """
-            SELECT id, district_id, account_number, flag, created_by, date_created
-            FROM account_flags WHERE district_id = @districtId
-            ORDER BY date_created DESC
+            SELECT Id, DistrictId, AccountNumber, Flag, CreatedBy, DateCreated
+            FROM AccountFlags WHERE DistrictId = @districtId
+            ORDER BY DateCreated DESC
             """;
         var rows = await db.QueryAsync<dynamic>(sql, new { districtId });
         return rows.Select(SerializeFlag).ToList();
@@ -138,27 +133,26 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
     public async Task<AccountFlagDto?> DeleteAccountFlagAsync(int flagId)
     {
         const string sql = """
-            DELETE FROM account_flags
-            OUTPUT DELETED.id, DELETED.district_id, DELETED.account_number,
-                   DELETED.flag, DELETED.created_by, DELETED.date_created
-            WHERE id = @flagId
+            DELETE FROM AccountFlags
+            OUTPUT DELETED.Id, DELETED.DistrictId, DELETED.AccountNumber,
+                   DELETED.Flag, DELETED.CreatedBy, DELETED.DateCreated
+            WHERE Id = @flagId
             """;
         var row = await db.QueryFirstOrDefaultAsync<dynamic>(sql, new { flagId });
         return row is null ? null : SerializeFlag(row);
     }
 
     private static AccountFlagDto SerializeFlag(dynamic r) =>
-        new((int)r.id, (int)r.district_id, (string)r.account_number,
-            (string)r.flag, (string)r.created_by,
-            ((DateTimeOffset)r.date_created).ToString("O"));
+        new((int)r.Id, (int)r.DistrictId, (string)r.AccountNumber,
+            (string)r.Flag, (string)r.CreatedBy,
+            ((DateTimeOffset)r.DateCreated).ToString("O"));
 
     // ─── Event Types ──────────────────────────────────────────────────────────
 
     public async Task<List<EventTypeDto>> ListEventTypesAsync()
     {
-        const string sql = "SELECT id, name FROM event_types WHERE active = 1 ORDER BY name";
-        var rows = await db.QueryAsync<dynamic>(sql);
-        return rows.Select(r => new EventTypeDto((int)r.id, (string)r.name)).ToList();
+        const string sql = "SELECT Id, Name FROM EventTypes WHERE Active = 1 ORDER BY Name";
+        return (await db.QueryAsync<EventTypeDto>(sql)).ToList();
     }
 
     // ─── Events list ──────────────────────────────────────────────────────────
@@ -168,56 +162,55 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         string? severity, string? search)
     {
         const string notFlagged =
-            "NOT EXISTS (SELECT 1 FROM account_flags af" +
-            " WHERE af.district_id = re.district_id AND af.account_number = re.account_number AND af.flag = 'contract_no_overages')";
+            "NOT EXISTS (SELECT 1 FROM AccountFlags af" +
+            " WHERE af.DistrictId = re.DistrictId AND af.AccountNumber = re.AccountNumber AND af.Flag = 'contract_no_overages')";
 
         var conditions = new List<string>
         {
-            "re.district_id = @districtId",
+            "re.DistrictId = @districtId",
             notFlagged
         };
 
         if (status == "open" || status is null)
-            conditions.Add("re.event_status = 0");
+            conditions.Add("re.EventStatus = 0");
         else if (status == "closed")
-            conditions.Add("re.event_status = 1");
+            conditions.Add("re.EventStatus = 1");
 
         if (eventTypeId.HasValue)
-            conditions.Add("re.event_type_id = @eventTypeId");
+            conditions.Add("re.EventTypeId = @eventTypeId");
 
         if (!string.IsNullOrEmpty(severity) && severity != "all")
-            conditions.Add("LOWER(re.severity) = @severity");
+            conditions.Add("LOWER(re.Severity) = @severity");
 
         if (!string.IsNullOrEmpty(search))
-            conditions.Add("(re.customer_name LIKE @search OR re.address LIKE @search" +
-                " OR re.account_number LIKE @search OR re.route LIKE @search OR re.vehicle LIKE @search)");
+            conditions.Add("(re.CustomerName LIKE @search OR re.Address LIKE @search" +
+                " OR re.AccountNumber LIKE @search OR re.Route LIKE @search OR re.Vehicle LIKE @search)");
 
         var where = string.Join(" AND ", conditions);
         var sql = $"""
             SELECT re.*,
-                   re.image_urls AS image_urls_json,
-                   et.name AS event_type_name,
-                   es.name AS event_source_name,
-                   (SELECT SUM(ea.charge_amount * ISNULL(ea.charge_quantity, 1))
-                    FROM event_actions ea
-                    WHERE ea.route_event_id = re.id AND ea.action_type = 'charge') AS charged_amount,
+                   et.Name AS EventTypeName,
+                   es.Name AS EventSourceName,
+                   (SELECT SUM(ea.ChargeAmount * ISNULL(ea.ChargeQuantity, 1))
+                    FROM EventActions ea
+                    WHERE ea.RouteEventId = re.Id AND ea.ActionType = 'charge') AS ChargedAmount,
                    (SELECT COUNT(*)
-                    FROM event_actions ea
-                    JOIN route_events re2 ON re2.id = ea.route_event_id
-                    WHERE re2.account_number = re.account_number
-                      AND ea.action_type = 'charge'
-                      AND re2.date_occurred < re.date_occurred) AS prev_charge_count,
-                   (SELECT ISNULL(SUM(ea.charge_amount * ISNULL(ea.charge_quantity, 1)), 0)
-                    FROM event_actions ea
-                    JOIN route_events re2 ON re2.id = ea.route_event_id
-                    WHERE re2.account_number = re.account_number
-                      AND ea.action_type = 'charge'
-                      AND re2.date_occurred < re.date_occurred) AS prev_charge_total
-            FROM route_events re
-            INNER JOIN event_types et ON et.id = re.event_type_id
-            INNER JOIN event_sources es ON es.id = re.event_source_id
+                    FROM EventActions ea
+                    JOIN RouteEvents re2 ON re2.Id = ea.RouteEventId
+                    WHERE re2.AccountNumber = re.AccountNumber
+                      AND ea.ActionType = 'charge'
+                      AND re2.DateOccurred < re.DateOccurred) AS PrevChargeCount,
+                   (SELECT ISNULL(SUM(ea.ChargeAmount * ISNULL(ea.ChargeQuantity, 1)), 0)
+                    FROM EventActions ea
+                    JOIN RouteEvents re2 ON re2.Id = ea.RouteEventId
+                    WHERE re2.AccountNumber = re.AccountNumber
+                      AND ea.ActionType = 'charge'
+                      AND re2.DateOccurred < re.DateOccurred) AS PrevChargeTotal
+            FROM RouteEvents re
+            INNER JOIN EventTypes et ON et.Id = re.EventTypeId
+            INNER JOIN EventSources es ON es.Id = re.EventSourceId
             WHERE {where}
-            ORDER BY re.date_occurred DESC
+            ORDER BY re.DateOccurred DESC
             """;
 
         var p = new DynamicParameters();
@@ -230,47 +223,47 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         return rows.Select(r => (RouteEventListItemDto)MapListItem((dynamic)r)).ToList();
     }
 
-    private static RouteEventListItemDto MapListItem(dynamic r,
-        decimal? chargedAmount = null, int? prevChargeCount = null, decimal? prevChargeTotal = null)
+    private static RouteEventListItemDto MapListItem(dynamic r)
     {
-        var images = ParseJsonArray((string?)r.image_urls_json);
-        var primaryImage = (string?)r.image_url;
+        // ImageUrls is stored as a JSON array string; ImageUrl is the primary photo.
+        var images = ParseJsonArray((string?)r.ImageUrls);
+        var primaryImage = (string?)r.ImageUrl;
         var allImages = new List<string>();
         if (!string.IsNullOrEmpty(primaryImage)) allImages.Add(primaryImage);
         allImages.AddRange(images);
         allImages = allImages.Distinct().ToList();
 
         decimal? chgAmt = null;
-        try { chgAmt = r.charged_amount is not null ? (decimal?)Convert.ToDecimal(r.charged_amount) : null; } catch { }
+        try { chgAmt = r.ChargedAmount is not null ? (decimal?)Convert.ToDecimal(r.ChargedAmount) : null; } catch { }
 
         return new RouteEventListItemDto
         {
-            Id = (int)r.id,
-            DistrictId = (int)r.district_id,
-            EventTypeId = (int)r.event_type_id,
-            EventTypeName = (string)(r.event_type_name ?? ""),
-            EventSourceName = (string)(r.event_source_name ?? ""),
-            DateOccurred = ((DateTimeOffset)r.date_occurred).ToString("O"),
-            Vehicle = (string)(r.vehicle ?? ""),
-            Route = (string)(r.route ?? ""),
-            CustomerName = (string)(r.customer_name ?? ""),
-            AccountNumber = (string)(r.account_number ?? ""),
-            Address = (string)(r.address ?? ""),
-            Quantity = r.quantity is not null ? (decimal?)Convert.ToDecimal(r.quantity) : null,
-            BinSerialNumber = (string?)r.bin_serial_number,
-            Lob = (string?)r.lob,
-            Stop = (string?)r.stop,
-            WorkOrderNumber = (string?)r.work_order_number,
-            TabletNotes = (string?)r.tablet_notes,
+            Id = (int)r.Id,
+            DistrictId = (int)r.DistrictId,
+            EventTypeId = (int)r.EventTypeId,
+            EventTypeName = (string)(r.EventTypeName ?? ""),
+            EventSourceName = (string)(r.EventSourceName ?? ""),
+            DateOccurred = ((DateTimeOffset)r.DateOccurred).ToString("O"),
+            Vehicle = (string)(r.Vehicle ?? ""),
+            Route = (string)(r.Route ?? ""),
+            CustomerName = (string)(r.CustomerName ?? ""),
+            AccountNumber = (string)(r.AccountNumber ?? ""),
+            Address = (string)(r.Address ?? ""),
+            Quantity = r.Quantity is not null ? (decimal?)Convert.ToDecimal(r.Quantity) : null,
+            BinSerialNumber = (string?)r.BinSerialNumber,
+            Lob = (string?)r.Lob,
+            Stop = (string?)r.Stop,
+            WorkOrderNumber = (string?)r.WorkOrderNumber,
+            TabletNotes = (string?)r.TabletNotes,
             ChargedAmount = chgAmt,
-            PrevChargeCount = r.prev_charge_count is not null ? Convert.ToInt32(r.prev_charge_count) : 0,
-            PrevChargeTotal = r.prev_charge_total is not null ? Convert.ToDecimal(r.prev_charge_total) : 0,
+            PrevChargeCount = r.PrevChargeCount is not null ? Convert.ToInt32(r.PrevChargeCount) : 0,
+            PrevChargeTotal = r.PrevChargeTotal is not null ? Convert.ToDecimal(r.PrevChargeTotal) : 0,
             ImageUrl = primaryImage,
             ImageUrls = allImages,
-            Severity = (string?)r.severity,
-            EventStatus = (int)r.event_status,
-            DateClosed = r.date_closed is not null ? ((DateTimeOffset)r.date_closed).ToString("O") : null,
-            ClosedBy = (string?)r.closed_by,
+            Severity = (string?)r.Severity,
+            EventStatus = (int)r.EventStatus,
+            DateClosed = r.DateClosed is not null ? ((DateTimeOffset)r.DateClosed).ToString("O") : null,
+            ClosedBy = (string?)r.ClosedBy,
         };
     }
 
@@ -286,20 +279,20 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
     public async Task<RouteEventDetailDto?> GetEventDetailAsync(int eventId)
     {
         const string eventSql = """
-            SELECT re.*, re.image_urls AS image_urls_json,
-                   et.name AS event_type_name, es.name AS event_source_name,
-                   d.number AS district_number
-            FROM route_events re
-            INNER JOIN event_types et ON et.id = re.event_type_id
-            INNER JOIN event_sources es ON es.id = re.event_source_id
-            INNER JOIN districts d ON d.id = re.district_id
-            WHERE re.id = @eventId
+            SELECT re.*,
+                   et.Name AS EventTypeName, es.Name AS EventSourceName,
+                   d.Number AS DistrictNumber
+            FROM RouteEvents re
+            INNER JOIN EventTypes et ON et.Id = re.EventTypeId
+            INNER JOIN EventSources es ON es.Id = re.EventSourceId
+            INNER JOIN Districts d ON d.Id = re.DistrictId
+            WHERE re.Id = @eventId
             """;
         var row = await db.QueryFirstOrDefaultAsync<dynamic>(eventSql, new { eventId });
         if (row is null) return null;
 
         const string actionsSql = """
-            SELECT * FROM event_actions WHERE route_event_id = @eventId ORDER BY date_created DESC
+            SELECT * FROM EventActions WHERE RouteEventId = @eventId ORDER BY DateCreated DESC
             """;
         var actionRows = await db.QueryAsync<dynamic>(actionsSql, new { eventId });
         var actions = actionRows.Select(SerializeAction).ToList();
@@ -307,34 +300,34 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         // Statistics
         var now = DateTimeOffset.UtcNow;
         var cutoff90 = now.AddDays(-90);
-        var accountNumber = (string)row.account_number;
-        var districtId = (int)row.district_id;
+        var accountNumber = (string)row.AccountNumber;
+        var districtId = (int)row.DistrictId;
 
         const string accountChargesSql = """
-            SELECT ea.id, ea.date_created, ea.charge_amount, ea.charge_quantity, ea.payment_status
-            FROM event_actions ea
-            INNER JOIN route_events re ON re.id = ea.route_event_id
-            WHERE re.account_number = @accountNumber AND re.district_id = @districtId
-              AND ea.action_type = 'charge' AND ea.date_created >= @cutoff90
-            ORDER BY ea.date_created DESC
+            SELECT ea.Id, ea.DateCreated, ea.ChargeAmount, ea.ChargeQuantity, ea.PaymentStatus
+            FROM EventActions ea
+            INNER JOIN RouteEvents re ON re.Id = ea.RouteEventId
+            WHERE re.AccountNumber = @accountNumber AND re.DistrictId = @districtId
+              AND ea.ActionType = 'charge' AND ea.DateCreated >= @cutoff90
+            ORDER BY ea.DateCreated DESC
             """;
         var accountCharges = (await db.QueryAsync<dynamic>(
             accountChargesSql, new { accountNumber, districtId, cutoff90 })).ToList();
 
         const string recentChargesSql = """
-            SELECT TOP 3 ea.id, ea.date_created, ea.charge_amount, ea.charge_quantity, ea.payment_status
-            FROM event_actions ea
-            INNER JOIN route_events re ON re.id = ea.route_event_id
-            WHERE re.account_number = @accountNumber AND re.district_id = @districtId
-              AND ea.action_type = 'charge'
-            ORDER BY ea.date_created DESC
+            SELECT TOP 3 ea.Id, ea.DateCreated, ea.ChargeAmount, ea.ChargeQuantity, ea.PaymentStatus
+            FROM EventActions ea
+            INNER JOIN RouteEvents re ON re.Id = ea.RouteEventId
+            WHERE re.AccountNumber = @accountNumber AND re.DistrictId = @districtId
+              AND ea.ActionType = 'charge'
+            ORDER BY ea.DateCreated DESC
             """;
         var recentCharges = (await db.QueryAsync<dynamic>(
             recentChargesSql, new { accountNumber, districtId })).ToList();
 
         const string eventDatesSql = """
-            SELECT date_occurred FROM route_events
-            WHERE account_number = @accountNumber AND district_id = @districtId AND date_occurred >= @cutoff90
+            SELECT DateOccurred FROM RouteEvents
+            WHERE AccountNumber = @accountNumber AND DistrictId = @districtId AND DateOccurred >= @cutoff90
             """;
         var eventDates = (await db.QueryAsync<DateTimeOffset>(
             eventDatesSql, new { accountNumber, districtId, cutoff90 })).ToList();
@@ -342,9 +335,9 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         var windows = new[] { 30, 60, 90 }.Select(days =>
         {
             var cutoff = now.AddDays(-days);
-            var inWindow = accountCharges.Where(c => (DateTimeOffset)c.date_created >= cutoff).ToList();
-            var paid = inWindow.Where(c => (string?)c.payment_status == "PAID").ToList();
-            var refunded = inWindow.Where(c => (string?)c.payment_status == "REFUNDED").ToList();
+            var inWindow = accountCharges.Where(c => (DateTimeOffset)c.DateCreated >= cutoff).ToList();
+            var paid = inWindow.Where(c => (string?)c.PaymentStatus == "PAID").ToList();
+            var refunded = inWindow.Where(c => (string?)c.PaymentStatus == "REFUNDED").ToList();
             // Enumerable.Sum must not be used over dynamic rows: the lambda's
             // return type is dynamic, so the overload is picked at runtime and
             // binds to the int version, throwing on a decimal. Accumulate into
@@ -354,8 +347,8 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
                 decimal total = 0m;
                 foreach (var c in rows)
                 {
-                    decimal amount = Convert.ToDecimal(c.charge_amount ?? 0m);
-                    decimal quantity = Convert.ToDecimal(c.charge_quantity ?? 1m);
+                    decimal amount = Convert.ToDecimal(c.ChargeAmount ?? 0m);
+                    decimal quantity = Convert.ToDecimal(c.ChargeQuantity ?? 1m);
                     total += amount * quantity;
                 }
                 return total;
@@ -370,10 +363,10 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
                 NetPaid: Sum(paid) - Sum(refunded));
         }).ToList();
 
-        DateTimeOffset? customerSince = row.customer_since is not null ? (DateTimeOffset?)row.customer_since : null;
+        DateTimeOffset? customerSince = row.CustomerSince is not null ? (DateTimeOffset?)row.CustomerSince : null;
         int? tenureMonths = customerSince.HasValue ? MonthsBetween(customerSince.Value, now) : null;
         string? lastChargeDate = recentCharges.Count > 0
-            ? ((DateTimeOffset)recentCharges[0].date_created).ToString("O") : null;
+            ? ((DateTimeOffset)recentCharges[0].DateCreated).ToString("O") : null;
 
         var statistics = new EventStatisticsDto(
             TenureMonths: tenureMonths,
@@ -382,30 +375,30 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
             Windows: windows);
 
         var lastCharges = recentCharges.Select(c => new LastChargeDto(
-            Id: (int)c.id,
-            DateCreated: ((DateTimeOffset)c.date_created).ToString("O"),
-            Amount: Convert.ToDecimal(c.charge_amount ?? 0m) * Convert.ToDecimal(c.charge_quantity ?? 1m),
-            PaymentStatus: (string?)c.payment_status)).ToList();
+            Id: (int)c.Id,
+            DateCreated: ((DateTimeOffset)c.DateCreated).ToString("O"),
+            Amount: Convert.ToDecimal(c.ChargeAmount ?? 0m) * Convert.ToDecimal(c.ChargeQuantity ?? 1m),
+            PaymentStatus: (string?)c.PaymentStatus)).ToList();
 
         // Nearby events
-        var anchorLat = (double)row.latitude;
-        var anchorLon = (double)row.longitude;
-        var anchorDate = (DateTimeOffset)row.date_occurred;
+        var anchorLat = (double)row.Latitude;
+        var anchorLon = (double)row.Longitude;
+        var anchorDate = (DateTimeOffset)row.DateOccurred;
         var windowMs = TimeSpan.FromMinutes(_settings.NearbyWindowMinutes);
         var dateFrom = anchorDate - windowMs;
         var dateTo = anchorDate + windowMs;
-        var distId = (int)row.district_id;
-        var eId = (int)row.id;
+        var distId = (int)row.DistrictId;
+        var eId = (int)row.Id;
 
         var nearbyRows = await QueryNearbyRowsAsync(eId, distId, anchorLat, anchorLon, dateFrom, dateTo);
 
-        var nearbyIds = nearbyRows.Select(n => n.id).ToList();
+        var nearbyIds = nearbyRows.Select(n => n.Id).ToList();
         HashSet<int> chargedNearbyIds = [];
         if (nearbyIds.Count > 0)
         {
             var chargeActSql = $"""
-                SELECT route_event_id FROM event_actions
-                WHERE route_event_id IN ({string.Join(",", nearbyIds)}) AND action_type = 'charge'
+                SELECT RouteEventId FROM EventActions
+                WHERE RouteEventId IN ({string.Join(",", nearbyIds)}) AND ActionType = 'charge'
                 """;
             var chargeIds = await db.QueryAsync<int>(chargeActSql);
             chargedNearbyIds = [.. chargeIds];
@@ -413,28 +406,28 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
 
         var nearbyEvents = nearbyRows.Select(n =>
         {
-            var offsetMs = (n.date_occurred - anchorDate).TotalSeconds;
-            var isSuggestedDup = n.event_status == 0
-                && n.distance_meters <= _settings.SuggestedDuplicateRadiusMeters
+            var offsetMs = (n.DateOccurred - anchorDate).TotalSeconds;
+            var isSuggestedDup = n.EventStatus == 0
+                && n.DistanceMeters <= _settings.SuggestedDuplicateRadiusMeters
                 && Math.Abs(offsetMs) <= _settings.SuggestedDuplicateWindowMinutes * 60;
-            string status = n.event_status == 0 ? "Open"
-                : chargedNearbyIds.Contains(n.id) ? "Charged" : "Dismissed";
+            string status = n.EventStatus == 0 ? "Open"
+                : chargedNearbyIds.Contains(n.Id) ? "Charged" : "Dismissed";
             return new NearbyEventDto(
-                Id: n.id, ImageUrl: n.image_url,
-                DateOccurred: ((DateTimeOffset)n.date_occurred).ToString("O"),
+                Id: n.Id, ImageUrl: n.ImageUrl,
+                DateOccurred: ((DateTimeOffset)n.DateOccurred).ToString("O"),
                 SecondsOffset: (int)offsetMs,
-                EventStatus: n.event_status, Status: status,
-                DistanceMeters: (int)Math.Round(n.distance_meters),
+                EventStatus: n.EventStatus, Status: status,
+                DistanceMeters: (int)Math.Round(n.DistanceMeters),
                 IsSuggestedDuplicate: isSuggestedDup,
-                EventSourceName: n.event_source_name ?? "",
-                Address: n.address ?? "", CustomerName: n.customer_name ?? "",
-                AccountNumber: n.account_number ?? "",
-                BinSerialNumber: n.bin_serial_number,
-                Vehicle: n.vehicle ?? "");
+                EventSourceName: n.EventSourceName ?? "",
+                Address: n.Address ?? "", CustomerName: n.CustomerName ?? "",
+                AccountNumber: n.AccountNumber ?? "",
+                BinSerialNumber: n.BinSerialNumber,
+                Vehicle: n.Vehicle ?? "");
         }).ToList();
 
-        var districtNumber = (string)row.district_number;
-        var externalId = (string?)row.external_id;
+        var districtNumber = (string)row.DistrictNumber;
+        var externalId = (string?)row.ExternalId;
         var baseItem = MapListItem(row);
 
         return new RouteEventDetailDto
@@ -453,13 +446,13 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
             Severity = baseItem.Severity, EventStatus = baseItem.EventStatus,
             DateClosed = baseItem.DateClosed, ClosedBy = baseItem.ClosedBy,
             ExternalId = externalId,
-            BillArea = (string?)row.bill_area,
-            RmoStatus = (string?)row.rmo_status,
-            Details = (string?)row.details,
-            Latitude = (double)row.latitude,
-            Longitude = (double)row.longitude,
-            Routes = row.customer_routes is not null
-                ? JsonSerializer.Deserialize<object>((string)row.customer_routes)
+            BillArea = (string?)row.BillArea,
+            RmoStatus = (string?)row.RmoStatus,
+            Details = (string?)row.Details,
+            Latitude = (double)row.Latitude,
+            Longitude = (double)row.Longitude,
+            Routes = row.CustomerRoutes is not null
+                ? JsonSerializer.Deserialize<object>((string)row.CustomerRoutes)
                 : null,
             Actions = actions,
             Statistics = statistics,
@@ -467,7 +460,7 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
             LastCharges = lastCharges,
             ShareLinks = new ShareLinksDto(
                 Event: $"https://events.wcnx.org/{districtNumber}/events/{eId}",
-                Photo: $"https://events.wcnx.org/{districtNumber}/imageproxy?url={Uri.EscapeDataString(row.image_url ?? "")}",
+                Photo: $"https://events.wcnx.org/{districtNumber}/imageproxy?url={Uri.EscapeDataString(row.ImageUrl ?? "")}",
                 Source: $"https://monitor.wastevision.ai/Media/Details?mediaId={externalId ?? eId.ToString()}")
         };
     }
@@ -481,37 +474,37 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         // columns). Computing the distance once in a CTE lets the outer query
         // filter on the alias in WHERE.
         var sql = $"""
-            WITH nearby AS (
+            WITH Nearby AS (
                 SELECT
-                    re.id, re.image_url, re.date_occurred, re.event_status,
-                    re.address, re.customer_name, re.account_number, re.bin_serial_number, re.vehicle,
-                    es.name AS event_source_name,
+                    re.Id, re.ImageUrl, re.DateOccurred, re.EventStatus,
+                    re.Address, re.CustomerName, re.AccountNumber, re.BinSerialNumber, re.Vehicle,
+                    es.Name AS EventSourceName,
                     (2 * 6371000 * ATN2(
                         SQRT(
-                            POWER(SIN(RADIANS(re.latitude - @anchorLat) / 2), 2)
-                            + COS(RADIANS(@anchorLat)) * COS(RADIANS(re.latitude))
-                            * POWER(SIN(RADIANS(re.longitude - @anchorLon) / 2), 2)
+                            POWER(SIN(RADIANS(re.Latitude - @anchorLat) / 2), 2)
+                            + COS(RADIANS(@anchorLat)) * COS(RADIANS(re.Latitude))
+                            * POWER(SIN(RADIANS(re.Longitude - @anchorLon) / 2), 2)
                         ),
                         SQRT(1 - (
-                            POWER(SIN(RADIANS(re.latitude - @anchorLat) / 2), 2)
-                            + COS(RADIANS(@anchorLat)) * COS(RADIANS(re.latitude))
-                            * POWER(SIN(RADIANS(re.longitude - @anchorLon) / 2), 2)
+                            POWER(SIN(RADIANS(re.Latitude - @anchorLat) / 2), 2)
+                            + COS(RADIANS(@anchorLat)) * COS(RADIANS(re.Latitude))
+                            * POWER(SIN(RADIANS(re.Longitude - @anchorLon) / 2), 2)
                         ))
-                    )) AS distance_meters
-                FROM route_events re
-                INNER JOIN event_sources es ON es.id = re.event_source_id
-                WHERE re.district_id = @districtId
-                  AND re.id <> @excludeId
-                  AND re.date_occurred >= @dateFrom
-                  AND re.date_occurred <= @dateTo
+                    )) AS DistanceMeters
+                FROM RouteEvents re
+                INNER JOIN EventSources es ON es.Id = re.EventSourceId
+                WHERE re.DistrictId = @districtId
+                  AND re.Id <> @excludeId
+                  AND re.DateOccurred >= @dateFrom
+                  AND re.DateOccurred <= @dateTo
             )
             SELECT TOP {_settings.NearbyMaxResults}
-                id, image_url, date_occurred, event_status,
-                address, customer_name, account_number, bin_serial_number, vehicle,
-                event_source_name, distance_meters
-            FROM nearby
-            WHERE distance_meters <= @radiusMeters
-            ORDER BY distance_meters ASC, date_occurred ASC
+                Id, ImageUrl, DateOccurred, EventStatus,
+                Address, CustomerName, AccountNumber, BinSerialNumber, Vehicle,
+                EventSourceName, DistanceMeters
+            FROM Nearby
+            WHERE DistanceMeters <= @radiusMeters
+            ORDER BY DistanceMeters ASC, DateOccurred ASC
             """;
         var result = await db.QueryAsync<dynamic>(sql, new
         {
@@ -529,7 +522,7 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         if (evt is null) return null;
 
         const string sql = """
-            INSERT INTO event_actions (route_event_id, action_type, is_final, notes, created_by, date_created)
+            INSERT INTO EventActions (RouteEventId, ActionType, IsFinal, Notes, CreatedBy, DateCreated)
             OUTPUT INSERTED.*
             VALUES (@routeEventId, 'note', 0, @notes, @createdBy, GETUTCDATE())
             """;
@@ -548,14 +541,14 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         // Validate duplicates are nearby
         if (duplicateEventIds.Count > 0)
         {
-            var anchorLat = (double)evt.latitude;
-            var anchorLon = (double)evt.longitude;
-            var anchorDate = (DateTimeOffset)evt.date_occurred;
+            var anchorLat = (double)evt.Latitude;
+            var anchorLon = (double)evt.Longitude;
+            var anchorDate = (DateTimeOffset)evt.DateOccurred;
             var windowMs = TimeSpan.FromMinutes(_settings.NearbyWindowMinutes);
             var nearby = await QueryNearbyRowsAsync(
-                eventId, (int)evt.district_id, anchorLat, anchorLon,
+                eventId, (int)evt.DistrictId, anchorLat, anchorLon,
                 anchorDate - windowMs, anchorDate + windowMs);
-            var nearbySet = nearby.Select(n => (int)n.id).ToHashSet();
+            var nearbySet = nearby.Select(n => (int)n.Id).ToHashSet();
             if (!duplicateEventIds.All(id => nearbySet.Contains(id)))
                 return (null, "duplicateEventIds must be nearby overages of this event");
         }
@@ -566,21 +559,21 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         {
             // Check contract flag
             const string flagSql = """
-                SELECT TOP 1 id FROM account_flags
-                WHERE district_id = @districtId AND account_number = @accountNumber AND flag = 'contract_no_overages'
+                SELECT TOP 1 Id FROM AccountFlags
+                WHERE DistrictId = @districtId AND AccountNumber = @accountNumber AND Flag = 'contract_no_overages'
                 """;
             var flag = await db.QueryFirstOrDefaultAsync<int?>(flagSql,
-                new { districtId = (int)evt.district_id, accountNumber = (string)evt.account_number }, tx);
+                new { districtId = (int)evt.DistrictId, accountNumber = (string)evt.AccountNumber }, tx);
             if (flag.HasValue) return (null, "flagged");
 
             // Re-check open status with lock
-            const string lockSql = "SELECT event_status FROM route_events WITH (UPDLOCK, HOLDLOCK) WHERE id = @id";
+            const string lockSql = "SELECT EventStatus FROM RouteEvents WITH (UPDLOCK, HOLDLOCK) WHERE Id = @id";
             var currentStatus = await db.QueryFirstOrDefaultAsync<int?>(lockSql, new { id = eventId }, tx);
             if (currentStatus is null || currentStatus != 0) return (null, "closed");
 
             const string insertSql = """
-                INSERT INTO event_actions
-                    (route_event_id, action_type, is_final, service_code_id, charge_amount, charge_quantity, created_by, date_created)
+                INSERT INTO EventActions
+                    (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, CreatedBy, DateCreated)
                 OUTPUT INSERTED.*
                 VALUES (@routeEventId, 'charge', @isFinal, @serviceCodeId, @chargeAmount, @chargeQuantity, @createdBy, GETUTCDATE())
                 """;
@@ -594,7 +587,7 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
             if (!keepOpen)
             {
                 await db.ExecuteAsync(
-                    "UPDATE route_events SET event_status=1, date_closed=GETUTCDATE(), closed_by=@by WHERE id=@id",
+                    "UPDATE RouteEvents SET EventStatus=1, DateClosed=GETUTCDATE(), ClosedBy=@by WHERE Id=@id",
                     new { by = CurrentUser, id = eventId }, tx);
             }
 
@@ -617,7 +610,7 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         if (evt is null) return null;
         var notes = $"{toType}: {to} — {subject}{(body is not null ? $" — {body}" : "")}";
         const string sql = """
-            INSERT INTO event_actions (route_event_id, action_type, is_final, notes, created_by, date_created)
+            INSERT INTO EventActions (RouteEventId, ActionType, IsFinal, Notes, CreatedBy, DateCreated)
             OUTPUT INSERTED.*
             VALUES (@routeEventId, 'email', 0, @notes, @createdBy, GETUTCDATE())
             """;
@@ -634,14 +627,14 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
 
         if (duplicateIds.Count > 0)
         {
-            var anchorLat = (double)evt.latitude;
-            var anchorLon = (double)evt.longitude;
-            var anchorDate = (DateTimeOffset)evt.date_occurred;
+            var anchorLat = (double)evt.Latitude;
+            var anchorLon = (double)evt.Longitude;
+            var anchorDate = (DateTimeOffset)evt.DateOccurred;
             var windowMs = TimeSpan.FromMinutes(_settings.NearbyWindowMinutes);
             var nearby = await QueryNearbyRowsAsync(
-                eventId, (int)evt.district_id, anchorLat, anchorLon,
+                eventId, (int)evt.DistrictId, anchorLat, anchorLon,
                 anchorDate - windowMs, anchorDate + windowMs);
-            var nearbySet = nearby.Select(n => (int)n.id).ToHashSet();
+            var nearbySet = nearby.Select(n => (int)n.Id).ToHashSet();
             if (!duplicateIds.All(id => nearbySet.Contains(id)))
                 return (null, "duplicateEventIds must be nearby overages of this event");
         }
@@ -651,16 +644,16 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         try
         {
             const string closeSql = """
-                UPDATE route_events SET event_status=1, date_closed=GETUTCDATE(), closed_by=@by
-                OUTPUT INSERTED.id
-                WHERE id=@id AND event_status=0
+                UPDATE RouteEvents SET EventStatus=1, DateClosed=GETUTCDATE(), ClosedBy=@by
+                OUTPUT INSERTED.Id
+                WHERE Id=@id AND EventStatus=0
                 """;
             var closedId = await db.QueryFirstOrDefaultAsync<int?>(closeSql,
                 new { by = CurrentUser, id = eventId }, tx);
             if (!closedId.HasValue) { tx.Rollback(); return (null, "closed"); }
 
             const string actionSql = """
-                INSERT INTO event_actions (route_event_id, action_type, is_final, close_reason, notes, created_by, date_created)
+                INSERT INTO EventActions (RouteEventId, ActionType, IsFinal, CloseReason, Notes, CreatedBy, DateCreated)
                 OUTPUT INSERTED.*
                 VALUES (@routeEventId, 'close', 1, @closeReason, @notes, @createdBy, GETUTCDATE())
                 """;
@@ -670,7 +663,7 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
             }, tx);
 
             if (closeReason == ContractCloseReason)
-                await FlagAccountAsync((int)evt.district_id, (string)evt.account_number, tx);
+                await FlagAccountAsync((int)evt.DistrictId, (string)evt.AccountNumber, tx);
 
             if (duplicateIds.Count > 0)
                 await CloseDuplicatesAsync(duplicateIds, "Duplicate", $"Dismissed as duplicate of closed event #{eventId}", tx);
@@ -691,9 +684,9 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         if (uniqueIds.Count == 0) return new BulkCloseResponse(0, 0);
 
         var inClause = string.Join(",", uniqueIds);
-        var targetsSql = $"SELECT id, district_id, account_number FROM route_events WHERE id IN ({inClause})";
+        var targetsSql = $"SELECT Id, DistrictId, AccountNumber FROM RouteEvents WHERE Id IN ({inClause})";
         var targets = (await db.QueryAsync<dynamic>(targetsSql)).ToList();
-        var districts = targets.Select(t => (int)t.district_id).Distinct().ToList();
+        var districts = targets.Select(t => (int)t.DistrictId).Distinct().ToList();
         if (districts.Count > 1) throw new InvalidOperationException("All events must belong to the same district");
 
         if (db.State != ConnectionState.Open) db.Open();
@@ -701,9 +694,9 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
         try
         {
             var closeSql = $"""
-                UPDATE route_events SET event_status=1, date_closed=GETUTCDATE(), closed_by=@by
-                OUTPUT INSERTED.id
-                WHERE id IN ({inClause}) AND event_status=0
+                UPDATE RouteEvents SET EventStatus=1, DateClosed=GETUTCDATE(), ClosedBy=@by
+                OUTPUT INSERTED.Id
+                WHERE Id IN ({inClause}) AND EventStatus=0
                 """;
             var closedIds = (await db.QueryAsync<int>(closeSql, new { by = CurrentUser }, tx)).ToList();
 
@@ -715,18 +708,18 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
                 for (int i = 0; i < closedIds.Count; i++) p.Add($"rid{i}", closedIds[i]);
                 p.Add("reason", closeReason); p.Add("notes", notes); p.Add("by", CurrentUser);
                 await db.ExecuteAsync(
-                    $"INSERT INTO event_actions (route_event_id,action_type,is_final,close_reason,notes,created_by,date_created) VALUES {actionValues}", p, tx);
+                    $"INSERT INTO EventActions (RouteEventId,ActionType,IsFinal,CloseReason,Notes,CreatedBy,DateCreated) VALUES {actionValues}", p, tx);
 
                 if (closeReason == ContractCloseReason)
                 {
                     var closedSet = closedIds.ToHashSet();
                     var toFlag = targets
-                        .Where(t => closedSet.Contains((int)t.id))
-                        .GroupBy(t => $"{t.district_id}:{t.account_number}")
+                        .Where(t => closedSet.Contains((int)t.Id))
+                        .GroupBy(t => $"{t.DistrictId}:{t.AccountNumber}")
                         .Select(g => g.First())
                         .ToList();
                     foreach (var t in toFlag)
-                        await FlagAccountAsync((int)t.district_id, (string)t.account_number, tx);
+                        await FlagAccountAsync((int)t.DistrictId, (string)t.AccountNumber, tx);
                 }
             }
             tx.Commit();
@@ -739,7 +732,7 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
 
     private async Task<dynamic?> GetOpenEventAsync(int eventId)
     {
-        const string sql = "SELECT * FROM route_events WHERE id = @id";
+        const string sql = "SELECT * FROM RouteEvents WHERE Id = @id";
         return await db.QueryFirstOrDefaultAsync<dynamic>(sql, new { id = eventId });
     }
 
@@ -747,9 +740,9 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
     {
         var inClause = string.Join(",", ids);
         var closeSql = $"""
-            UPDATE route_events SET event_status=1, date_closed=GETUTCDATE(), closed_by=@by
-            OUTPUT INSERTED.id
-            WHERE id IN ({inClause}) AND event_status=0
+            UPDATE RouteEvents SET EventStatus=1, DateClosed=GETUTCDATE(), ClosedBy=@by
+            OUTPUT INSERTED.Id
+            WHERE Id IN ({inClause}) AND EventStatus=0
             """;
         var closedIds = (await db.QueryAsync<int>(closeSql, new { by = CurrentUser }, tx)).ToList();
         if (closedIds.Count > 0)
@@ -760,7 +753,7 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
             for (int i = 0; i < closedIds.Count; i++) p.Add($"did{i}", closedIds[i]);
             p.Add("reason", reason); p.Add("notes", notes); p.Add("by", CurrentUser);
             await db.ExecuteAsync(
-                $"INSERT INTO event_actions (route_event_id,action_type,is_final,close_reason,notes,created_by,date_created) VALUES {vals}", p, tx);
+                $"INSERT INTO EventActions (RouteEventId,ActionType,IsFinal,CloseReason,Notes,CreatedBy,DateCreated) VALUES {vals}", p, tx);
         }
     }
 
@@ -768,24 +761,24 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg)
     {
         const string sql = """
             IF NOT EXISTS (
-                SELECT 1 FROM account_flags WHERE district_id=@did AND account_number=@acct AND flag='contract_no_overages'
+                SELECT 1 FROM AccountFlags WHERE DistrictId=@did AND AccountNumber=@acct AND Flag='contract_no_overages'
             )
-            INSERT INTO account_flags (district_id, account_number, flag, created_by, date_created)
+            INSERT INTO AccountFlags (DistrictId, AccountNumber, Flag, CreatedBy, DateCreated)
             VALUES (@did, @acct, 'contract_no_overages', @by, GETUTCDATE())
             """;
         await db.ExecuteAsync(sql, new { did = districtId, acct = accountNumber, by = CurrentUser }, tx);
     }
 
     private static EventActionDto SerializeAction(dynamic a) => new(
-        Id: (int)a.id, RouteEventId: (int)a.route_event_id,
-        ActionType: (string)a.action_type, IsFinal: (bool)a.is_final,
-        Notes: (string?)a.notes, CloseReason: (string?)a.close_reason,
-        ServiceCodeId: (int?)a.service_code_id,
-        ChargeAmount: a.charge_amount is not null ? (decimal?)Convert.ToDecimal(a.charge_amount) : null,
-        ChargeQuantity: a.charge_quantity is not null ? (decimal?)Convert.ToDecimal(a.charge_quantity) : null,
-        PaymentStatus: (string?)a.payment_status,
-        CreatedBy: (string)a.created_by,
-        DateCreated: ((DateTimeOffset)a.date_created).ToString("O"));
+        Id: (int)a.Id, RouteEventId: (int)a.RouteEventId,
+        ActionType: (string)a.ActionType, IsFinal: (bool)a.IsFinal,
+        Notes: (string?)a.Notes, CloseReason: (string?)a.CloseReason,
+        ServiceCodeId: (int?)a.ServiceCodeId,
+        ChargeAmount: a.ChargeAmount is not null ? (decimal?)Convert.ToDecimal(a.ChargeAmount) : null,
+        ChargeQuantity: a.ChargeQuantity is not null ? (decimal?)Convert.ToDecimal(a.ChargeQuantity) : null,
+        PaymentStatus: (string?)a.PaymentStatus,
+        CreatedBy: (string)a.CreatedBy,
+        DateCreated: ((DateTimeOffset)a.DateCreated).ToString("O"));
 
     private static int MonthsBetween(DateTimeOffset from, DateTimeOffset to) =>
         Math.Max(0, (to.Year - from.Year) * 12 + (to.Month - from.Month));

@@ -65,9 +65,11 @@ All routes prefixed with `/api`.
 
 Tables are created and seeded idempotently on startup by `src/Events.Api/Services/DatabaseInitializer.cs`, which is now the authoritative schema definition. Key tables:
 
-- `districts`
-- `event_types` / `event_sources`
-- `route_events`
-- `event_actions`
-- `service_codes`
-- `account_flags`
+- `Districts`
+- `EventTypes` / `EventSources`
+- `RouteEvents`
+- `EventActions`
+- `ServiceCodes`
+- `AccountFlags`
+
+Tables and columns are PascalCase with no underscores (`RouteEvents.DateOccurred`, `AccountFlags.AccountNumber`), matching the names used in the C# code. The JSON contract is unaffected: DTOs are serialized to camelCase as before.
