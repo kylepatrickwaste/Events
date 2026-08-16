@@ -39,7 +39,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-const OPTIONAL_COLUMNS: Array<{ key: SortColumn; label: string }> = [
+type ColumnDef = {
+  key: SortColumn;
+  /** Always set: it names the column for sorting and for assistive tech. */
+  label: string;
+  /** Marks-only columns carry their meaning in the cells, not in a heading. */
+  hideLabel?: boolean;
+};
+
+const OPTIONAL_COLUMNS: ColumnDef[] = [
   { key: 'qty', label: 'Qty' },
   { key: 'binSerial', label: 'Serial#' },
   { key: 'stop', label: 'Stop' },
@@ -52,12 +60,13 @@ const OPTIONAL_COLUMNS: Array<{ key: SortColumn; label: string }> = [
   { key: 'prevTotal', label: 'Prev. Total' },
 ];
 
-const BASE_COLUMNS: Array<{ key: SortColumn; label: string }> = [
-  { key: 'status', label: 'Status' },
+const BASE_COLUMNS: ColumnDef[] = [
   { key: 'customer', label: 'Customer' },
-  { key: 'type', label: 'Type / Source' },
+  // Status, type and vendor share one cell of marks, so a heading would only
+  // name a third of what is under it.
+  { key: 'type', label: 'Status / Type / Source', hideLabel: true },
   { key: 'severity', label: 'Severity' },
-  { key: 'date', label: 'Date Occurred' },
+  { key: 'date', label: 'Event Time' },
   { key: 'route', label: 'Vehicle' },
 ];
 const ALL_COLUMNS = [...BASE_COLUMNS, ...OPTIONAL_COLUMNS];
@@ -68,7 +77,7 @@ const ALL_COLUMNS = [...BASE_COLUMNS, ...OPTIONAL_COLUMNS];
  */
 const DEFAULT_COL_ORDER: SortColumn[] = [
   'customer', 'address', 'date',
-  'status', 'type', 'severity', 'route',
+  'type', 'severity', 'route',
   'qty', 'binSerial', 'stop', 'wo', 'lob', 'tabletNotes', 'chgAmt', 'prevChg', 'prevTotal',
 ];
 const BASE_KEYS = new Set<string>(BASE_COLUMNS.map(c => c.key));
@@ -170,8 +179,9 @@ const SEVERITY_RANK: Record<string, number> = { severe: 2, minimal: 1 };
 const severityRank = (s: string | null | undefined) =>
   s ? (SEVERITY_RANK[s.toLowerCase()] ?? 0) : 0;
 
-function SortHeader({ label, column, sortColumn, sortDirection, onSort }: {
+function SortHeader({ label, hideLabel, column, sortColumn, sortDirection, onSort }: {
   label: string;
+  hideLabel?: boolean;
   column: SortColumn;
   sortColumn: SortColumn | null;
   sortDirection: 'asc' | 'desc';
@@ -189,7 +199,7 @@ function SortHeader({ label, column, sortColumn, sortDirection, onSort }: {
         active ? 'text-foreground' : 'text-muted-foreground'
       )}
     >
-      {label}
+      {hideLabel ? <span className="sr-only">{label}</span> : label}
       {active ? (
         sortDirection === 'asc'
           ? <ArrowUp className="h-3 w-3 shrink-0" />
@@ -746,7 +756,7 @@ export default function DistrictWorkspace() {
                   >
                     <div className="flex items-center gap-0.5">
                       <GripVertical className="h-3 w-3 opacity-25 shrink-0" />
-                      <SortHeader label={col.label} column={key} sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortHeader label={col.label} hideLabel={col.hideLabel} column={key} sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
                     </div>
                   </th>
                 );
@@ -789,15 +799,9 @@ export default function DistrictWorkspace() {
               const renderCell = (key: SortColumn, event: NonNullable<typeof events>[number]) => {
                 switch (key) {
                   case 'status':
-                    return (
-                      <td key={key} className="px-2 py-1">
-                        <EventStatusGlyph
-                          open={event.eventStatus === 0}
-                          openLabel={t('event.status_open')}
-                          closedLabel={t('event.status_closed')}
-                        />
-                      </td>
-                    );
+                    // Folded into the marks cell; it is no longer a column of its
+                    // own, but a layout saved before that can still name it.
+                    return null;
                   case 'customer':
                     return (
                       <td key={key} className="px-2 py-1 min-w-[140px]">
@@ -809,6 +813,11 @@ export default function DistrictWorkspace() {
                     return (
                       <td key={key} className="px-2 py-1">
                         <div className="flex items-center gap-1.5">
+                          <EventStatusGlyph
+                            open={event.eventStatus === 0}
+                            openLabel={t('event.status_open')}
+                            closedLabel={t('event.status_closed')}
+                          />
                           <EventTypeGlyph name={event.eventTypeName} />
                           <EventSourceGlyph name={event.eventSourceName} />
                         </div>
@@ -837,7 +846,10 @@ export default function DistrictWorkspace() {
                   case 'date':
                     return (
                       <td key={key} className="px-2 py-1 whitespace-nowrap">
-                        <div className="text-xs text-muted-foreground">{formatDate(event.dateOccurred)}</div>
+                        <div className="text-xs">{formatDate(event.dateOccurred, { hour: undefined, minute: undefined })}</div>
+                        <div className="text-xs text-muted-foreground font-mono">
+                          {formatDate(event.dateOccurred, { year: undefined, month: undefined, day: undefined })}
+                        </div>
                       </td>
                     );
                   case 'route':
