@@ -32,6 +32,8 @@ auto-deploys from the GitHub `main` branch, so a push is the deploy step.
 ## Architecture decisions
 
 - **The frontend talks directly to `https://api.kpcf.us`.** `setBaseUrl()` is called once in `artifacts/events/src/main.tsx`; the generated client emits relative `/api/...` paths and that base is prepended. There is no backend in this workspace and no local fallback — if the external API is down, the app has no data.
+- **SQL Server is the only database.** Nothing in this workspace provisions or connects to a database directly; the .NET app owns that connection.
+- **Reachability is centralised in `ServerStatusProvider`** (`artifacts/events/src/hooks/use-server-status.tsx`), which polls `GET /api/healthz` and treats a network failure or non-OK response as "down". `ApiUnreachableDialog` (rendered from `Shell`) blocks the UI while it is down and closes itself when a check succeeds; the header dot and the build number read from the same context. Pages distinguish `isError` from an empty result via `components/load-error.tsx`, and every mutation has an `onError` toast.
 - Schema creation and mock seed data are handled by the .NET app's `DatabaseInitializer` on startup (idempotent). Actions ("charge", "email", "close", "note") are recorded in `EventActions`, and closing sets `EventStatus=1` on the event. Tables and columns are PascalCase with no underscores (`RouteEvents`, `AccountFlags.AccountNumber`); the camelCase JSON contract is unchanged.
 - Maps use keyless OpenStreetMap embed iframes (no Google Maps API key).
 - Email "send" is mock: it records an action, no real email is sent.
@@ -61,8 +63,9 @@ _Describe the high-level user-facing capabilities of this app once they exist._
   `Services/BuildInfo.cs`; the csproj copies the file next to the assembly.
   Adding a field here means updating `lib/api-spec/openapi.yaml` and re-running
   `@workspace/api-spec codegen`.
-- **The online/offline dot only reflects which base URL is configured**, not
-  whether the server is actually reachable — a dead API still shows green.
+- **The online/offline dot is driven by the polled health check**, so it goes red
+  the moment `GET /api/healthz` fails and the blocking "can't reach the server"
+  dialog appears alongside it. Do not re-derive it from the configured base URL.
 
 ## Pointers
 

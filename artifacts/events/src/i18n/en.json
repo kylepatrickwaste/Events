@@ -6,7 +6,8 @@
     "search_districts": "Search districts...",
     "no_districts_found": "No districts found.",
     "last_district": "Taking you to your last district…",
-    "view_all_districts": "View all districts"
+    "view_all_districts": "View all districts",
+    "districts_load_failed": "Districts couldn't be loaded — the server didn't respond."
   },
   "nav": {
     "home": "Home",
@@ -55,7 +56,8 @@
     "group_hint": "Drag a column header here to group by it",
     "clear_group": "Clear grouping",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "events_load_failed": "Events couldn't be loaded — the server didn't respond. This is not an empty queue."
   },
   "event": {
     "back": "Back",
@@ -130,7 +132,9 @@
     "latitude": "Latitude",
     "longitude": "Longitude",
     "location": "Location",
-    "no_location": "No coordinates recorded for this event"
+    "no_location": "No coordinates recorded for this event",
+    "load_failed": "This event couldn't be loaded — the server didn't respond.",
+    "note_failed": "The note wasn't saved. The server didn't respond."
   },
   "nearby_picker": {
     "label": "Nearby duplicates — check to dismiss with this action",
@@ -153,7 +157,8 @@
     "status_refunded": "REFUNDED",
     "status_pending": "PENDING",
     "custom_amount": "Custom charge amount",
-    "custom_amount_placeholder": "Enter a custom amount..."
+    "custom_amount_placeholder": "Enter a custom amount...",
+    "failed": "The charge wasn't applied. The server didn't respond."
   },
   "email": {
     "title": "Send Email",
@@ -169,7 +174,8 @@
       "billing": "Billing",
       "customer_service": "Customer Service",
       "operations": "Operations"
-    }
+    },
+    "failed": "The email wasn't sent. The server didn't respond."
   },
   "close": {
     "title": "Close Event",
@@ -187,12 +193,14 @@
       "duplicate": "Duplicate",
       "contract_no_overages": "Contract - No Overages Can Be Charged"
     },
-    "dismiss_these": "Dismiss these when closing"
+    "dismiss_these": "Dismiss these when closing",
+    "failed": "The event wasn't closed. The server didn't respond."
   },
   "bulk_close": {
     "title": "Close selected events",
     "description": "Close {{count}} selected events with a shared reason.",
-    "success": "{{count}} events closed"
+    "success": "{{count}} events closed",
+    "failed": "The selected events weren't closed. The server didn't respond."
   },
   "preview": {
     "close": "Close",
@@ -209,5 +217,15 @@
     "removed": "Flag removed — events for account {{account}} are back in the queue",
     "remove_failed": "Could not remove the flag. Please try again.",
     "button": "Excluded Accounts"
+  },
+  "connection": {
+    "unreachable_title": "Can't reach the server",
+    "unreachable_description": "Route Events can't reach the server right now, so events can't be loaded or updated. The server may be down, or your network may be blocking it.",
+    "unreachable_hint": "We keep checking automatically — this message disappears as soon as the server answers.",
+    "retry": "Try again",
+    "checking": "Checking…",
+    "online": "Server reachable",
+    "offline": "Server unreachable",
+    "load_failed": "This couldn't be loaded — the server didn't respond."
   }
 }

@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { LoadError } from '@/components/load-error';
 import { Undo2 } from 'lucide-react';
 
 export function ContractAccountsDialog({ open, onOpenChange, districtId, onUnflagged }: {
@@ -22,7 +23,7 @@ export function ContractAccountsDialog({ open, onOpenChange, districtId, onUnfla
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: flags, isLoading } = useListDistrictAccountFlags(districtId, {
+  const { data: flags, isLoading, isError, refetch } = useListDistrictAccountFlags(districtId, {
     query: { enabled: open && !!districtId, queryKey: getListDistrictAccountFlagsQueryKey(districtId) },
   });
 
@@ -53,6 +54,9 @@ export function ContractAccountsDialog({ open, onOpenChange, districtId, onUnfla
           <div className="space-y-3">
             {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}
           </div>
+        ) : isError ? (
+          // A failed request must not read as "no excluded accounts".
+          <LoadError onRetry={() => void refetch()} />
         ) : !flags || flags.length === 0 ? (
           <div className="py-10 text-center text-muted-foreground">
             <p>{t('contract_accounts.empty')}</p>

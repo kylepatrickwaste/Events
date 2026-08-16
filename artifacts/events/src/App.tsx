@@ -5,6 +5,7 @@ import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { I18nProvider } from '@/i18n';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Shell } from '@/components/layout/Shell';
+import { ServerStatusProvider } from '@/hooks/use-server-status';
 
 import Home from '@/pages/home';
 import DistrictWorkspace from '@/pages/district-workspace';
@@ -31,12 +32,14 @@ function App() {
     <ThemeProvider defaultTheme="light" storageKey="app-theme">
       <I18nProvider>
         <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-              <Router />
-            </WouterRouter>
-            <Toaster />
-          </TooltipProvider>
+          <ServerStatusProvider>
+            <TooltipProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+                <Router />
+              </WouterRouter>
+              <Toaster />
+            </TooltipProvider>
+          </ServerStatusProvider>
         </QueryClientProvider>
       </I18nProvider>
     </ThemeProvider>

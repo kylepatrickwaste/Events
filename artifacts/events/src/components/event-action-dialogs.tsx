@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NearbyClusterPicker, suggestedDuplicateIds } from '@/components/nearby-cluster-picker';
+import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -65,6 +66,7 @@ export function CloseEventDialog({ open, onOpenChange, eventId, onSuccess, initi
   initialCheckedNearby?: number[];
 }) {
   const { t } = useI18n();
+  const { toast } = useToast();
   const closeMutation = useCloseEvent();
   const [checkedNearby, setCheckedNearby] = useState<Set<number>>(new Set());
   const [preChecked, setPreChecked] = useState(false);
@@ -115,6 +117,9 @@ export function CloseEventDialog({ open, onOpenChange, eventId, onSuccess, initi
           setCheckedNearby(new Set());
           onSuccess();
         },
+        onError: () => {
+          toast({ variant: 'destructive', description: t('close.failed') });
+        },
       },
     );
   };
@@ -154,6 +159,7 @@ export function BulkCloseDialog({ open, onOpenChange, eventIds, onSuccess }: {
   onSuccess: (closedCount: number) => void;
 }) {
   const { t } = useI18n();
+  const { toast } = useToast();
   const bulkClose = useBulkCloseEvents();
 
   const form = useForm({
@@ -168,6 +174,9 @@ export function BulkCloseDialog({ open, onOpenChange, eventIds, onSuccess }: {
         onSuccess: (result) => {
           form.reset();
           onSuccess(result.closedCount);
+        },
+        onError: () => {
+          toast({ variant: 'destructive', description: t('bulk_close.failed') });
         },
       },
     );
@@ -211,6 +220,7 @@ export function ChargeEventDialog({ open, onOpenChange, eventId, serviceCodes, o
   initialCheckedNearby?: number[];
 }) {
   const { t } = useI18n();
+  const { toast } = useToast();
   const charge = useChargeEvent();
   const [checkedNearby, setCheckedNearby] = useState<Set<number>>(new Set());
   const [preChecked, setPreChecked] = useState(false);
@@ -266,6 +276,9 @@ export function ChargeEventDialog({ open, onOpenChange, eventId, serviceCodes, o
         form.reset();
         setCheckedNearby(new Set());
         onSuccess();
+      },
+      onError: () => {
+        toast({ variant: 'destructive', description: t('charge.failed') });
       },
     });
   };

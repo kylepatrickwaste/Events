@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { MapPin, Search, DoorOpen } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LoadError } from '@/components/load-error';
 
 export const LAST_DISTRICT_KEY = 'last-district-id';
 
@@ -29,7 +30,7 @@ export default function Home() {
     }
   }, [shouldRedirect, lastDistrictId, setLocation]);
 
-  const { data: districts, isLoading } = useListDistricts({
+  const { data: districts, isLoading, isError, refetch } = useListDistricts({
     query: { queryKey: getListDistrictsQueryKey(), enabled: !shouldRedirect }
   });
 
@@ -79,6 +80,11 @@ export default function Home() {
           {[1,2,3,4,5,6,7,8].map(i => (
             <Skeleton key={i} className="h-24 w-full rounded-xl" />
           ))}
+        </div>
+      ) : isError ? (
+        // A failed request is not an empty district list — say so explicitly.
+        <div className="bg-muted/30 rounded-xl border border-dashed">
+          <LoadError message={t('app.districts_load_failed')} onRetry={() => void refetch()} />
         </div>
       ) : filteredDistricts.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-xl border border-dashed">

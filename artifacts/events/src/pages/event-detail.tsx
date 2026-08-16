@@ -42,6 +42,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { NearbyClusterPicker, suggestedDuplicateIds } from '@/components/nearby-cluster-picker';
+import { LoadError } from '@/components/load-error';
 
 export default function EventDetailWorkspace() {
   const [, params] = useRoute('/districts/:districtId/events/:eventId');
@@ -52,7 +53,7 @@ export default function EventDetailWorkspace() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: event, isLoading } = useGetEvent(eventId, {
+  const { data: event, isLoading, isError, refetch } = useGetEvent(eventId, {
     query: { enabled: !!eventId, queryKey: getGetEventQueryKey(eventId) }
   });
 
@@ -104,7 +105,26 @@ export default function EventDetailWorkspace() {
   if (isLoading) {
     return <div className="container mx-auto p-6 max-w-7xl"><Skeleton className="h-[800px] w-full" /></div>;
   }
-  if (!event) return null;
+  if (isError || !event) {
+    // Previously this rendered nothing, so a failed request looked like a blank
+    // page. Say what happened and offer a way back.
+    return (
+      <div className="container mx-auto p-6 max-w-3xl">
+        <div className="rounded-xl border border-dashed bg-muted/30">
+          <LoadError message={t('event.load_failed')} onRetry={() => void refetch()} />
+        </div>
+        <div className="mt-4 text-center">
+          <Link
+            href={`/districts/${districtId}`}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            {t('event.back')}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const images = event.imageUrls?.length ? event.imageUrls : (event.imageUrl ? [event.imageUrl] : []);
   const displayImage = hoveredImage || selectedImage || images[0];
@@ -472,6 +492,7 @@ function DetailRow({ label, value, icon, mono }: { label: string, value: React.R
 
 function NoteForm({ eventId, onSuccess }: { eventId: number, onSuccess: () => void }) {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [notes, setNotes] = useState('');
   const addNote = useAddEventNote();
 
@@ -481,6 +502,9 @@ function NoteForm({ eventId, onSuccess }: { eventId: number, onSuccess: () => vo
       onSuccess: () => {
         setNotes('');
         onSuccess();
+      },
+      onError: () => {
+        toast({ variant: 'destructive', description: t('event.note_failed') });
       }
     });
   };
@@ -511,6 +535,7 @@ const chargeSchema = z.object({
 
 function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSuccess }: any) {
   const { t, formatCurrency, formatDate } = useI18n();
+  const { toast } = useToast();
   const charge = useChargeEvent();
   const [selectedCodeAmount, setSelectedCodeAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState('');
@@ -562,6 +587,9 @@ function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSucc
     charge.mutate({ eventId, data: { ...data, duplicateEventIds: Array.from(checkedNearby) } }, {
       onSuccess: () => {
         onSuccess();
+      },
+      onError: () => {
+        toast({ variant: 'destructive', description: t('charge.failed') });
       }
     });
   };
@@ -676,6 +704,7 @@ const emailSchema = z.object({
 
 function EmailDialog({ open, onOpenChange, eventId, event, onSuccess }: any) {
   const { t } = useI18n();
+  const { toast } = useToast();
   const email = useEmailEvent();
   
   const form = useForm({
@@ -694,6 +723,9 @@ function EmailDialog({ open, onOpenChange, eventId, event, onSuccess }: any) {
       onSuccess: () => {
         form.reset();
         onSuccess();
+      },
+      onError: () => {
+        toast({ variant: 'destructive', description: t('email.failed') });
       }
     });
   };
@@ -773,6 +805,7 @@ const closeSchema = z.object({
 
 function CloseDialog({ open, onOpenChange, eventId, event, checkedNearby, onSuccess }: any) {
   const { t } = useI18n();
+  const { toast } = useToast();
   const closeMutation = useCloseEvent();
   const [checkedDuplicates, setCheckedDuplicates] = useState<Set<number>>(new Set());
 
@@ -806,6 +839,9 @@ function CloseDialog({ open, onOpenChange, eventId, event, checkedNearby, onSucc
     closeMutation.mutate({ eventId, data: { ...data, duplicateEventIds: Array.from(checkedDuplicates) } }, {
       onSuccess: () => {
         onSuccess();
+      },
+      onError: () => {
+        toast({ variant: 'destructive', description: t('close.failed') });
       }
     });
   };

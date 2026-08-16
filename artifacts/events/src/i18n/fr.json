@@ -6,7 +6,8 @@
     "search_districts": "Rechercher des districts...",
     "no_districts_found": "Aucun district trouvé.",
     "last_district": "Redirection vers votre dernier district…",
-    "view_all_districts": "Voir tous les districts"
+    "view_all_districts": "Voir tous les districts",
+    "districts_load_failed": "Impossible de charger les districts : le serveur n'a pas répondu."
   },
   "nav": {
     "home": "Accueil",
@@ -55,7 +56,8 @@
     "group_hint": "Faites glisser un en-tête de colonne ici pour grouper",
     "clear_group": "Supprimer le regroupement",
     "save": "Enregistrer",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "events_load_failed": "Impossible de charger les événements : le serveur n'a pas répondu. La file n'est pas vide."
   },
   "event": {
     "back": "Retour",
@@ -130,7 +132,9 @@
     "latitude": "Latitude",
     "longitude": "Longitude",
     "location": "Emplacement",
-    "no_location": "Aucune coordonnée enregistrée pour cet événement"
+    "no_location": "Aucune coordonnée enregistrée pour cet événement",
+    "load_failed": "Impossible de charger cet événement : le serveur n'a pas répondu.",
+    "note_failed": "La note n'a pas été enregistrée. Le serveur n'a pas répondu."
   },
   "nearby_picker": {
     "label": "Doublons à proximité — cochez pour les rejeter avec cette action",
@@ -153,7 +157,8 @@
     "status_refunded": "REMBOURSÉ",
     "status_pending": "EN ATTENTE",
     "custom_amount": "Montant personnalisé",
-    "custom_amount_placeholder": "Saisir un montant personnalisé..."
+    "custom_amount_placeholder": "Saisir un montant personnalisé...",
+    "failed": "Le montant n'a pas été facturé. Le serveur n'a pas répondu."
   },
   "email": {
     "title": "Envoyer un E-mail",
@@ -169,7 +174,8 @@
       "billing": "Facturation",
       "customer_service": "Service Client",
       "operations": "Opérations"
-    }
+    },
+    "failed": "L'e-mail n'a pas été envoyé. Le serveur n'a pas répondu."
   },
   "close": {
     "title": "Fermer l'Événement",
@@ -187,12 +193,14 @@
       "duplicate": "Doublon",
       "contract_no_overages": "Contrat - Aucun Dépassement Facturable"
     },
-    "dismiss_these": "Rejeter ceux-ci lors de la fermeture"
+    "dismiss_these": "Rejeter ceux-ci lors de la fermeture",
+    "failed": "L'événement n'a pas été fermé. Le serveur n'a pas répondu."
   },
   "bulk_close": {
     "title": "Fermer les événements sélectionnés",
     "description": "Fermer {{count}} événements sélectionnés avec un motif commun.",
-    "success": "{{count}} événements fermés"
+    "success": "{{count}} événements fermés",
+    "failed": "Les événements sélectionnés n'ont pas été fermés. Le serveur n'a pas répondu."
   },
   "preview": {
     "close": "Fermer",
@@ -209,5 +217,15 @@
     "removed": "Marquage retiré — les événements du compte {{account}} sont de retour dans la file",
     "remove_failed": "Impossible de retirer le marquage. Veuillez réessayer.",
     "button": "Comptes exclus"
+  },
+  "connection": {
+    "unreachable_title": "Serveur injoignable",
+    "unreachable_description": "Route Events ne parvient pas à joindre le serveur pour le moment : les événements ne peuvent être ni chargés ni mis à jour. Le serveur est peut-être hors service, ou votre réseau le bloque.",
+    "unreachable_hint": "Nous réessayons automatiquement — ce message disparaîtra dès que le serveur répondra.",
+    "retry": "Réessayer",
+    "checking": "Vérification…",
+    "online": "Serveur joignable",
+    "offline": "Serveur injoignable",
+    "load_failed": "Impossible de charger ces données : le serveur n'a pas répondu."
   }
 }

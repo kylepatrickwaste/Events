@@ -6,7 +6,8 @@
     "search_districts": "Buscar distritos...",
     "no_districts_found": "No se encontraron distritos.",
     "last_district": "Llevándote a tu último distrito…",
-    "view_all_districts": "Ver todos los distritos"
+    "view_all_districts": "Ver todos los distritos",
+    "districts_load_failed": "No se pudieron cargar los distritos: el servidor no respondió."
   },
   "nav": {
     "home": "Inicio",
@@ -55,7 +56,8 @@
     "group_hint": "Arrastra un encabezado de columna aquí para agrupar",
     "clear_group": "Quitar agrupación",
     "save": "Guardar",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "events_load_failed": "No se pudieron cargar los eventos: el servidor no respondió. La cola no está vacía."
   },
   "event": {
     "back": "Volver",
@@ -130,7 +132,9 @@
     "latitude": "Latitud",
     "longitude": "Longitud",
     "location": "Ubicación",
-    "no_location": "No hay coordenadas registradas para este evento"
+    "no_location": "No hay coordenadas registradas para este evento",
+    "load_failed": "No se pudo cargar este evento: el servidor no respondió.",
+    "note_failed": "La nota no se guardó. El servidor no respondió."
   },
   "nearby_picker": {
     "label": "Duplicados cercanos — marque para descartar con esta acción",
@@ -153,7 +157,8 @@
     "status_refunded": "REEMBOLSADO",
     "status_pending": "PENDIENTE",
     "custom_amount": "Monto de cargo personalizado",
-    "custom_amount_placeholder": "Ingrese un monto personalizado..."
+    "custom_amount_placeholder": "Ingrese un monto personalizado...",
+    "failed": "El cargo no se aplicó. El servidor no respondió."
   },
   "email": {
     "title": "Enviar Correo",
@@ -169,7 +174,8 @@
       "billing": "Facturación",
       "customer_service": "Atención al Cliente",
       "operations": "Operaciones"
-    }
+    },
+    "failed": "El correo no se envió. El servidor no respondió."
   },
   "close": {
     "title": "Cerrar Evento",
@@ -187,12 +193,14 @@
       "duplicate": "Duplicado",
       "contract_no_overages": "Contrato - No Se Pueden Cobrar Excesos"
     },
-    "dismiss_these": "Descartar estos al cerrar"
+    "dismiss_these": "Descartar estos al cerrar",
+    "failed": "El evento no se cerró. El servidor no respondió."
   },
   "bulk_close": {
     "title": "Cerrar eventos seleccionados",
     "description": "Cerrar {{count}} eventos seleccionados con un motivo común.",
-    "success": "{{count}} eventos cerrados"
+    "success": "{{count}} eventos cerrados",
+    "failed": "Los eventos seleccionados no se cerraron. El servidor no respondió."
   },
   "preview": {
     "close": "Cerrar",
@@ -209,5 +217,15 @@
     "removed": "Marca eliminada — los eventos de la cuenta {{account}} vuelven a la cola",
     "remove_failed": "No se pudo quitar la marca. Inténtelo de nuevo.",
     "button": "Cuentas excluidas"
+  },
+  "connection": {
+    "unreachable_title": "No se puede conectar con el servidor",
+    "unreachable_description": "Route Events no puede conectarse con el servidor en este momento, por lo que no se pueden cargar ni actualizar los eventos. Es posible que el servidor esté caído o que su red lo esté bloqueando.",
+    "unreachable_hint": "Seguimos comprobando automáticamente: este mensaje desaparecerá en cuanto el servidor responda.",
+    "retry": "Reintentar",
+    "checking": "Comprobando…",
+    "online": "Servidor disponible",
+    "offline": "Servidor no disponible",
+    "load_failed": "No se pudo cargar esto: el servidor no respondió."
   }
 }

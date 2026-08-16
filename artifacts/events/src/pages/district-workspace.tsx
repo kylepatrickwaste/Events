@@ -106,6 +106,7 @@ const loadInitialGridState = () => {
   return { views, currentView, cfg: currentView ? views[currentView] : null };
 };
 import { ContractAccountsDialog } from '@/components/contract-accounts-dialog';
+import { LoadError } from '@/components/load-error';
 import { LAST_DISTRICT_KEY } from '@/pages/home';
 import { NearbyClusterPicker, suggestedDuplicateIds } from '@/components/nearby-cluster-picker';
 
@@ -333,7 +334,7 @@ export default function DistrictWorkspace() {
     eventTypeId: typeFilter === 'all' ? undefined : Number(typeFilter),
     severity: severityFilter === 'all' ? undefined : severityFilter,
   };
-  const { data: events, isLoading: isLoadingEvents } = useListEvents(
+  const { data: events, isLoading: isLoadingEvents, isError: isEventsError, refetch: refetchEvents } = useListEvents(
     eventsQueryParams,
     { query: { enabled: !!districtId, queryKey: getListEventsQueryKey(eventsQueryParams) } }
   );
@@ -668,6 +669,11 @@ export default function DistrictWorkspace() {
             <div className="space-y-4">
               {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
+          </td></tr>
+        ) : isEventsError ? (
+          // The request failed — don't imply the queue is empty.
+          <tr><td colSpan={99} className="p-4">
+            <LoadError message={t('district.events_load_failed')} onRetry={() => void refetchEvents()} />
           </td></tr>
         ) : events?.length === 0 ? (
           <tr><td colSpan={99} className="p-12 text-center text-muted-foreground">

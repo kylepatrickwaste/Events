@@ -1,6 +1,6 @@
 # files/
 
-Static T-SQL scripts for bootstrapping the Route Events database on Microsoft SQL Server without the Node/Drizzle toolchain.
+Static T-SQL scripts for bootstrapping the Route Events database on Microsoft SQL Server. SQL Server is the only database this project uses; nothing in this workspace provisions one.
 
 ## Scripts
 

@@ -6,7 +6,8 @@ import { Check, ChevronsUpDown, FileX2, AlertTriangle, CheckCircle2, DollarSign 
 import { cn } from '@/lib/utils';
 import { useI18n, Language } from '@/i18n';
 import { useTheme } from '@/components/theme-provider';
-import { getBaseUrl, useHealthCheck, getHealthCheckQueryKey } from '@workspace/api-client-react';
+import { useServerStatus } from '@/hooks/use-server-status';
+import { ApiUnreachableDialog } from '@/components/api-unreachable-dialog';
 import logoUrl from '@assets/Waste_Connections_Logo_Symbol_-_2_Color-_12-10-09_-_transparen_1786045458506.png';
 import { Moon, Sun, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -205,29 +206,27 @@ function HeaderDistrictSwitcher() {
   );
 }
 
-function ApiSourceDot() {
-  const baseUrl = getBaseUrl();
-  const isRemote = Boolean(baseUrl && baseUrl.includes('api.kpcf.us'));
-  // Build number is served by whichever API we're pointed at, so it reflects
-  // the deployed backend rather than whenever this bundle happened to be built.
-  const { data: health } = useHealthCheck({
-    query: {
-      queryKey: getHealthCheckQueryKey(),
-      staleTime: 60_000,
-      refetchOnWindowFocus: false,
-    },
-  });
-  const buildNumber = health?.buildNumber;
+function ApiStatusDot() {
+  const { t } = useI18n();
+  // Reachability comes from the shared health check, so the dot reflects whether
+  // the server actually answered — not merely which URL we point at. The build
+  // number is served by that same API, so it tracks the deployed backend rather
+  // than whenever this bundle happened to be built.
+  const { isReachable, buildNumber } = useServerStatus();
+  const label = isReachable ? t('connection.online') : t('connection.offline');
 
   return (
     <span className="flex items-center gap-1.5">
       <span
-        title={isRemote ? `Remote API: ${baseUrl}` : 'Local / mock data'}
+        title={label}
+        aria-label={label}
+        data-testid="status-api"
+        data-state={isReachable ? 'online' : 'offline'}
         className="flex items-center justify-center"
       >
         <span
           className={`block h-2.5 w-2.5 rounded-full ring-2 ring-background ${
-            isRemote ? 'bg-green-500' : 'bg-red-500'
+            isReachable ? 'bg-green-500' : 'bg-red-500'
           }`}
         />
       </span>
@@ -299,7 +298,7 @@ export function Header() {
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle theme</span>
           </Button>
-          <ApiSourceDot />
+          <ApiStatusDot />
         </div>
       </div>
     </header>
@@ -313,6 +312,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <main className="flex-1">
         {children}
       </main>
+      <ApiUnreachableDialog />
     </div>
   );
 }
