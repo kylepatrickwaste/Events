@@ -73,6 +73,22 @@
     "home_cleared_toast": "Home district cleared",
     "home_failed_toast": "Couldn't save your home district"
   },
+  "profile": {
+    "title": "Your profile",
+    "description": "Change the name Route Events shows and the district it opens into.",
+    "ad_login": "Windows account",
+    "preferred_name": "Preferred name",
+    "preferred_name_placeholder": "e.g. Kyle Patrick",
+    "preferred_name_hint": "Leave blank to show your Windows account name instead.",
+    "home_district": "Home district",
+    "home_district_hint": "Route Events opens straight into this district. Clear it to choose a district each visit.",
+    "no_home_district": "No home district",
+    "search_district": "Search by number, name or region…",
+    "use_typed_district": "Use district number \"{{number}}\"",
+    "saved": "Profile saved",
+    "error_unknown_district": "District number \"{{number}}\" doesn't match any district. Pick one from the list or clear it.",
+    "error_save_failed": "Your profile wasn't saved. The server didn't respond."
+  },
   "event": {
     "back": "Back",
     "detail": "Event Detail",

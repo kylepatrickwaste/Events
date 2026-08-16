@@ -73,6 +73,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+  /profile:
+    put:
+      operationId: updateProfile
+      tags: [users]
+      summary: Update the signed-in user's own profile
+      description: >-
+        Saves the current user's preferred name and home district together.
+        Blank or omitted values clear the corresponding preference; a home
+        district number that matches no active district is rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginName"
+        "400":
+          description: Unknown home district number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
   /districts:
     get:
       operationId: listDistricts
@@ -438,6 +472,19 @@ components:
         districtNumber:
           type: string
           description: District Number to pin, or omit to clear the home district.
+    UpdateProfileRequest:
+      type: object
+      properties:
+        friendlyName:
+          type: string
+          description: >-
+            Preferred display name. Blank or omitted clears it, so the app falls
+            back to showing the raw AD login.
+        homeDistrictNumber:
+          type: string
+          description: >-
+            District Number (not Id) to pin, or blank/omitted to clear the home
+            district. Must match an active district.
     ErrorMessage:
       type: object
       properties:

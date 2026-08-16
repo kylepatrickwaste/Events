@@ -65,3 +65,23 @@ public record SetHomeDistrictRequest
     /// </summary>
     public string? DistrictNumber { get; init; }
 }
+
+/// <summary>
+/// Request body for <c>PUT /api/profile</c>: the two things a user is allowed
+/// to change about themselves, saved together.
+/// </summary>
+public record UpdateProfileRequest
+{
+    /// <summary>
+    /// Preferred display name. Blank or omitted clears it, which makes the app
+    /// fall back to showing the raw AD login.
+    /// </summary>
+    public string? FriendlyName { get; init; }
+
+    /// <summary>
+    /// District <c>Number</c> (e.g. <c>2010</c>) to pin, or blank/omitted to
+    /// clear the home district. Validated against the districts lookup — an
+    /// unknown number is rejected rather than stored.
+    /// </summary>
+    public string? HomeDistrictNumber { get; init; }
+}

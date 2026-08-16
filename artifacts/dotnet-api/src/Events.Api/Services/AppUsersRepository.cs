@@ -84,4 +84,32 @@ public class AppUsersRepository(IDbConnection db)
         return await db.QuerySingleOrDefaultAsync<AppUserDto>(
             SelectColumns, new { adName = activeDirectoryName });
     }
+
+    /// <summary>
+    /// Saves the two self-service profile fields in one statement, so a user
+    /// never ends up with half of an edit applied. Blank values clear the
+    /// column. Returns null when the login has no row yet.
+    /// </summary>
+    public async Task<AppUserDto?> UpdateProfileAsync(
+        string activeDirectoryName, string? friendlyName, string? homeDistrictNumber)
+    {
+        const string update = """
+            UPDATE AppUsers
+               SET FriendlyName = @friendlyName,
+                   HomeDistrictNumber = @districtNumber
+             WHERE ActiveDirectoryName = @adName;
+            """;
+
+        var affected = await db.ExecuteAsync(update, new
+        {
+            adName = activeDirectoryName,
+            friendlyName = string.IsNullOrWhiteSpace(friendlyName) ? null : friendlyName.Trim(),
+            districtNumber = string.IsNullOrWhiteSpace(homeDistrictNumber) ? null : homeDistrictNumber.Trim(),
+        });
+
+        if (affected == 0) return null;
+
+        return await db.QuerySingleOrDefaultAsync<AppUserDto>(
+            SelectColumns, new { adName = activeDirectoryName });
+    }
 }

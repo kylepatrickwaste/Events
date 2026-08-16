@@ -31,6 +31,13 @@ export interface SetHomeDistrictRequest {
   districtNumber?: string;
 }
 
+export interface UpdateProfileRequest {
+  /** Preferred display name. Blank or omitted clears it, so the app falls back to showing the raw AD login. */
+  friendlyName?: string;
+  /** District Number (not Id) to pin, or blank/omitted to clear the home district. Must match an active district. */
+  homeDistrictNumber?: string;
+}
+
 export interface ErrorMessage {
   error: string;
 }

@@ -38,7 +38,8 @@ import type {
   RouteEventDetail,
   RouteEventListItem,
   ServiceCode,
-  SetHomeDistrictRequest
+  SetHomeDistrictRequest,
+  UpdateProfileRequest
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -294,6 +295,78 @@ export const useSetHomeDistrict = <TError = ErrorType<ErrorMessage>,
         TContext
       > => {
       return useMutation(getSetHomeDistrictMutationOptions(options));
+    }
+
+export const getUpdateProfileUrl = () => {
+
+
+
+
+  return `/api/profile`
+}
+
+/**
+ * Saves the current user's preferred name and home district together. Blank or omitted values clear the corresponding preference; a home district number that matches no active district is rejected.
+ * @summary Update the signed-in user's own profile
+ */
+export const updateProfile = async (updateProfileRequest: UpdateProfileRequest, options?: Parameters<typeof customFetch>[1]): Promise<LoginName> => {
+
+  return customFetch<LoginName>(getUpdateProfileUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateProfileRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateProfileMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<UpdateProfileRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<UpdateProfileRequest>}, TContext> => {
+
+const mutationKey = ['updateProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProfile>>, {data: BodyType<UpdateProfileRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateProfile>>>
+    export type UpdateProfileMutationBody = BodyType<UpdateProfileRequest>
+    export type UpdateProfileMutationError = ErrorType<ErrorMessage>
+
+    /**
+ * @summary Update the signed-in user's own profile
+ */
+export const useUpdateProfile = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<UpdateProfileRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProfile>>,
+        TError,
+        {data: BodyType<UpdateProfileRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateProfileMutationOptions(options));
     }
 
 export const getListDistrictsUrl = () => {

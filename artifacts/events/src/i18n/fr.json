@@ -73,6 +73,22 @@
     "home_cleared_toast": "District principal retiré",
     "home_failed_toast": "Impossible d'enregistrer votre district principal"
   },
+  "profile": {
+    "title": "Votre profil",
+    "description": "Modifiez le nom affiché par Route Events et le district dans lequel il s'ouvre.",
+    "ad_login": "Compte Windows",
+    "preferred_name": "Nom préféré",
+    "preferred_name_placeholder": "ex. Kyle Patrick",
+    "preferred_name_hint": "Laissez vide pour afficher le nom de votre compte Windows.",
+    "home_district": "District principal",
+    "home_district_hint": "Route Events s'ouvrira directement sur ce district. Effacez-le pour choisir un district à chaque visite.",
+    "no_home_district": "Aucun district principal",
+    "search_district": "Rechercher par numéro, nom ou région…",
+    "use_typed_district": "Utiliser le numéro de district « {{number}} »",
+    "saved": "Profil enregistré",
+    "error_unknown_district": "Le numéro de district « {{number}} » ne correspond à aucun district. Choisissez-en un dans la liste ou effacez-le.",
+    "error_save_failed": "Votre profil n'a pas été enregistré. Le serveur n'a pas répondu."
+  },
   "event": {
     "back": "Retour",
     "detail": "Détail de l'Événement",

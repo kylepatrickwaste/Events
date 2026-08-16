@@ -73,6 +73,22 @@
     "home_cleared_toast": "Distrito principal eliminado",
     "home_failed_toast": "No se pudo guardar tu distrito principal"
   },
+  "profile": {
+    "title": "Tu perfil",
+    "description": "Cambia el nombre que muestra Route Events y el distrito con el que se abre.",
+    "ad_login": "Cuenta de Windows",
+    "preferred_name": "Nombre preferido",
+    "preferred_name_placeholder": "p. ej. Kyle Patrick",
+    "preferred_name_hint": "Déjalo en blanco para mostrar el nombre de tu cuenta de Windows.",
+    "home_district": "Distrito principal",
+    "home_district_hint": "Route Events se abrirá directamente en este distrito. Bórralo para elegir un distrito en cada visita.",
+    "no_home_district": "Sin distrito principal",
+    "search_district": "Buscar por número, nombre o región…",
+    "use_typed_district": "Usar el número de distrito «{{number}}»",
+    "saved": "Perfil guardado",
+    "error_unknown_district": "El número de distrito «{{number}}» no corresponde a ningún distrito. Elige uno de la lista o bórralo.",
+    "error_save_failed": "Tu perfil no se guardó. El servidor no respondió."
+  },
   "event": {
     "back": "Volver",
     "detail": "Detalle del Evento",

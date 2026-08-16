@@ -27,6 +27,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useListDistricts, getListDistrictsQueryKey, useGetEvent, getGetEventQueryKey, useGetDistrictSummary, getGetDistrictSummaryQueryKey, getGetLoginNameQueryKey, useSetHomeDistrict } from '@workspace/api-client-react';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { UserProfileDialog } from '@/components/user-profile-dialog';
 import { TruckDrive } from './TruckDrive';
 
 function HeaderDistrictStats() {
@@ -257,22 +258,34 @@ function HeaderHomeDistrictButton() {
   );
 }
 
-/** Who the API thinks you are. Friendly name when known, raw AD login otherwise. */
+/**
+ * Who the API thinks you are. Friendly name when known, raw AD login otherwise.
+ * Doubles as the way into the profile dialog — the name is the thing you would
+ * click to correct it.
+ */
 function HeaderUserName() {
   const { t } = useI18n();
   const { data: user } = useCurrentUser();
+  const [profileOpen, setProfileOpen] = React.useState(false);
 
   if (!user?.userName) return null;
 
   return (
-    <span
-      className="hidden md:flex min-w-0 items-center gap-1.5 text-sm"
-      title={t('app.signed_in_as', { name: user.activeDirectoryName })}
-      data-testid="header-username"
-    >
-      <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <span className="truncate max-w-[9rem] font-medium text-foreground">{user.userName}</span>
-    </span>
+    <>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        className="hidden md:flex min-w-0 items-center gap-1.5 rounded-md px-1 py-0.5 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        title={t('app.signed_in_as', { name: user.activeDirectoryName })}
+        data-testid="header-username"
+        onClick={() => setProfileOpen(true)}
+      >
+        <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="truncate max-w-[9rem] font-medium">{user.userName}</span>
+      </button>
+
+      <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
+    </>
   );
 }
 

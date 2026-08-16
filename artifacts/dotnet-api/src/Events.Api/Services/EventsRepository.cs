@@ -55,6 +55,17 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg, CurrentUserA
         return await db.QueryFirstOrDefaultAsync<DbDistrict>(sql, new { id = districtId });
     }
 
+    /// <summary>
+    /// Looks a district up by the user-facing <c>Number</c> (e.g. <c>2010</c> or
+    /// <c>2010-M</c>). Restricted to active districts so a preference can only
+    /// ever point at something the app is willing to show.
+    /// </summary>
+    public async Task<DbDistrict?> GetDistrictByNumberAsync(string number)
+    {
+        const string sql = "SELECT Id, Number, Name, Region, Active, 0 AS EventsCount FROM Districts WHERE Number = @number AND Active = 1";
+        return await db.QueryFirstOrDefaultAsync<DbDistrict>(sql, new { number });
+    }
+
     public async Task<DistrictSummaryDto?> GetDistrictSummaryAsync(int districtId)
     {
         var district = await GetDistrictAsync(districtId);
