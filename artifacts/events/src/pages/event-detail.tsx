@@ -213,8 +213,8 @@ export default function EventDetailWorkspace() {
               )}
             </div>
             {images.length > 1 && (
-              <div className="flex gap-2 p-3 bg-muted/30 border-t overflow-x-auto">
-                {images.slice(0, 5).map((img, idx) => (
+              <div className="flex gap-2 p-3 bg-muted/30 border-t overflow-x-auto scroll-smooth">
+                {images.map((img, idx) => (
                   <button 
                     key={idx}
                     onClick={() => setSelectedImage(img)}
@@ -224,7 +224,11 @@ export default function EventDetailWorkspace() {
                     onBlur={() => setHoveredImage(null)}
                     className={`relative rounded-md overflow-hidden border-2 transition-all w-20 h-16 shrink-0 ${displayImage === img ? 'border-primary shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'}`}
                   >
-                    <img src={img} className="w-full h-full object-cover" />
+                    <img
+                      src={img}
+                      alt={`${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
                   </button>
                 ))}
               </div>
