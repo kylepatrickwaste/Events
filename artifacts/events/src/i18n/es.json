@@ -154,6 +154,7 @@
     },
     "nearby": {
       "prev_photo": "Foto anterior",
+      "close_preview": "Cerrar vista previa",
       "next_photo": "Foto siguiente",
       "title": "Excesos Cercanos",
       "offset_sec": "{{s}}s",

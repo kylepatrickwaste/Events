@@ -154,6 +154,7 @@
     },
     "nearby": {
       "prev_photo": "Photo précédente",
+      "close_preview": "Fermer l'aperçu",
       "next_photo": "Photo suivante",
       "title": "Dépassements à Proximité",
       "offset_sec": "{{s}}s",

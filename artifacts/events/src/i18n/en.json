@@ -154,6 +154,7 @@
     },
     "nearby": {
       "prev_photo": "Previous photo",
+      "close_preview": "Close preview",
       "next_photo": "Next photo",
       "title": "Nearby Overages",
       "offset_sec": "{{s}}s",

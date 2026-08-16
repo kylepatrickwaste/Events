@@ -30,7 +30,7 @@ import {
   AlertTriangle,
   DollarSign,
   Mail,
-  XCircle,
+  XCircle, X,
   Copy,
   CheckCircle2,
   Send,
@@ -392,6 +392,7 @@ export default function EventDetailWorkspace() {
               rowId={previewNearby.id}
               onPointerEnter={clearPreviewCloseTimer}
               onPointerLeave={scheduleNearbyPreviewClose}
+              onDismiss={closeNearbyPreview}
             />
           )}
         </div>
@@ -1006,6 +1007,7 @@ function NearbyPhotoPreview({ images, alt, anchorRef, rowId, onPointerEnter, onP
   rowId: number;
   onPointerEnter: () => void;
   onPointerLeave: () => void;
+  onDismiss: () => void;
 }) {
   const { t } = useI18n();
   const multiple = images.length > 1;
@@ -1026,6 +1028,15 @@ function NearbyPhotoPreview({ images, alt, anchorRef, rowId, onPointerEnter, onP
     // Re-measured per row: the rows share a photo column, but the anchor cell
     // itself changes as the pointer moves down the table.
   }, [anchorRef, rowId, multiple]);
+
+  // The interactive panel sits over the row cells beneath it and stays open
+  // while hovered, so the pointer alone can't always get out of its way.
+  useEffect(() => {
+    if (!multiple) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onDismiss(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [multiple, onDismiss]);
 
   const current = images[Math.min(index, images.length - 1)];
   const step = (delta: number) => setIndex(i => (i + delta + images.length) % images.length);
@@ -1074,6 +1085,14 @@ function NearbyPhotoPreview({ images, alt, anchorRef, rowId, onPointerEnter, onP
               className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-1 shadow transition-colors hover:bg-background"
             >
               <ChevronRight className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={onDismiss}
+              aria-label={t('event.nearby.close_preview')}
+              className="absolute right-1 top-1 rounded-full bg-background/80 p-1 shadow transition-colors hover:bg-background"
+            >
+              <X className="h-3.5 w-3.5" />
             </button>
             <span className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-medium tabular-nums">
               {index + 1} / {images.length}
