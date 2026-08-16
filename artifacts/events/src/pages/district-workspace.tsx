@@ -653,24 +653,36 @@ export default function DistrictWorkspace() {
                   </th>
                 );
               })}
-              <th className="sticky right-[124px] z-10 bg-background border-l px-2 py-2"></th>
-              <th className="sticky right-0 z-10 bg-background px-3 py-2 text-right w-[124px]">Photo</th>
+              {/* Opaque background: the header row's bg-muted/40 is translucent, so a
+                  frozen cell using it would let scrolled columns show through. Painting
+                  the same muted tint as a gradient layer over an opaque card base gives
+                  an identical colour that nothing can bleed through. */}
+              <th
+                className="sticky right-0 z-10 border-l px-2 py-2 w-[160px]"
+                style={{
+                  backgroundColor: 'hsl(var(--card))',
+                  backgroundImage: 'linear-gradient(hsl(var(--muted) / 0.4), hsl(var(--muted) / 0.4))',
+                  boxShadow: '-4px 0 6px -2px rgba(0,0,0,0.08)',
+                }}
+              >
+                <span className="float-right font-semibold uppercase tracking-wider text-xs text-muted-foreground pr-1">Photo</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y">
         {isLoadingEvents ? (
-          <tr><td colSpan={99} className="p-4">
+          <tr><td colSpan={orderedVisibleCols.length + 2} className="p-4">
             <div className="space-y-4">
               {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
           </td></tr>
         ) : isEventsError ? (
           // The request failed — don't imply the queue is empty.
-          <tr><td colSpan={99} className="p-4">
+          <tr><td colSpan={orderedVisibleCols.length + 2} className="p-4">
             <LoadError message={t('district.events_load_failed')} onRetry={() => void refetchEvents()} />
           </td></tr>
         ) : events?.length === 0 ? (
-          <tr><td colSpan={99} className="p-12 text-center text-muted-foreground">
+          <tr><td colSpan={orderedVisibleCols.length + 2} className="p-12 text-center text-muted-foreground">
             <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-20" />
             <p className="text-lg">{t('district.no_events')}</p>
           </td></tr>
@@ -763,7 +775,7 @@ export default function DistrictWorkspace() {
 
               const rows: React.ReactNode[] = [];
               let prevGroup: string | null = null;
-              const colSpan = orderedVisibleCols.length + 3;
+              const colSpan = orderedVisibleCols.length + 2;
               pagedEvents?.forEach(event => {
                 if (groupBy) {
                   const gv = groupValue(groupBy, event);
@@ -771,10 +783,21 @@ export default function DistrictWorkspace() {
                     prevGroup = gv;
                     rows.push(
                       <tr key={`group-${gv}`} className="bg-muted/50">
-                        <td colSpan={colSpan} className="px-3 py-1.5 text-xs font-semibold">
+                        <td colSpan={colSpan - 1} className="px-3 py-1.5 text-xs font-semibold">
                           {ALL_COLUMNS.find(c => c.key === groupBy)?.label}: {gv}
                           <span className="ml-2 font-normal text-muted-foreground">({groupCounts?.get(gv) ?? 0})</span>
                         </td>
+                        {/* Group rows need their own frozen cell, otherwise the pinned
+                            panel has a hole at every group break and the label scrolls
+                            through it. Opaque equivalent of this row's bg-muted/50. */}
+                        <td
+                          className="sticky right-0 z-10 border-l px-2 py-1.5 w-[160px]"
+                          style={{
+                            backgroundColor: 'hsl(var(--card))',
+                            backgroundImage: 'linear-gradient(hsl(var(--muted) / 0.5), hsl(var(--muted) / 0.5))',
+                            boxShadow: '-4px 0 6px -2px rgba(0,0,0,0.08)',
+                          }}
+                        />
                       </tr>
                     );
                   }
@@ -797,40 +820,42 @@ export default function DistrictWorkspace() {
                       )}
                     </td>
                     {orderedVisibleCols.map(key => renderCell(key, event))}
-                    <td className="sticky right-[124px] z-10 bg-card border-l px-2 py-1.5" onClick={e => e.stopPropagation()}>
-                      {event.eventStatus === 0 && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="h-7 w-7 p-0"
-                          onClick={() => setCloseEventId(event.id)}
-                          aria-label={t('preview.close')}
-                          title={t('preview.close')}
-                        >
-                          <XCircle className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </td>
-                    <td className="sticky right-0 z-10 bg-card px-3 py-1.5 w-[124px]" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-2">
-                      {(event.imageUrls?.length ?? 0) > 0 && (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Camera className="h-3.5 w-3.5" />
-                          {event.imageUrls.length}
-                        </span>
-                      )}
-                      {event.imageUrl ? (
-                        <EventThumbnailPreview
-                          event={event}
-                          districtId={districtId}
-                          onCharge={(ids) => { setChargeNearbyPreset(ids); setChargeEventId(event.id); }}
-                          onClose={() => { setCloseNearbyPreset([]); setCloseEventId(event.id); }}
-                          onCloseWithDuplicates={(ids) => { setCloseNearbyPreset(ids); setCloseEventId(event.id); }}
-                          onNavigate={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
-                        />
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">{t('event.no_photo')}</span>
-                      )}
+                    <td className="sticky right-0 z-10 bg-card border-l px-2 py-1.5 w-[160px]" style={{boxShadow: '-4px 0 6px -2px rgba(0,0,0,0.08)'}} onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-between gap-1 min-w-0">
+                        <div className="shrink-0 w-7">
+                          {event.eventStatus === 0 && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 w-7 p-0"
+                              onClick={() => setCloseEventId(event.id)}
+                              aria-label={t('preview.close')}
+                              title={t('preview.close')}
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-end gap-1.5 min-w-0 overflow-hidden">
+                          {(event.imageUrls?.length ?? 0) > 0 && (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                              <Camera className="h-3.5 w-3.5" />
+                              {event.imageUrls.length}
+                            </span>
+                          )}
+                          {event.imageUrl ? (
+                            <EventThumbnailPreview
+                              event={event}
+                              districtId={districtId}
+                              onCharge={(ids) => { setChargeNearbyPreset(ids); setChargeEventId(event.id); }}
+                              onClose={() => { setCloseNearbyPreset([]); setCloseEventId(event.id); }}
+                              onCloseWithDuplicates={(ids) => { setCloseNearbyPreset(ids); setCloseEventId(event.id); }}
+                              onNavigate={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
+                            />
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic truncate">{t('event.no_photo')}</span>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>

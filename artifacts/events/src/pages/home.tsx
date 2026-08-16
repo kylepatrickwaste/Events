@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLocation, useSearch } from 'wouter';
-import { useListDistricts, getListDistrictsQueryKey } from '@workspace/api-client-react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useI18n } from '@/i18n';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,7 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { MapPin, ChevronsUpDown } from 'lucide-react';
+import { useListDistricts, getListDistrictsQueryKey } from '@workspace/api-client-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LoadError } from '@/components/load-error';
 
