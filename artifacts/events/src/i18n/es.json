@@ -95,20 +95,15 @@
     "severity_minimal": "Mínimo",
     "statistics": {
       "title": "Estadísticas de Exceso",
-      "tenure": "Antigüedad",
       "customer_since": "Cliente Desde",
       "last_charge": "Último Cobro",
-      "days_30": "30 Días",
-      "days_60": "60 Días",
-      "days_90": "90 Días",
-      "charged": "Cobrado",
-      "paid": "Pagado",
-      "months": "{{count}} mes",
-      "years_months": "{{years}}a {{months}}m",
       "never": "Nunca",
-      "events": "Eventos",
-      "refunded": "Reembolsado",
-      "net_paid": "Pago Neto"
+      "period": "Período",
+      "count": "Cantidad",
+      "charges": "Cargos",
+      "past_days_30": "Últimos 30 Días",
+      "past_days_60": "Últimos 60 Días",
+      "past_days_90": "Últimos 90 Días"
     },
     "nearby": {
       "title": "Excesos Cercanos",

@@ -95,20 +95,15 @@
     "severity_minimal": "Minimal",
     "statistics": {
       "title": "Overage Statistics",
-      "tenure": "Tenure",
       "customer_since": "Customer Since",
       "last_charge": "Last Charge",
-      "days_30": "30 Days",
-      "days_60": "60 Days",
-      "days_90": "90 Days",
-      "charged": "Charged",
-      "paid": "Paid",
-      "months": "{{count}} mos",
-      "years_months": "{{years}}y {{months}}m",
       "never": "Never",
-      "events": "Events",
-      "refunded": "Refunded",
-      "net_paid": "Net Paid"
+      "period": "Period",
+      "count": "Count",
+      "charges": "Charges",
+      "past_days_30": "Past 30 Days",
+      "past_days_60": "Past 60 Days",
+      "past_days_90": "Past 90 Days"
     },
     "nearby": {
       "title": "Nearby Overages",

@@ -399,49 +399,33 @@ export default function EventDetailWorkspace() {
 }
 
 function OverageStatisticsTile({ stats, t, formatCurrency, formatDate }: any) {
-  const renderTenure = (months: number | null) => {
-    if (months === null) return t('event.statistics.never');
-    if (months < 12) return t('event.statistics.months', { count: months });
-    return t('event.statistics.years_months', { years: Math.floor(months / 12), months: months % 12 });
-  };
+  // Header cells and window rows share one column template so they stay aligned.
+  const columns = "grid grid-cols-[1.4fr_0.6fr_1fr] items-center gap-2 px-3";
 
   return (
     <Card className="shadow-sm">
       <CardContent className="p-0">
-        <div className="grid grid-cols-3 divide-x border-b bg-muted/10">
+        <div className="grid grid-cols-2 divide-x border-b bg-muted/10">
            <div className="p-2 flex flex-col gap-0.5">
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('event.statistics.customer_since')}</span>
               <span className="font-mono text-xs">{stats.customerSince ? formatDate(stats.customerSince) : t('event.statistics.never')}</span>
-           </div>
-           <div className="p-2 flex flex-col gap-0.5">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('event.statistics.tenure')}</span>
-              <span className="font-mono text-xs">{renderTenure(stats.tenureMonths)}</span>
            </div>
            <div className="p-2 flex flex-col gap-0.5">
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('event.statistics.last_charge')}</span>
               <span className="font-mono text-xs">{stats.lastChargeDate ? formatDate(stats.lastChargeDate) : t('event.statistics.never')}</span>
            </div>
         </div>
+        <div className={`${columns} py-1.5 border-b bg-muted/30 text-[10px] text-muted-foreground font-bold uppercase tracking-widest`}>
+          <span>{t('event.statistics.period')}</span>
+          <span className="text-right">{t('event.statistics.count')}</span>
+          <span className="text-right">{t('event.statistics.charges')}</span>
+        </div>
         <div className="divide-y bg-card">
            {stats.windows.map((w: any) => (
-             <div key={w.days} className="px-3 py-1.5 flex items-center gap-3">
-               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest w-12 shrink-0">{t(`event.statistics.days_${w.days}` as any)}</span>
-               <div className="flex gap-3 w-full justify-between text-xs">
-                 <span title={t('event.statistics.events')}>
-                   <span className="text-destructive font-bold">{w.eventsCount}</span>
-                 </span>
-                 <span title={t('event.statistics.charged')}>
-                   <span className="text-destructive font-bold">{w.chargedCount}</span>
-                   <span className="text-muted-foreground/50"> / </span>
-                   <span className="text-success font-bold">{formatCurrency(w.chargedAmount)}</span>
-                 </span>
-                 <span title={t('event.statistics.refunded')}>
-                   <span className="text-destructive font-bold">{w.refundedCount}</span>
-                   <span className="text-muted-foreground/50"> / </span>
-                   <span className="text-success font-bold">{formatCurrency(w.refundedAmount)}</span>
-                 </span>
-                 <span title={t('event.statistics.net_paid')} className="text-success font-bold">{formatCurrency(w.netPaid)}</span>
-               </div>
+             <div key={w.days} className={`${columns} py-1.5 text-xs`}>
+               <span className="text-[11px] font-semibold text-muted-foreground">{t(`event.statistics.past_days_${w.days}` as any)}</span>
+               <span className="text-right text-destructive font-bold">{w.eventsCount}</span>
+               <span className="text-right text-success font-bold">{formatCurrency(w.chargedAmount)}</span>
              </div>
            ))}
         </div>

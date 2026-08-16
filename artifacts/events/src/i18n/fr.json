@@ -95,20 +95,15 @@
     "severity_minimal": "Minime",
     "statistics": {
       "title": "Statistiques de Dépassement",
-      "tenure": "Ancienneté",
       "customer_since": "Client Depuis",
       "last_charge": "Dernière Facturation",
-      "days_30": "30 Jours",
-      "days_60": "60 Jours",
-      "days_90": "90 Jours",
-      "charged": "Facturé",
-      "paid": "Payé",
-      "months": "{{count}} mois",
-      "years_months": "{{years}}a {{months}}m",
       "never": "Jamais",
-      "events": "Événements",
-      "refunded": "Remboursé",
-      "net_paid": "Net Payé"
+      "period": "Période",
+      "count": "Nombre",
+      "charges": "Facturations",
+      "past_days_30": "30 Derniers Jours",
+      "past_days_60": "60 Derniers Jours",
+      "past_days_90": "90 Derniers Jours"
     },
     "nearby": {
       "title": "Dépassements à Proximité",
