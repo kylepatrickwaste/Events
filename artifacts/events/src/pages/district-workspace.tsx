@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRoute, useLocation, Link } from 'wouter';
 import {
   useGetDistrictSummary, getGetDistrictSummaryQueryKey,
@@ -1038,11 +1039,16 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWi
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
         />
       </div>
-      {open && (
+      {/* Rendered into <body> rather than in place. This component sits inside a
+          `position: sticky` cell with a z-index, which makes that cell its own
+          stacking context — any z-index the popup sets is confined to it, so the
+          sticky cells of later rows paint on top no matter how high we go. The
+          portal is the fix; the z-index below only has to clear the app header. */}
+      {open && createPortal(
         <>
           {/* Dim backdrop; click closes the preview */}
           <div
-            className="fixed inset-0 z-50 bg-black/40 animate-in fade-in-0"
+            className="fixed inset-0 z-[60] bg-black/40 animate-in fade-in-0"
             onClick={() => setOpen(false)}
           />
           <div
@@ -1051,7 +1057,7 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWi
             onMouseEnter={cancelClose}
             onMouseLeave={scheduleClose}
             onClick={e => e.stopPropagation()}
-            className="fixed left-1/2 top-1/2 z-50 w-[min(56rem,calc(100vw-2rem))] max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border bg-background p-4 shadow-lg space-y-3 animate-in fade-in-0 zoom-in-95"
+            className="fixed left-1/2 top-1/2 z-[60] w-[min(56rem,calc(100vw-2rem))] max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border bg-background p-4 shadow-lg space-y-3 animate-in fade-in-0 zoom-in-95"
           >
             <div className="flex gap-3">
               <div className="flex-1 bg-muted rounded-lg overflow-hidden aspect-video flex items-center justify-center">
@@ -1146,7 +1152,8 @@ function EventThumbnailPreview({ event, districtId, onCharge, onClose, onCloseWi
               )}
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </>
   );
