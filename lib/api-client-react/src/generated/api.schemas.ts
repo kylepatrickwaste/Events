@@ -220,6 +220,8 @@ export interface NearbyEvent {
      * @nullable
      */
   imageUrl?: string | null;
+  /** every photo for this event, primary first, so the hover preview can page through them */
+  imageUrls?: string[];
   dateOccurred: string;
   /** seconds relative to the main event (negative = earlier) */
   secondsOffset: number;

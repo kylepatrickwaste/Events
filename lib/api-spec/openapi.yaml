@@ -760,6 +760,10 @@ components:
       properties:
         id: { type: integer }
         imageUrl: { type: ["string", "null"], description: "primary photo, or the first of the event's other photos when it has no primary one" }
+        imageUrls:
+          type: array
+          items: { type: string }
+          description: "every photo for this event, primary first, so the hover preview can page through them"
         dateOccurred: { type: string }
         secondsOffset: { type: integer, description: "seconds relative to the main event (negative = earlier)" }
         eventStatus: { type: integer, description: "0 = open, 1 = closed" }

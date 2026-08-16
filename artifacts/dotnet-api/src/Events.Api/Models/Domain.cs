@@ -146,7 +146,7 @@ public record EventActionDto(
     string? PaymentStatus, string CreatedBy, string DateCreated);
 
 public record NearbyEventDto(
-    int Id, string? ImageUrl, string DateOccurred, int SecondsOffset,
+    int Id, string? ImageUrl, List<string> ImageUrls, string DateOccurred, int SecondsOffset,
     int EventStatus, string Status, int DistanceMeters,
     bool IsSuggestedDuplicate, string EventSourceName,
     string Address, string CustomerName, string AccountNumber,

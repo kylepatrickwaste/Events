@@ -153,6 +153,8 @@
       "past_days_90": "Últimos 90 Días"
     },
     "nearby": {
+      "prev_photo": "Foto anterior",
+      "next_photo": "Foto siguiente",
       "title": "Excesos Cercanos",
       "offset_sec": "{{s}}s",
       "offset_min": "{{m}}m",

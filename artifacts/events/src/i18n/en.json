@@ -153,6 +153,8 @@
       "past_days_90": "Past 90 Days"
     },
     "nearby": {
+      "prev_photo": "Previous photo",
+      "next_photo": "Next photo",
       "title": "Nearby Overages",
       "offset_sec": "{{s}}s",
       "offset_min": "{{m}}m",

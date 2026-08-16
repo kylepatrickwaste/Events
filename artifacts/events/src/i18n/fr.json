@@ -153,6 +153,8 @@
       "past_days_90": "90 Derniers Jours"
     },
     "nearby": {
+      "prev_photo": "Photo précédente",
+      "next_photo": "Photo suivante",
       "title": "Dépassements à Proximité",
       "offset_sec": "{{s}}s",
       "offset_min": "{{m}}m",

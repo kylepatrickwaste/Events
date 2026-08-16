@@ -293,6 +293,19 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg, CurrentUserA
     private static string? PrimaryImage(string? imageUrl, string? imageUrlsJson)
         => !string.IsNullOrEmpty(imageUrl) ? imageUrl : ParseJsonArray(imageUrlsJson).FirstOrDefault();
 
+    /// <summary>
+    /// Every photo for an event, primary first and de-duplicated. The primary
+    /// column and the JSON array disagree about which photos exist, so anything
+    /// that wants the whole set has to merge the two.
+    /// </summary>
+    private static List<string> AllImages(string? imageUrl, string? imageUrlsJson)
+    {
+        var all = new List<string>();
+        if (!string.IsNullOrEmpty(imageUrl)) all.Add(imageUrl);
+        all.AddRange(ParseJsonArray(imageUrlsJson));
+        return all.Distinct().ToList();
+    }
+
     private static List<string> ParseJsonArray(string? json)
     {
         if (string.IsNullOrEmpty(json)) return [];
@@ -440,6 +453,7 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg, CurrentUserA
                 : chargedNearbyIds.Contains(n.Id) ? "Charged" : "Dismissed";
             return new NearbyEventDto(
                 Id: n.Id, ImageUrl: PrimaryImage((string?)n.ImageUrl, (string?)n.ImageUrls),
+                ImageUrls: AllImages((string?)n.ImageUrl, (string?)n.ImageUrls),
                 DateOccurred: ((DateTimeOffset)n.DateOccurred).ToString("O"),
                 SecondsOffset: (int)offsetMs,
                 EventStatus: n.EventStatus, Status: status,
