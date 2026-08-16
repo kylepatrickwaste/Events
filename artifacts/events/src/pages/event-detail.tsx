@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRoute, useLocation, Link } from 'wouter';
 import {
   useGetEvent, getGetEventQueryKey,
@@ -43,6 +44,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { NearbyClusterPicker, suggestedDuplicateIds } from '@/components/nearby-cluster-picker';
 import { LoadError } from '@/components/load-error';
 
+// Nearby-photo hover timings (ms), kept in step with the district grid's own
+// preview so both tables feel the same: the open delay ignores a quick
+// pass-over, and the close delay is a grace period so travelling from one row
+// to the next doesn't make the preview blink shut.
 export default function EventDetailWorkspace() {
   const [, params] = useRoute('/districts/:districtId/events/:eventId');
   const districtId = Number(params?.districtId);
@@ -72,11 +77,59 @@ export default function EventDetailWorkspace() {
   const [hoveredImage, setHoveredImage] = useState<string | null>(null);
   const [checkedNearby, setCheckedNearby] = useState<Set<number>>(new Set());
 
+  // Exactly one nearby photo preview is open for the whole table; rows only
+  // report hover and this controller decides which one is shown.
+  const [previewNearbyId, setPreviewNearbyId] = useState<number | null>(null);
+  const previewAnchorRef = useRef<HTMLElement | null>(null);
+  const previewOpenTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearPreviewOpenTimer = () => {
+    if (previewOpenTimer.current) { clearTimeout(previewOpenTimer.current); previewOpenTimer.current = null; }
+  };
+  const clearPreviewCloseTimer = () => {
+    if (previewCloseTimer.current) { clearTimeout(previewCloseTimer.current); previewCloseTimer.current = null; }
+  };
+  const closeNearbyPreview = () => {
+    clearPreviewOpenTimer();
+    clearPreviewCloseTimer();
+    setPreviewNearbyId(null);
+  };
+  // Leaving the table starts a grace period rather than closing outright, so a
+  // pointer that clips the table's edge between two rows doesn't flicker.
+  const scheduleNearbyPreviewClose = () => {
+    clearPreviewOpenTimer();
+    clearPreviewCloseTimer();
+    previewCloseTimer.current = setTimeout(() => setPreviewNearbyId(null), NEARBY_PREVIEW_CLOSE_DELAY);
+  };
+
+  // Hovering a row: swap instantly when a preview is already open, otherwise
+  // wait out the open delay. A row with no photo closes the panel instead of
+  // opening an empty one or leaving the previous row's photo up.
+  const handleNearbyRowEnter = (id: number, hasPhoto: boolean, row: HTMLElement) => {
+    clearPreviewOpenTimer();
+    clearPreviewCloseTimer();
+    if (!hasPhoto) {
+      setPreviewNearbyId(null);
+      return;
+    }
+    previewAnchorRef.current = (row.querySelector('[data-nearby-photo]') as HTMLElement | null) ?? row;
+    if (previewNearbyId !== null) {
+      setPreviewNearbyId(id);
+      return;
+    }
+    previewOpenTimer.current = setTimeout(() => setPreviewNearbyId(id), NEARBY_PREVIEW_OPEN_DELAY);
+  };
+
+  useEffect(() => () => { clearPreviewOpenTimer(); clearPreviewCloseTimer(); }, []);
+
   // Reset local state when eventId changes
   useEffect(() => {
     setSelectedImage(null);
     setHoveredImage(null);
     setCheckedNearby(new Set());
+    closeNearbyPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
   const handleActionSuccess = () => {
@@ -134,6 +187,10 @@ export default function EventDetailWorkspace() {
     if (abs < 60) return t(`event.nearby.offset_sec_${dir}` as any, { s: abs });
     return t(`event.nearby.offset_min_${dir}` as any, { m: Math.floor(abs / 60) });
   };
+
+  // The previewed row is looked up from the current data, so a refetch that
+  // drops the row (or a photo) takes the preview with it.
+  const previewNearby = event.nearbyEvents?.find(n => n.id === previewNearbyId) ?? null;
 
   return (
     <div className="container mx-auto py-3 px-4 max-w-7xl">
@@ -243,18 +300,18 @@ export default function EventDetailWorkspace() {
               {event.nearbyEvents?.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">{t('event.nearby.empty')}</p>
               ) : (
-                <div className="border rounded-md overflow-x-auto">
+                <div className="border rounded-md overflow-x-auto" onMouseLeave={scheduleNearbyPreviewClose}>
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50 border-b">
                       <tr>
                         <th className="px-3 py-1 w-8"></th>
-                        <th className="px-2 py-1 w-12"></th>
                         <th className="px-3 py-1 text-left font-medium">{t('event.nearby.business')}</th>
                         <th className="px-3 py-1 text-left font-medium">{t('event.nearby.account')}</th>
                         <th className="px-3 py-1 text-left font-medium">{t('event.nearby.bin_serial')}</th>
                         <th className="px-3 py-1 text-left font-medium">{t('event.nearby.truck')}</th>
-                        <th className="px-3 py-1 text-left font-medium">{t('district.date')}</th>
-                        <th className="px-3 py-1 text-right font-medium">{t('district.status')}</th>
+                        <th className="px-3 py-1 text-left font-medium">{t('event.nearby.offset')}</th>
+                        <th className="px-3 py-1 text-left font-medium">{t('district.status')}</th>
+                        <th className="px-2 py-1 w-12"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -263,6 +320,7 @@ export default function EventDetailWorkspace() {
                         return (
                           <tr
                             key={nearby.id}
+                            onMouseEnter={e => handleNearbyRowEnter(nearby.id, !!nearby.imageUrl, e.currentTarget)}
                             className={`transition-colors ${accountMismatch ? 'bg-destructive/10 hover:bg-destructive/15 text-destructive' : 'hover:bg-muted/30'}`}
                           >
                             <td className="px-3 py-1">
@@ -271,7 +329,26 @@ export default function EventDetailWorkspace() {
                                 onCheckedChange={() => toggleNearby(nearby.id)} 
                               />
                             </td>
-                            <td className="px-2 py-1">
+                            <td className="px-3 py-1">{nearby.customerName ?? '—'}</td>
+                            <td className={`px-3 py-1 font-mono text-xs ${accountMismatch ? 'font-bold' : ''}`}>
+                              {nearby.accountNumber ?? '—'}
+                            </td>
+                            <td className="px-3 py-1 font-mono text-xs">{nearby.binSerialNumber ?? '—'}</td>
+                            <td className="px-3 py-1 font-mono text-xs">{nearby.vehicle ?? '—'}</td>
+                            {/* The offset is the only time shown now, so it carries
+                                the link the absolute date used to. */}
+                            <td className="px-3 py-1 whitespace-nowrap">
+                              <Link
+                                href={`/districts/${districtId}/events/${nearby.id}`}
+                                className={`font-mono text-xs hover:underline ${accountMismatch ? 'text-destructive' : 'text-primary'}`}
+                              >
+                                {formatOffset(nearby.secondsOffset)}
+                              </Link>
+                            </td>
+                            <td className={`px-3 py-1 whitespace-nowrap ${accountMismatch ? '' : 'text-muted-foreground'}`}>
+                              {t(`event.nearby.status_${nearby.status.toLowerCase()}` as any)}
+                            </td>
+                            <td className="px-2 py-1" data-nearby-photo="">
                               <Link href={`/districts/${districtId}/events/${nearby.id}`}>
                                 {nearby.imageUrl ? (
                                   <img src={nearby.imageUrl} className="w-8 h-8 object-cover rounded shadow-sm cursor-pointer" alt="Thumbnail" />
@@ -282,25 +359,6 @@ export default function EventDetailWorkspace() {
                                 )}
                               </Link>
                             </td>
-                            <td className="px-3 py-1">{nearby.customerName ?? '—'}</td>
-                            <td className={`px-3 py-1 font-mono text-xs ${accountMismatch ? 'font-bold' : ''}`}>
-                              {nearby.accountNumber ?? '—'}
-                            </td>
-                            <td className="px-3 py-1 font-mono text-xs">{nearby.binSerialNumber ?? '—'}</td>
-                            <td className="px-3 py-1 font-mono text-xs">{nearby.vehicle ?? '—'}</td>
-                            <td className="px-3 py-1 whitespace-nowrap">
-                              <Link href={`/districts/${districtId}/events/${nearby.id}`} className={`hover:underline ${accountMismatch ? 'text-destructive' : 'text-primary'}`}>
-                                {formatDate(nearby.dateOccurred, { hour: 'numeric', minute: '2-digit' })}
-                              </Link>
-                              <span className={`ml-2 font-mono text-xs ${accountMismatch ? 'text-destructive/80' : 'text-muted-foreground'}`}>
-                                {formatOffset(nearby.secondsOffset)}
-                              </span>
-                            </td>
-                            <td className="px-3 py-1 text-right">
-                              <Badge variant="outline" className="text-[10px]">
-                                {t(`event.nearby.status_${nearby.status.toLowerCase()}` as any)}
-                              </Badge>
-                            </td>
                           </tr>
                         );
                       })}
@@ -310,6 +368,14 @@ export default function EventDetailWorkspace() {
               )}
             </CardContent>
           </Card>
+          {previewNearby?.imageUrl && (
+            <NearbyPhotoPreview
+              imageUrl={previewNearby.imageUrl}
+              alt={`${previewNearby.customerName ?? ''} photo preview`}
+              anchorRef={previewAnchorRef}
+              rowId={previewNearby.id}
+            />
+          )}
         </div>
 
         {/* Right Column: Timeline */}
@@ -902,3 +968,94 @@ function CloseDialog({ open, onOpenChange, eventId, event, checkedNearby, onSucc
     </Dialog>
   );
 }
+
+const NEARBY_PREVIEW_OPEN_DELAY = 150;
+
+const NEARBY_PREVIEW_GAP = 12;
+
+const NEARBY_PREVIEW_MIN_WIDTH = 320;
+
+/**
+ * The single enlarged photo for whichever nearby row is hovered. Rendered into
+ * <body> so the table's own overflow can't clip it, and non-interactive: the
+ * pointer never has to reach the panel, so moving between rows only swaps the
+ * image inside a panel that is already open.
+ */
+function NearbyPhotoPreview({ imageUrl, alt, anchorRef, rowId }: {
+  imageUrl: string;
+  alt: string;
+  anchorRef: React.MutableRefObject<HTMLElement | null>;
+  rowId: number;
+}) {
+  const [placement, setPlacement] = useState<NearbyPreviewPlacement>(
+    () => computeNearbyPreviewPlacement(anchorRef.current)
+  );
+  useLayoutEffect(() => {
+    const measure = () => setPlacement(computeNearbyPreviewPlacement(anchorRef.current));
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+    // Re-measured per row: the rows share a photo column, but the anchor cell
+    // itself changes as the pointer moves down the table.
+  }, [anchorRef, rowId]);
+
+  return createPortal(
+    <div
+      className={`pointer-events-none fixed z-[60] rounded-lg border bg-background p-2 shadow-2xl animate-in fade-in-0 zoom-in-95 ${
+        placement.mode === 'center'
+          ? 'left-1/2 top-1/2 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2'
+          : ''
+      }`}
+      style={placement.mode === 'beside'
+        ? { right: placement.right, top: placement.top, width: placement.width }
+        : undefined}
+      data-testid="nearby-photo-preview"
+      data-preview-nearby-id={rowId}
+    >
+      <div className="aspect-video w-full overflow-hidden rounded bg-muted">
+        <img
+          key={imageUrl}
+          src={imageUrl}
+          alt={alt}
+          className="h-full w-full object-contain"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/**
+ * Place the panel to the left of the hovered row's photo cell and vertically
+ * centred on that row, clamped so it always stays fully on screen.
+ */
+const computeNearbyPreviewPlacement = (anchor: HTMLElement | null): NearbyPreviewPlacement => {
+  if (!anchor || !anchor.isConnected) return { mode: 'center' };
+  // clientWidth, not innerWidth: a fixed element is laid out against the
+  // viewport minus the scrollbar.
+  const viewportWidth = document.documentElement.clientWidth;
+  const viewportHeight = document.documentElement.clientHeight;
+  const cell = anchor.getBoundingClientRect();
+  const right = Math.max(NEARBY_PREVIEW_GAP, viewportWidth - cell.left + NEARBY_PREVIEW_GAP);
+  const available = viewportWidth - right - NEARBY_PREVIEW_GAP;
+  if (available < NEARBY_PREVIEW_MIN_WIDTH) return { mode: 'center' };
+  const width = Math.min(NEARBY_PREVIEW_MAX_WIDTH, available);
+  // The panel is a 16:9 photo plus its padding; knowing the height up front
+  // lets us keep it inside the viewport without measuring after paint.
+  const height = Math.round((width * 9) / 16) + 16;
+  const top = Math.min(
+    Math.max(cell.top + cell.height / 2 - height / 2, NEARBY_PREVIEW_GAP),
+    Math.max(NEARBY_PREVIEW_GAP, viewportHeight - height - NEARBY_PREVIEW_GAP)
+  );
+  return { mode: 'beside', right, top, width };
+};
+
+const NEARBY_PREVIEW_MAX_WIDTH = 448;
+
+const NEARBY_PREVIEW_CLOSE_DELAY = 220;
+
+/** Where the enlarged nearby photo sits relative to the hovered row. */
+type NearbyPreviewPlacement =
+  | { mode: 'beside'; right: number; top: number; width: number }
+  | { mode: 'center' };

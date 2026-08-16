@@ -215,7 +215,10 @@ export interface OverageStatistics {
 
 export interface NearbyEvent {
   id: number;
-  /** @nullable */
+  /**
+     * primary photo, or the first of the event's other photos when it has no primary one
+     * @nullable
+     */
   imageUrl?: string | null;
   dateOccurred: string;
   /** seconds relative to the main event (negative = earlier) */

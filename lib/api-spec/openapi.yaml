@@ -759,7 +759,7 @@ components:
       required: [id, dateOccurred, secondsOffset, eventStatus, status, distanceMeters, isSuggestedDuplicate]
       properties:
         id: { type: integer }
-        imageUrl: { type: ["string", "null"] }
+        imageUrl: { type: ["string", "null"], description: "primary photo, or the first of the event's other photos when it has no primary one" }
         dateOccurred: { type: string }
         secondsOffset: { type: integer, description: "seconds relative to the main event (negative = earlier)" }
         eventStatus: { type: integer, description: "0 = open, 1 = closed" }

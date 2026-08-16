@@ -285,6 +285,14 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg, CurrentUserA
         };
     }
 
+    /// <summary>
+    /// The photo to show for a row. An event can carry photos in ImageUrls
+    /// without a primary ImageUrl set, so fall back to the first of those
+    /// rather than reporting "no photo".
+    /// </summary>
+    private static string? PrimaryImage(string? imageUrl, string? imageUrlsJson)
+        => !string.IsNullOrEmpty(imageUrl) ? imageUrl : ParseJsonArray(imageUrlsJson).FirstOrDefault();
+
     private static List<string> ParseJsonArray(string? json)
     {
         if (string.IsNullOrEmpty(json)) return [];
@@ -431,7 +439,7 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg, CurrentUserA
             string status = n.EventStatus == 0 ? "Open"
                 : chargedNearbyIds.Contains(n.Id) ? "Charged" : "Dismissed";
             return new NearbyEventDto(
-                Id: n.Id, ImageUrl: n.ImageUrl,
+                Id: n.Id, ImageUrl: PrimaryImage((string?)n.ImageUrl, (string?)n.ImageUrls),
                 DateOccurred: ((DateTimeOffset)n.DateOccurred).ToString("O"),
                 SecondsOffset: (int)offsetMs,
                 EventStatus: n.EventStatus, Status: status,
@@ -494,7 +502,7 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg, CurrentUserA
         var sql = $"""
             WITH Nearby AS (
                 SELECT
-                    re.Id, re.ImageUrl, re.DateOccurred, re.EventStatus,
+                    re.Id, re.ImageUrl, re.ImageUrls, re.DateOccurred, re.EventStatus,
                     re.Address, re.CustomerName, re.AccountNumber, re.BinSerialNumber, re.Vehicle,
                     es.Name AS EventSourceName,
                     (2 * 6371000 * ATN2(
@@ -517,7 +525,7 @@ public class EventsRepository(IDbConnection db, IConfiguration cfg, CurrentUserA
                   AND re.DateOccurred <= @dateTo
             )
             SELECT TOP {_settings.NearbyMaxResults}
-                Id, ImageUrl, DateOccurred, EventStatus,
+                Id, ImageUrl, ImageUrls, DateOccurred, EventStatus,
                 Address, CustomerName, AccountNumber, BinSerialNumber, Vehicle,
                 EventSourceName, DistanceMeters
             FROM Nearby

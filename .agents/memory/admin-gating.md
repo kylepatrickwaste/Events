@@ -28,8 +28,8 @@ Promoting a configured login to admin by writing a row at startup is wrong
 whenever the server sees a different spelling of the caller's name than
 configuration uses.
 
-**Why:** with Windows auth, config carries the bare login (`352271`) while IIS
-reports it domain-qualified (`WCI\352271`). On a fresh database the startup
+**Why:** with Windows auth, config carries the bare login (e.g. `123456`) while
+IIS reports it domain-qualified (`DOMAIN\123456`). On a fresh database the startup
 `INSERT` created an Admin row under the bare name; the caller's first request
 then created a *second*, Agent row under the qualified name and was refused.
 The configured way back in did not work, and the roster showed two rows for
