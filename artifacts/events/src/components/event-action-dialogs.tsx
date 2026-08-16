@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useChargeEvent, useCloseEvent, useBulkCloseEvents, useGetEvent, getGetEventQueryKey } from '@workspace/api-client-react';
-import { triggerTruckDrive } from '@/components/layout/TruckDrive';
 import { useI18n } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -270,7 +269,6 @@ export function ChargeEventDialog({ open, onOpenChange, eventId, serviceCodes, o
   };
 
   const submit = (data: any) => {
-    triggerTruckDrive();
     charge.mutate({ eventId, data: { ...data, duplicateEventIds: Array.from(checkedNearby) } }, {
       onSuccess: () => {
         form.reset();

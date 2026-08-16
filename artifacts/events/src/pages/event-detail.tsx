@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { triggerTruckDrive } from '@/components/layout/TruckDrive';
 import { useRoute, useLocation, Link } from 'wouter';
 import {
   useGetEvent, getGetEventQueryKey,
@@ -583,7 +582,6 @@ function ChargeDialog({ open, onOpenChange, eventId, event, serviceCodes, onSucc
   };
 
   const submit = (data: any) => {
-    triggerTruckDrive();
     charge.mutate({ eventId, data: { ...data, duplicateEventIds: Array.from(checkedNearby) } }, {
       onSuccess: () => {
         onSuccess();
