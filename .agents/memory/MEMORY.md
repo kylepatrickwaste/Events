@@ -9,3 +9,4 @@
 - [Local API stubbing](local-api-stubbing.md) — no backend runs here; stub `/api` inside the Vite dev server, not as a background process, to verify UI writes.
 - [Task-agent merge clobber](task-agent-merge-clobber.md) — a merging task can silently revert main's edits to the same file; no conflict, clean typecheck. Re-diff after every merge.
 - [Relocating controls into a dialog](dialog-relocated-controls.md) — a moved control inherits its trigger's responsive hiding; the sole opener must never be breakpoint-hidden.
+- [Removing navigation affordances](nav-affordance-removal.md) — a home link is no fallback when `/` redirects; follow the surviving entry point through its own routing first.

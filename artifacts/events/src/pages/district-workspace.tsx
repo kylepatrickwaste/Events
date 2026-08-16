@@ -464,6 +464,7 @@ export default function DistrictWorkspace() {
   );
 
   const totalPages = Math.max(1, Math.ceil((displayEvents?.length ?? 0) / pageSize));
+  const totalRows = displayEvents?.length ?? 0;
   const currentPage = Math.min(page, totalPages);
   const pagedEvents = useMemo(
     () => displayEvents?.slice((currentPage - 1) * pageSize, currentPage * pageSize),
@@ -949,13 +950,13 @@ export default function DistrictWorkspace() {
         </table>
         </div>
         {(displayEvents?.length ?? 0) > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 py-2 border-t bg-muted/20 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="flex flex-col sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-3 py-2 border-t bg-muted/20 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground sm:justify-self-start">
               <span>
                 {t('district.page_info', {
                   from: (currentPage - 1) * pageSize + 1,
-                  to: Math.min(currentPage * pageSize, displayEvents?.length ?? 0),
-                  total: displayEvents?.length ?? 0,
+                  to: Math.min(currentPage * pageSize, totalRows),
+                  total: totalRows,
                 })}
               </span>
               <Select value={String(pageSize)} onValueChange={v => { setPageSize(Number(v)); setPage(1); }}>
@@ -969,7 +970,10 @@ export default function DistrictWorkspace() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="text-muted-foreground sm:justify-self-center" data-testid="grid-total-rows">
+              {t(totalRows === 1 ? 'district.total_rows_one' : 'district.total_rows', { count: totalRows })}
+            </div>
+            <div className="flex items-center gap-1 sm:justify-self-end">
               <Button variant="outline" size="sm" className="h-7 px-2" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>

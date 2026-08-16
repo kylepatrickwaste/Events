@@ -234,7 +234,12 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background shadow-sm">
       <div className="container relative flex h-14 items-center gap-2 sm:gap-4">
-        <Link href="/" className="flex shrink-0 items-center gap-2 hover:opacity-90 transition-opacity">
+        <Link
+          href="/?browse=1"
+          className="flex shrink-0 items-center gap-2 hover:opacity-90 transition-opacity"
+          title={t('app.view_all_districts')}
+          aria-label={t('app.view_all_districts')}
+        >
           <img src={logoUrl} alt="Waste Connections" className="h-8 w-auto object-contain" />
           <span className="font-bold hidden sm:inline-block text-primary">
             {t('app.title')}
