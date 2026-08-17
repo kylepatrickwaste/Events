@@ -74,8 +74,22 @@ export function NearbyClusterPicker({ nearby, checked, onToggle, anchorAccountNu
                   <HoverCardTrigger asChild>
                     <img src={n.imageUrl} className="w-10 h-8 object-cover rounded shrink-0" alt="" />
                   </HoverCardTrigger>
-                  <HoverCardContent side="right" align="start" className="w-auto p-1 z-[60]">
-                    <img src={n.imageUrl} className="w-80 max-w-[70vw] rounded object-contain" alt="" />
+                  {/*
+                    Centred on the row rather than top-aligned, so a row near the
+                    bottom of the screen only has half a card below it to fit.
+                    z-[70] clears the photo preview panel and the action dialogs
+                    this picker also appears inside.
+                  */}
+                  <HoverCardContent side="right" align="center" sideOffset={8} className="w-auto p-1 z-[70]">
+                    {/*
+                      Fixed 16:9 box, not an auto-height <img>. The photo has no
+                      intrinsic size until it loads, so an auto-height card is
+                      measured as a sliver, placed, and only then grows -- downward,
+                      past the point collision detection had cleared.
+                    */}
+                    <div className="w-80 max-w-[70vw] aspect-video overflow-hidden rounded bg-muted">
+                      <img src={n.imageUrl} className="h-full w-full object-contain" alt="" />
+                    </div>
                   </HoverCardContent>
                 </HoverCard>
               ) : (
