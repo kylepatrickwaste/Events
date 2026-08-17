@@ -93,27 +93,21 @@ const DEFAULT_PAGE_SIZE = 25;
 const VIEW_CONFIG_VERSION = 3;
 
 /**
- * The opaque twin of `bg-muted/40`. A header cell that stays put while rows
- * slide under it cannot use a translucent tint -- the rows would show through.
- * Painting the same muted tint as a gradient over an opaque card base gives an
- * identical colour that nothing bleeds through. The inset shadow stands in for
- * the row's bottom border, which a sticky cell would otherwise leave behind.
+ * The header band: the brand's dark green, carried by the same token the rest of
+ * the app uses so it tracks the light and dark themes. It has to be fully opaque
+ * -- rows slide underneath it -- and the inset shadow stands in for the row's
+ * bottom border, which a sticky cell would otherwise leave behind.
  */
 const STICKY_HEADER_BG: React.CSSProperties = {
-  backgroundColor: 'hsl(var(--card))',
-  backgroundImage: 'linear-gradient(hsl(var(--muted) / 0.4), hsl(var(--muted) / 0.4))',
-  boxShadow: 'inset 0 -1px 0 hsl(var(--border))',
+  backgroundColor: 'hsl(var(--primary))',
+  boxShadow: 'inset 0 -1px 0 rgba(0, 0, 0, 0.25)',
 };
 
-/**
- * Same, tinted for the column a drag is hovering over. The tint has to carry the
- * whole signal on its own -- over an opaque grey base a 15% wash reads as almost
- * nothing -- so it is stronger than a normal hover state and adds an edge.
- */
+/** Same, lit up for the column a drag is hovering over. */
 const STICKY_HEADER_DROP: React.CSSProperties = {
   ...STICKY_HEADER_BG,
-  backgroundImage: 'linear-gradient(hsl(var(--primary) / 0.3), hsl(var(--primary) / 0.3))',
-  boxShadow: 'inset 2px 0 0 hsl(var(--primary)), inset 0 -1px 0 hsl(var(--border))',
+  backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.25))',
+  boxShadow: 'inset 2px 0 0 #fff, inset 0 -1px 0 rgba(0, 0, 0, 0.25)',
 };
 
 type ViewConfig = {
@@ -220,8 +214,8 @@ function SortHeader({ label, hideLabel, column, sortColumn, sortDirection, onSor
       aria-label={`Sort by ${label}${active ? (sortDirection === 'asc' ? ', descending' : ', ascending') : ''}`}
       aria-sort={active ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
       className={cn(
-        'flex items-center gap-1 uppercase tracking-wider text-xs font-semibold transition-colors hover:text-foreground',
-        active ? 'text-foreground' : 'text-muted-foreground'
+        'flex items-center gap-1 uppercase tracking-wider text-xs font-semibold transition-colors hover:text-white',
+        active ? 'text-white' : 'text-white/75'
       )}
     >
       {hideLabel ? <span className="sr-only">{label}</span> : label}
@@ -776,13 +770,14 @@ export default function DistrictWorkspace() {
         <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <tr className="text-xs font-semibold uppercase tracking-wider text-primary-foreground">
               <th className="sticky top-0 z-20 px-2 py-1.5 w-8 text-left" style={STICKY_HEADER_BG}>
                 <Checkbox
                   checked={allOpenSelected}
                   onCheckedChange={(c) => toggleAll(c === true)}
                   disabled={openEvents.length === 0}
                   aria-label={t('district.select_all')}
+                  className="border-white/70 data-[state=checked]:bg-white data-[state=checked]:text-primary"
                 />
               </th>
               {orderedVisibleCols.map(key => {
@@ -809,7 +804,7 @@ export default function DistrictWorkspace() {
                       onDrop={e => { e.preventDefault(); if (dragCol && dragCol !== key) moveColumn(dragCol, key); setDragCol(null); setDropTarget(null); }}
                       className="flex items-center gap-0.5"
                     >
-                      <GripVertical className="h-3 w-3 opacity-25 shrink-0" />
+                      <GripVertical className="h-3 w-3 shrink-0 text-white/40" />
                       <SortHeader label={col.label} hideLabel={col.hideLabel} column={key} sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
                     </div>
                   </th>
@@ -819,13 +814,13 @@ export default function DistrictWorkspace() {
                   below it, and against vertical scrolling like the rest of the header,
                   so it has to outrank both. */}
               <th
-                className="sticky right-0 top-0 z-30 border-l px-2 py-2 w-[160px]"
+                className="sticky right-0 top-0 z-30 px-2 py-2 w-[160px]"
                 style={{
                   ...STICKY_HEADER_BG,
                   boxShadow: '-4px 0 6px -2px rgba(0,0,0,0.08), inset 0 -1px 0 hsl(var(--border))',
                 }}
               >
-                <span className="float-right font-semibold uppercase tracking-wider text-xs text-muted-foreground pr-1">Photo</span>
+                <span className="float-right font-semibold uppercase tracking-wider text-xs text-white pr-1">Photo</span>
               </th>
             </tr>
           </thead>
