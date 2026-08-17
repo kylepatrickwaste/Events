@@ -17,3 +17,5 @@
 - [JSX generic type args](jsx-generic-type-args.md) — `<List<Row> …>` typechecks then crashes vite:react-babel with a mangled parse error; let the generic infer.
 - [Changing a stored preference's default](stored-default-migration.md) — a stored value ≠ a user choice when code echoes defaults back; compare against the old default before migrating.
 - [Sticky cells break drag](sticky-header-drag.md) — a sticky element neither starts nor accepts a native drag; also test column reorder in BOTH directions.
+- [Frozen panels in auto tables](frozen-panel-in-auto-table.md) — freeze a multi-part edge panel as ONE sticky cell; two sticky cells drift and leak, and one column must absorb the slack.
+- [Hover styles invisible to the tester](hover-styles-invisible-to-tester.md) — `@media (hover: hover)` is off in the test browser, so correct hover CSS reports as "none"; check the generated stylesheet.

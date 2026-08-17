@@ -92,13 +92,40 @@ const COL_ORDER_KEY = 'grid-col-order-v2';
 // optional column defaulted on, so an absent v2 key means "use the new default"
 // unless the v1 value shows the user made their own pick.
 // (COL_VIS_KEY, DEFAULT_VISIBLE_COLS, LEGACY_ALL_ON, loadVisibleCols imported from @/lib/col-visibility)
-// Pinned right-hand panel geometry. The marks cell sits immediately left of the
-// photo cell; sticky offsets have to be pixel-exact so the two form one panel.
-const PHOTO_COL_W = 160;
-const MARKS_COL_W = 104;
+// Pinned right-hand panel geometry. The marks (status / type / source /
+// severity) and the photo live in ONE cell pinned to the right edge, not in two
+// cells whose sticky offsets have to agree: an auto-layout table hands columns
+// whatever width it likes, so any right-offset arithmetic drifts and opens a
+// seam for the scrolling columns to travel through.
+const PANEL_W = 264;
+// Inside the panel: the marks group gets a fixed slot on the left, the photo
+// group takes the rest. PANEL_PAD is the panel's own horizontal padding, which
+// lives on the inner box so the cell's content box stays exactly PANEL_W.
+const PANEL_PAD = 8;
+const PANEL_MARKS_W = 88;
 
 /** Left shadow marking the edge of the frozen right-hand panel. */
 const PINNED_LEFT_SHADOW = '-4px 0 6px -2px rgba(0,0,0,0.08)';
+
+/**
+ * The panel is a fixed-width island in an auto-layout, full-width table. Fixing
+ * the cell alone isn't enough -- the table happily stretches a cell past its
+ * stated width to fill the row -- so the width is pinned on the inner box too,
+ * and one body column is told to absorb all the leftover width instead (see
+ * flexColKey below).
+ */
+const PANEL_CELL_STYLE: React.CSSProperties = {
+  width: PANEL_W,
+  minWidth: PANEL_W,
+  maxWidth: PANEL_W,
+  padding: 0,
+};
+const PANEL_INNER_STYLE: React.CSSProperties = {
+  width: PANEL_W,
+  boxSizing: 'border-box',
+  paddingLeft: PANEL_PAD,
+  paddingRight: PANEL_PAD,
+};
 const PAGE_SIZES = [25, 50, 100];
 const DEFAULT_PAGE_SIZE = 25;
 // A view saved before the columns were re-sequenced carries the old order, and a
@@ -205,11 +232,12 @@ const PREVIEW_MIN_WIDTH = 560;
  * stays visible and clickable while the preview is open.
  */
 const previewAnchorFor = (el: HTMLElement): HTMLElement => {
-  // Anchor on the row's pinned marks cell — the left edge of the whole frozen
-  // panel — so the preview lands beside the panel rather than under it.
+  // Anchor on the row's pinned panel cell — the left edge of the whole frozen
+  // panel — so the preview lands beside the panel rather than under it. The
+  // marks and the photo share one cell, so this is the panel's own left edge.
   const row = el.closest('tr');
-  const marks = row?.querySelector('[data-pinned-marks]') as HTMLElement | null;
-  return marks ?? (el.closest('td') as HTMLElement | null) ?? el;
+  const panel = row?.querySelector('[data-pinned-marks]') as HTMLElement | null;
+  return panel ?? (el.closest('td') as HTMLElement | null) ?? el;
 };
 
 // Higher rank = more severe; unknown/missing severities sort last
@@ -536,6 +564,21 @@ export default function DistrictWorkspace() {
     () => colOrder.filter(k => BASE_KEYS.has(k) || visibleCols.has(k)),
     [colOrder, visibleCols]
   );
+
+  // The table is full-width and auto-laid-out, so the leftover width has to go
+  // somewhere -- and if we don't say where, it gets spread across every column
+  // including the frozen panel, which then no longer measures PANEL_W. Nominate
+  // one free-text column to soak it all up; prose columns stretch gracefully,
+  // the numeric ones don't. Falls back to the last visible column so there is
+  // always exactly one taker.
+  const flexColKey = useMemo(() => {
+    const preferred = ['address', 'customer', 'tabletNotes'];
+    return (
+      preferred.find(k => orderedVisibleCols.includes(k as SortColumn)) ??
+      orderedVisibleCols[orderedVisibleCols.length - 1] ??
+      null
+    );
+  }, [orderedVisibleCols]);
 
   const totalPages = Math.max(1, Math.ceil((displayEvents?.length ?? 0) / pageSize));
   const totalRows = displayEvents?.length ?? 0;
@@ -868,7 +911,12 @@ export default function DistrictWorkspace() {
                       centered ? 'text-center' : 'text-left',
                       dragCol === key && 'opacity-50'
                     )}
-                    style={dropTarget === key ? STICKY_HEADER_DROP : STICKY_HEADER_BG}
+                    style={{
+                      ...(dropTarget === key ? STICKY_HEADER_DROP : STICKY_HEADER_BG),
+                      // The one column that absorbs the table's leftover width,
+                      // so the frozen panel keeps its exact width.
+                      ...(key === flexColKey ? { width: '100%' } : null),
+                    }}
                   >
                     {/* Both halves of the drag live on this inner div rather than on
                         the cell. The header cells have to stay sticky to hold their
@@ -889,44 +937,41 @@ export default function DistrictWorkspace() {
                   </th>
                 );
               })}
-              {/* The pinned pair: marks then photo. Frozen both ways -- against
-                  sideways scrolling like the cells below, and against vertical
-                  scrolling like the rest of the header, so they outrank both.
-                  Neither is draggable, droppable or sortable: they are chrome,
-                  not part of the reorderable set. */}
+              {/* The panel's header band: one cell covering the whole frozen
+                  panel, so it can never fall out of step with the panel below
+                  it. Frozen both ways -- against sideways scrolling like the
+                  cells below, and against vertical scrolling like the rest of
+                  the header, so it outranks both. Not draggable, droppable or
+                  sortable: it is chrome, not part of the reorderable set. */}
               <th
-                className="sticky top-0 z-30 px-2 py-2"
+                className="sticky right-0 top-0 z-30"
                 style={{
                   ...STICKY_HEADER_BG,
-                  right: PHOTO_COL_W,
-                  width: MARKS_COL_W,
+                  ...PANEL_CELL_STYLE,
                   boxShadow: `${PINNED_LEFT_SHADOW}, inset 0 -1px 0 rgba(0, 0, 0, 0.25)`,
                 }}
               >
-                <span className="sr-only">Status / Type / Source / Severity</span>
-              </th>
-              <th
-                className="sticky right-0 top-0 z-30 px-2 py-2"
-                style={{ ...STICKY_HEADER_BG, width: PHOTO_COL_W }}
-              >
-                <span className="float-right font-semibold uppercase tracking-wider text-xs text-white pr-1">Photo</span>
+                <div className="flex items-center py-2" style={PANEL_INNER_STYLE}>
+                  <span className="sr-only">Status / Type / Source / Severity</span>
+                  <span className="ml-auto font-semibold uppercase tracking-wider text-xs text-white pr-1">Photo</span>
+                </div>
               </th>
             </tr>
           </thead>
           <tbody className="divide-y">
         {isLoadingEvents ? (
-          <tr><td colSpan={orderedVisibleCols.length + 3} className="p-4">
+          <tr><td colSpan={orderedVisibleCols.length + 2} className="p-4">
             <div className="space-y-4">
               {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
           </td></tr>
         ) : isEventsError ? (
           // The request failed — don't imply the queue is empty.
-          <tr><td colSpan={orderedVisibleCols.length + 3} className="p-4">
+          <tr><td colSpan={orderedVisibleCols.length + 2} className="p-4">
             <LoadError message={t('district.events_load_failed')} onRetry={() => void refetchEvents()} />
           </td></tr>
         ) : events?.length === 0 ? (
-          <tr><td colSpan={orderedVisibleCols.length + 3} className="p-12 text-center text-muted-foreground">
+          <tr><td colSpan={orderedVisibleCols.length + 2} className="p-12 text-center text-muted-foreground">
             <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-20" />
             <p className="text-lg">{t('district.no_events')}</p>
           </td></tr>
@@ -995,7 +1040,8 @@ export default function DistrictWorkspace() {
 
               const rows: React.ReactNode[] = [];
               let prevGroup: string | null = null;
-              const colSpan = orderedVisibleCols.length + 3;
+              // checkbox column + the visible columns + the one pinned panel cell.
+              const colSpan = orderedVisibleCols.length + 2;
               pagedEvents?.forEach(event => {
                 if (groupBy) {
                   const gv = groupValue(groupBy, event);
@@ -1003,24 +1049,25 @@ export default function DistrictWorkspace() {
                     prevGroup = gv;
                     rows.push(
                       <tr key={`group-${gv}`} className="bg-muted/50">
-                        <td colSpan={colSpan - 2} className="px-2 py-1 text-xs font-semibold">
+                        <td colSpan={colSpan - 1} className="px-2 py-1 text-xs font-semibold">
                           {ALL_COLUMNS.find(c => c.key === groupBy)?.label}: {gv}
                           <span className="ml-2 font-normal text-muted-foreground">({groupCounts?.get(gv) ?? 0})</span>
                         </td>
-                        {/* Group rows need their own frozen cell spanning the whole
-                            pinned panel (marks + photo), otherwise the panel has a
-                            hole at every group break and the label scrolls through
-                            it. Opaque equivalent of this row's bg-muted/50. */}
+                        {/* Group rows need the frozen panel too, otherwise the
+                            panel has a hole at every group break and the label
+                            scrolls through it. Opaque equivalent of this row's
+                            bg-muted/50, same single cell as every other row. */}
                         <td
-                          colSpan={2}
-                          className="sticky right-0 z-10 border-l px-2 py-1"
+                          className="sticky right-0 z-10 border-l"
                           style={{
-                            width: MARKS_COL_W + PHOTO_COL_W,
+                            ...PANEL_CELL_STYLE,
                             backgroundColor: 'hsl(var(--card))',
                             backgroundImage: 'linear-gradient(hsl(var(--muted) / 0.5), hsl(var(--muted) / 0.5))',
                             boxShadow: PINNED_LEFT_SHADOW,
                           }}
-                        />
+                        >
+                          <div className="py-1" style={PANEL_INNER_STYLE} />
+                        </td>
                       </tr>
                     );
                   }
@@ -1043,42 +1090,51 @@ export default function DistrictWorkspace() {
                       )}
                     </td>
                     {orderedVisibleCols.map(key => renderCell(key, event))}
-                    {/* Pinned marks cell: the left edge of the frozen panel. It
-                        carries the divider and shadow so marks + photo read as
-                        one solid panel with no seam between them. */}
+                    {/* The frozen panel: marks and photo in ONE pinned cell, so
+                        there is no offset to get wrong and no seam between them
+                        for a scrolling column to show through. It carries the
+                        row's only divider and edge shadow, and repeats the
+                        row's hover tint as an opaque overlay -- a translucent
+                        background here would let the columns underneath through. */}
                     <td
                       data-pinned-marks=""
-                      className="sticky z-10 bg-card border-l px-2 py-1"
-                      style={{ right: PHOTO_COL_W, width: MARKS_COL_W, boxShadow: PINNED_LEFT_SHADOW }}
+                      className="sticky right-0 z-10 bg-card border-l group-hover:[background-image:linear-gradient(hsl(var(--muted)/0.3),hsl(var(--muted)/0.3))]"
+                      style={{ ...PANEL_CELL_STYLE, boxShadow: PINNED_LEFT_SHADOW }}
                     >
-                      <div className="flex items-center gap-1.5">
-                        <EventStatusGlyph
-                          open={event.eventStatus === 0}
-                          openLabel={t('event.status_open')}
-                          closedLabel={t('event.status_closed')}
-                        />
-                        <EventTypeGlyph name={event.eventTypeName} />
-                        <EventSourceGlyph name={event.eventSourceName} />
-                      </div>
-                      {event.severity ? (
-                        <div className="mt-0.5">
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              'border-0 px-1.5 py-0 text-[10px]',
-                              event.severity.toLowerCase() === 'severe'
-                                ? 'bg-destructive/10 text-destructive'
-                                : 'bg-muted text-muted-foreground'
-                            )}
-                          >
-                            {event.severity}
-                          </Badge>
+                      <div className="flex items-center gap-2 py-1" style={PANEL_INNER_STYLE}>
+                        <div className="shrink-0" style={{ width: PANEL_MARKS_W }}>
+                          <div className="flex items-center gap-1.5">
+                            <EventStatusGlyph
+                              open={event.eventStatus === 0}
+                              openLabel={t('event.status_open')}
+                              closedLabel={t('event.status_closed')}
+                            />
+                            <EventTypeGlyph name={event.eventTypeName} />
+                            <EventSourceGlyph name={event.eventSourceName} />
+                          </div>
+                          {event.severity ? (
+                            <div className="mt-0.5">
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  'border-0 px-1.5 py-0 text-[10px]',
+                                  event.severity.toLowerCase() === 'severe'
+                                    ? 'bg-destructive/10 text-destructive'
+                                    : 'bg-muted text-muted-foreground'
+                                )}
+                              >
+                                {event.severity}
+                              </Badge>
+                            </div>
+                          ) : null}
                         </div>
-                      ) : null}
-                    </td>
-                    <td className="sticky right-0 z-10 bg-card px-2 py-1" style={{ width: PHOTO_COL_W }} onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center justify-between gap-1 min-w-0">
-                        <div className="flex flex-1 items-center justify-end gap-1.5 min-w-0 overflow-hidden">
+                        {/* The click-stop stays wrapped around the photo controls
+                            only: clicking the icons half still opens the event,
+                            as it does anywhere else in the row. */}
+                        <div
+                          className="flex flex-1 items-center justify-end gap-1.5 min-w-0 overflow-hidden"
+                          onClick={e => e.stopPropagation()}
+                        >
                           {(event.imageUrls?.length ?? 0) > 0 && (
                             <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                               <Camera className="h-3.5 w-3.5" />
