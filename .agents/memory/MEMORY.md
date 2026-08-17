@@ -1,4 +1,5 @@
 - [Orval/zod codegen compat](orval-zod-compat.md) — keep number coercion in orval config (zod v3 vs `zod.int()`), and never mix path+query params on one operation (TS2308).
+- [Schema ownership: scripts vs start-up](schema-ownership-scripts-vs-startup.md) — an initializer always drifts ahead of the checked-in create script; diff object-by-object before deleting it.
 - [Post-merge seed scripts](post-merge-seeds.md) — merged seed-data tasks need their `lib/db` seed script run manually or users see empty data.
 - [Seed scripts and natural keys](seed-scripts-natural-keys.md) — hard-coded parent Ids silently attach rows to the wrong parent when two seeders disagree; resolve by natural key.
 - [.NET API cutover](dotnet-api-cutover.md) — no backend runs in this repl; a GitHub push IS the deploy, confirmed by polling `buildNumber` on healthz.
