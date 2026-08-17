@@ -250,6 +250,8 @@
     "title": "Facturer les événements sélectionnés",
     "description": "Appliquer un code de service, un montant et une quantité à {{count}} événements ouverts sélectionnés.",
     "submit": "Facturer {{count}} événements",
+    "progress": "{{done}} sur {{total}} traités — {{charged}} facturés",
+    "stop": "Arrêter",
     "success": "{{count}} événements facturés",
     "partial": "{{charged}} événements facturés — {{failed}} ont échoué et restent ouverts."
   },

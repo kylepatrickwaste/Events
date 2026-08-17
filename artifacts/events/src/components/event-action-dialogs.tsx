@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useChargeEvent, useCloseEvent, useBulkCloseEvents, useGetEvent, getGetEventQueryKey } from '@workspace/api-client-react';
 import { useI18n } from '@/i18n';
 import { Button } from '@/components/ui/button';
@@ -208,6 +208,11 @@ export function BulkCloseDialog({ open, onOpenChange, eventIds, onSuccess }: {
  * Bulk charge: one service code, amount and quantity applied to every selected
  * open event, submitted through the existing per-event charge call. There is no
  * bulk endpoint, so each event is charged in turn and the tally reported back.
+ *
+ * While running, a progress bar and "X of Y charged" label are shown and the
+ * dialog cannot be closed. A "Stop" button lets the user cancel mid-run — the
+ * loop checks a ref after every charge and stops issuing further requests as
+ * soon as it is set, then calls onDone with only the events that were attempted.
  */
 export function BulkChargeDialog({ open, onOpenChange, eventIds, serviceCodes, onDone }: {
   open: boolean;
@@ -219,6 +224,17 @@ export function BulkChargeDialog({ open, onOpenChange, eventIds, serviceCodes, o
   const { t } = useI18n();
   const charge = useChargeEvent();
   const [submitting, setSubmitting] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; charged: number; total: number } | null>(null);
+  // A ref so the loop can read the latest value without a closure-staleness issue.
+  const cancelledRef = useRef(false);
+
+  // Reset progress state whenever the dialog is closed so reopening it starts fresh.
+  useEffect(() => {
+    if (!open) {
+      setProgress(null);
+      cancelledRef.current = false;
+    }
+  }, [open]);
 
   const form = useForm({
     resolver: zodResolver(chargeSchema),
@@ -232,22 +248,40 @@ export function BulkChargeDialog({ open, onOpenChange, eventIds, serviceCodes, o
     if (code) form.setValue('amount', code.amount);
   };
 
+  const handleCancel = () => {
+    if (submitting) {
+      // Signal the in-flight loop to stop after the current request finishes.
+      cancelledRef.current = true;
+    } else {
+      onOpenChange(false);
+    }
+  };
+
   const submit = async (data: any) => {
     setSubmitting(true);
+    cancelledRef.current = false;
+    setProgress({ done: 0, charged: 0, total: eventIds.length });
     let charged = 0;
+    let processed = 0;
     // Sequential on purpose: each success/failure is counted, and a burst of
     // parallel charges would hammer the same per-event endpoint.
     for (const eventId of eventIds) {
+      if (cancelledRef.current) break;
       try {
         await charge.mutateAsync({ eventId, data: { ...data, duplicateEventIds: [] } });
         charged++;
       } catch {
         // counted below as a failure; the summary toast names how many
       }
+      processed++;
+      setProgress({ done: processed, charged, total: eventIds.length });
     }
     setSubmitting(false);
+    setProgress(null);
     form.reset();
-    onDone(charged, eventIds.length - charged);
+    // Only count the events we actually attempted — if cancelled early, the
+    // remaining ones are neither charged nor failed.
+    onDone(charged, processed - charged);
   };
 
   return (
@@ -262,7 +296,7 @@ export function BulkChargeDialog({ open, onOpenChange, eventIds, serviceCodes, o
             <FormField control={form.control} name="serviceCodeId" render={({ field }) => (
               <FormItem>
                 <FormLabel>{t('charge.service_code')}</FormLabel>
-                <Select onValueChange={onSelectCode} value={field.value?.toString()}>
+                <Select onValueChange={onSelectCode} value={field.value?.toString()} disabled={submitting}>
                   <FormControl>
                     <SelectTrigger><SelectValue placeholder={t('charge.select_code')} /></SelectTrigger>
                   </FormControl>
@@ -280,21 +314,37 @@ export function BulkChargeDialog({ open, onOpenChange, eventIds, serviceCodes, o
               <FormField control={form.control} name="amount" render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t('charge.amount')}</FormLabel>
-                  <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                  <FormControl><Input type="number" step="0.01" disabled={submitting} {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="quantity" render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t('charge.quantity')}</FormLabel>
-                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <FormControl><Input type="number" disabled={submitting} {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
             </div>
 
+            {progress && (
+              <div className="space-y-1.5">
+                <p className="text-sm text-muted-foreground">
+                  {t('bulk_charge.progress', { done: progress.done, total: progress.total, charged: progress.charged })}
+                </p>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary transition-[width] duration-200"
+                    style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             <DialogFooter>
-              <Button type="button" variant="outline" disabled={submitting} onClick={() => onOpenChange(false)}>{t('charge.cancel')}</Button>
+              <Button type="button" variant="outline" onClick={handleCancel}>
+                {submitting ? t('bulk_charge.stop') : t('charge.cancel')}
+              </Button>
               <Button type="submit" disabled={submitting}>
                 {t('bulk_charge.submit', { count: eventIds.length })}
               </Button>

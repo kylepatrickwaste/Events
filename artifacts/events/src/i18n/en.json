@@ -250,6 +250,8 @@
     "title": "Charge selected events",
     "description": "Apply one service code, amount and quantity to {{count}} selected open events.",
     "submit": "Charge {{count}} events",
+    "progress": "{{done}} of {{total}} processed — {{charged}} charged",
+    "stop": "Stop",
     "success": "{{count}} events charged",
     "partial": "{{charged}} events charged — {{failed}} failed and are still open."
   },
