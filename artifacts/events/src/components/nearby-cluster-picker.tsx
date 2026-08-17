@@ -117,7 +117,12 @@ export function NearbyClusterPicker({ nearby, checked, onToggle, anchorAccountNu
                   {n.customerName && <span className={`truncate ${accountMismatch ? 'text-destructive' : ''}`}>{n.customerName}</span>}
                 </div>
               </div>
-              <Badge variant="outline" className="text-[10px] shrink-0">
+              {/* Green only for Open: it marks the rows still worth acting on,
+                  so Charged and Dismissed stay a plain outline pill. */}
+              <Badge
+                variant="outline"
+                className={`text-[10px] shrink-0 ${isOpen ? 'border-transparent bg-success text-success-foreground' : ''}`}
+              >
                 {t(`event.nearby.status_${n.status.toLowerCase()}` as any)}
               </Badge>
             </label>
