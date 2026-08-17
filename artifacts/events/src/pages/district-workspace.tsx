@@ -97,12 +97,18 @@ const COL_ORDER_KEY = 'grid-col-order-v2';
 // cells whose sticky offsets have to agree: an auto-layout table hands columns
 // whatever width it likes, so any right-offset arithmetic drifts and opens a
 // seam for the scrolling columns to travel through.
-const PANEL_W = 264;
+// Sized to its contents, not rounded up: the photo group is right-aligned
+// inside the panel, so any width beyond what the marks and the photo need opens
+// as dead space in the middle of the panel, between the icons and the
+// thumbnails. Widen these only together with what they hold.
+const PANEL_W = 192;
 // Inside the panel: the marks group gets a fixed slot on the left, the photo
 // group takes the rest. PANEL_PAD is the panel's own horizontal padding, which
 // lives on the inner box so the cell's content box stays exactly PANEL_W.
 const PANEL_PAD = 8;
-const PANEL_MARKS_W = 88;
+// Three 16px glyphs and their two gaps (60px), rounded up to clear the widest
+// severity badge sitting underneath them.
+const PANEL_MARKS_W = 72;
 
 /** Left shadow marking the edge of the frozen right-hand panel. */
 const PINNED_LEFT_SHADOW = '-4px 0 6px -2px rgba(0,0,0,0.08)';
@@ -1150,7 +1156,12 @@ export default function DistrictWorkspace() {
                               onNavigate={() => setLocation(`/districts/${districtId}/events/${event.id}`)}
                             />
                           ) : (
-                            <span className="text-xs text-muted-foreground italic truncate">{t('event.no_photo')}</span>
+                            <span
+                              className="text-xs text-muted-foreground italic truncate"
+                              title={t('event.no_photo')}
+                            >
+                              {t('event.no_photo_short')}
+                            </span>
                           )}
                         </div>
                       </div>
