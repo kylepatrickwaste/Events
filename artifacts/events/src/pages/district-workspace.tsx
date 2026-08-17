@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { COL_VIS_KEY, DEFAULT_VISIBLE_COLS, LEGACY_ALL_ON, loadVisibleCols } from '@/lib/col-visibility';
 
 type ColumnDef = {
   key: SortColumn;
@@ -80,11 +81,9 @@ const BASE_KEYS = new Set<string>(BASE_COLUMNS.map(c => c.key));
 // Numeric-ish columns read better centered; everything else stays left-aligned.
 const CENTERED_KEYS = new Set<string>(['qty', 'binSerial', 'chgAmt', 'prevChg', 'prevTotal']);
 // The columns most agents actually use. Everything else starts switched off.
-const DEFAULT_VISIBLE_COLS = ['qty', 'binSerial', 'address', 'chgAmt', 'prevChg', 'prevTotal'];
 // The pre-rework default was "everything on". A legacy store holding exactly
 // that set is almost certainly the old default echoed back by a view apply or
 // an off-then-on toggle, not a deliberate choice — treat it as no choice.
-const LEGACY_ALL_ON = new Set<string>(OPTIONAL_COLUMNS.map(c => c.key));
 const VIEWS_KEY = 'grid-views';
 // Versioned: a saved order from before the columns were re-sequenced would pin
 // everyone to the old layout, since a stored order always wins over the default.
@@ -92,7 +91,7 @@ const COL_ORDER_KEY = 'grid-col-order-v2';
 // Versioned for the same reason: v1 ('grid-columns') dates from when every
 // optional column defaulted on, so an absent v2 key means "use the new default"
 // unless the v1 value shows the user made their own pick.
-const COL_VIS_KEY = 'grid-columns-v2';
+// (COL_VIS_KEY, DEFAULT_VISIBLE_COLS, LEGACY_ALL_ON, loadVisibleCols imported from @/lib/col-visibility)
 // Pinned right-hand panel geometry. The marks cell sits immediately left of the
 // photo cell; sticky offsets have to be pixel-exact so the two form one panel.
 const PHOTO_COL_W = 160;
@@ -100,20 +99,6 @@ const MARKS_COL_W = 104;
 
 /** Left shadow marking the edge of the frozen right-hand panel. */
 const PINNED_LEFT_SHADOW = '-4px 0 6px -2px rgba(0,0,0,0.08)';
-
-const loadVisibleCols = (): Set<string> => {
-  try {
-    const raw = localStorage.getItem(COL_VIS_KEY);
-    if (raw) return new Set(JSON.parse(raw) as string[]);
-    const legacy = localStorage.getItem('grid-columns');
-    if (legacy) {
-      const cols = JSON.parse(legacy) as string[];
-      const isStaleDefault = cols.length === LEGACY_ALL_ON.size && cols.every(k => LEGACY_ALL_ON.has(k));
-      if (!isStaleDefault) return new Set(cols);
-    }
-  } catch {}
-  return new Set(DEFAULT_VISIBLE_COLS);
-};
 const PAGE_SIZES = [25, 50, 100];
 const DEFAULT_PAGE_SIZE = 25;
 // A view saved before the columns were re-sequenced carries the old order, and a
