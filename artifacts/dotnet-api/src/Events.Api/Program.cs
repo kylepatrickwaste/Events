@@ -55,16 +55,18 @@ try
 
     var app = builder.Build();
 
-    // Create tables and seed data on startup (idempotent)
+    // The API does not create, migrate or seed the database. The schema lives
+    // in files/01_create_tables.sql and demo data in files/02_insert_mock_data.sql;
+    // both are applied by hand with sqlcmd. Starting the API against a database
+    // that has not had them run will fail on the first query, by design.
     var cs = builder.Configuration.GetConnectionString("Default")
         ?? throw new InvalidOperationException("ConnectionStrings:Default is required.");
-    await DatabaseInitializer.InitializeAsync(cs);
 
     // Break-glass administrators. Nested under a section rather than a
     // top-level key so no Windows environment variable can shadow it.
     var bootstrapAdmins = builder.Configuration
         .GetSection("Access:BootstrapAdmins").Get<string[]>() ?? [];
-    await DatabaseInitializer.EnsureBootstrapAdminsAsync(cs, bootstrapAdmins);
+    await BootstrapAdmins.ApplyAsync(cs, bootstrapAdmins);
 
     app.UseSerilogRequestLogging();
     app.UseCors();

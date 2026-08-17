@@ -63,13 +63,27 @@ All routes prefixed with `/api`.
 
 ## Database schema
 
-Tables are created and seeded idempotently on startup by `src/Events.Api/Services/DatabaseInitializer.cs`, which is now the authoritative schema definition. Key tables:
+**The API creates nothing.** It opens a connection and expects the schema to already exist; there is no start-up migration, no `CREATE TABLE`, and no seed data. Point it at an empty database and the first request fails.
+
+The authoritative schema is `files/01_create_tables.sql`, with demo data in `files/02_insert_mock_data.sql`. Both are idempotent and are applied by hand:
+
+```bash
+sqlcmd -S <server> -d events -i files/01_create_tables.sql
+sqlcmd -S <server> -d events -i files/02_insert_mock_data.sql   # optional demo data
+```
+
+Tables:
 
 - `Districts`
 - `EventTypes` / `EventSources`
+- `ServiceCodes`
+- `FileImports`
 - `RouteEvents`
 - `EventActions`
-- `ServiceCodes`
 - `AccountFlags`
+- `EventEditHistory`
+- `AppUsers` — rows are created by the API on a user's first request, never seeded
+
+The one thing the API still writes at start-up is the break-glass administrator promotion in `src/Events.Api/Services/BootstrapAdmins.cs`, driven by `Access:BootstrapAdmins` in configuration. It is an `UPDATE` against existing `AppUsers` rows — access control, not schema or seed data.
 
 Tables and columns are PascalCase with no underscores (`RouteEvents.DateOccurred`, `AccountFlags.AccountNumber`), matching the names used in the C# code. The JSON contract is unaffected: DTOs are serialized to camelCase as before.
