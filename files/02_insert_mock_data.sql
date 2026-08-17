@@ -3,7 +3,7 @@
 -- Microsoft SQL Server  —  Route Events mock data seed
 --
 -- Populates all lookup tables and inserts the full demo dataset:
---   • EventTypes (5 rows), EventSources (3 rows)
+--   • EventTypes (5 rows), EventSources (4 rows)
 --   • Districts (4 rows — Vancouver/2010, Vancouver-Minimal/2010-M,
 --                         Cascade Disposal/2012, Houston/5120)
 --   • ServiceCodes (3 codes × 2 districts)
@@ -43,7 +43,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.EventTypes WHERE Id = 5)
 SET IDENTITY_INSERT dbo.EventTypes OFF;
 GO
 
--- ---- EventSources (IDs 1-3) --------------------------------
+-- ---- EventSources (IDs 1-4) --------------------------------
 SET IDENTITY_INSERT dbo.EventSources ON;
 
 IF NOT EXISTS (SELECT 1 FROM dbo.EventSources WHERE Id = 1)
@@ -52,6 +52,8 @@ IF NOT EXISTS (SELECT 1 FROM dbo.EventSources WHERE Id = 2)
     INSERT INTO dbo.EventSources (Id, Name, Active) VALUES (2, N'3rd Eye',     1);
 IF NOT EXISTS (SELECT 1 FROM dbo.EventSources WHERE Id = 3)
     INSERT INTO dbo.EventSources (Id, Name, Active) VALUES (3, N'Manual',      1);
+IF NOT EXISTS (SELECT 1 FROM dbo.EventSources WHERE Id = 4)
+    INSERT INTO dbo.EventSources (Id, Name, Active) VALUES (4, N'Samsara',     1);
 
 SET IDENTITY_INSERT dbo.EventSources OFF;
 GO
@@ -1452,4 +1454,59 @@ BEGIN
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT Id, N'charge', 0, 70.0000, 1.00, N'PAID',     N'Overage charge applied to account.', N'[seed:district-demo]-history', N'Kyle.Patrick', DATEADD(hour, 3, DATEADD(day, -88, GETUTCDATE())) FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district-demo]-2010-M-s8';
 END
+GO
+
+-- ============================================================
+-- SECTION 7 — Samsara-sourced events (district 20, Houston)
+--
+-- The Samsara camera vendor had no events of its own, so its mark
+-- never appeared in the grid. These two rows give it a presence in
+-- the district charge agents actually work in. Same guard as every
+-- other row here: re-running the script adds them once and then
+-- leaves them alone.
+-- ============================================================
+
+-- [sam-1] Contamination · Samsara · open
+IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district-demo]-5120-sam-1')
+    INSERT INTO dbo.RouteEvents (
+        DistrictId, EventTypeId, EventSourceId, ExternalId,
+        DateOccurred, Vehicle, Route, Latitude, Longitude, Address,
+        CustomerName, AccountNumber, BillArea, BinSerialNumber,
+        Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
+        Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
+    ) VALUES (
+        20, 2, 4, N'[seed:district-demo]-5120-sam-1',
+        DATEADD(minute, -96, GETUTCDATE()),
+        N'5120-2311 FEL', N'RC201', 29.8612, -95.3982,
+        N'8820 AIRLINE DR, HOUSTON, TX',
+        N'AIRLINE FARMERS MARKET', N'5120-7735602',
+        N'HOU Z4', N'BIN-90140', N'Commercial', N'Linked',
+        1.00, N'/event-photos/truck-cam-3.jpg',
+        N'["/event-photos/truck-cam-3.jpg","/event-photos/truck-cam-9.jpg"]',
+        N'Severe', DATEADD(month, -47, GETUTCDATE()),
+        0, NULL, NULL,
+        N'[{"code":"RC201","service":"FRONT LOAD","material":"GARBAGE","day":"MONDAY"},{"code":"RC118","service":"FRONT LOAD","material":"RECYCLE","day":"THURSDAY"}]'
+    );
+
+-- [sam-2] Extra · Samsara · open
+IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district-demo]-5120-sam-2')
+    INSERT INTO dbo.RouteEvents (
+        DistrictId, EventTypeId, EventSourceId, ExternalId,
+        DateOccurred, Vehicle, Route, Latitude, Longitude, Address,
+        CustomerName, AccountNumber, BillArea, BinSerialNumber,
+        Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
+        Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
+    ) VALUES (
+        20, 1, 4, N'[seed:district-demo]-5120-sam-2',
+        DATEADD(minute, -211, GETUTCDATE()),
+        N'5120-2309 FEL', N'NY109', 29.8894, -95.4121,
+        N'4403 NORTH FWY, HOUSTON, TX',
+        N'NORTH FWY STORAGE', N'5120-7786472',
+        N'HOU Z2', N'R6-295', N'Commercial', N'Linked',
+        2.00, N'/event-photos/truck-cam-11.jpg',
+        N'["/event-photos/truck-cam-11.jpg","/event-photos/truck-cam-4.jpg","/event-photos/truck-cam-7.jpg"]',
+        N'Minimal', DATEADD(month, -18, GETUTCDATE()),
+        0, NULL, NULL,
+        N'[{"code":"NY109","service":"FRONT LOAD","material":"GARBAGE","day":"WEDNESDAY"}]'
+    );
 GO

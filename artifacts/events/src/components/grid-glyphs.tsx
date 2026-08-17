@@ -37,6 +37,23 @@ function LetterMark({ letter, label, className }: { letter: string; label: strin
 }
 
 /**
+ * A hazard placard: a black mark on warning yellow, the way a poison label is
+ * drawn. Contamination is the one overage type that is a safety matter rather
+ * than a billing one, so it is the only mark that shouts.
+ */
+function HazardTile({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span
+      title={label}
+      className="inline-flex h-4 w-4 items-center justify-center rounded-[3px] bg-yellow-400 align-middle text-black ring-1 ring-inset ring-black/60"
+    >
+      {children}
+      <span className="sr-only">{label}</span>
+    </span>
+  );
+}
+
+/**
  * A bin whose lid has been pushed askew by rubbish piled over the rim, which is
  * precisely what an "Extra" is: more waste than the container holds.
  */
@@ -94,7 +111,7 @@ export function EventTypeGlyph({ name }: { name?: string | null }) {
     case 'overloaded':
       return <Glyph label={label}><Weight className="h-4 w-4 text-orange-600 dark:text-orange-500" /></Glyph>;
     case 'contamination':
-      return <Glyph label={label}><Biohazard className="h-4 w-4 text-rose-600 dark:text-rose-500" /></Glyph>;
+      return <HazardTile label={label}><Biohazard className="h-3 w-3" strokeWidth={2.5} /></HazardTile>;
     case 'not out':
       return <Glyph label={label}><PackageX className="h-4 w-4 text-slate-500" /></Glyph>;
     case 'blocked container':
