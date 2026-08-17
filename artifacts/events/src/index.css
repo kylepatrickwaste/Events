@@ -53,6 +53,11 @@
   --color-sidebar-accent-border: var(--sidebar-accent-border);
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
+  /** Solid off-white used for resting (non-active) items in the table
+      column-header band. Chosen to be clearly distinct from pure white on
+      both the light and dark primary greens while staying fully opaque. */
+  --color-header-dim: hsl(0 0% 84%);
+
   --font-sans: var(--app-font-sans);
   --font-serif: var(--app-font-serif);
   --font-mono: var(--app-font-mono);

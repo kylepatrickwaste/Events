@@ -269,7 +269,7 @@ function SortHeader({ label, hideLabel, column, sortColumn, sortDirection, onSor
       aria-sort={active ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
       className={cn(
         'flex items-center gap-1 uppercase tracking-wider text-xs font-semibold transition-colors hover:text-white',
-        active ? 'text-white' : 'text-white/75'
+        active ? 'text-white' : 'text-header-dim'
       )}
     >
       {hideLabel ? <span className="sr-only">{label}</span> : label}
@@ -278,7 +278,7 @@ function SortHeader({ label, hideLabel, column, sortColumn, sortDirection, onSor
           ? <ArrowUp className="h-3 w-3 shrink-0" />
           : <ArrowDown className="h-3 w-3 shrink-0" />
       ) : (
-        <ArrowUpDown className="h-3 w-3 shrink-0 opacity-40" />
+        <ArrowUpDown className="h-3 w-3 shrink-0" />
       )}
     </button>
   );
@@ -903,7 +903,7 @@ export default function DistrictWorkspace() {
                   onCheckedChange={(c) => toggleAll(c === true)}
                   disabled={openEvents.length === 0}
                   aria-label={t('district.select_all')}
-                  className="border-white/70 data-[state=checked]:bg-white data-[state=checked]:text-primary"
+                  className="border-header-dim data-[state=checked]:bg-white data-[state=checked]:text-primary"
                 />
               </th>
               {orderedVisibleCols.map(key => {
@@ -937,7 +937,7 @@ export default function DistrictWorkspace() {
                       onDrop={e => { e.preventDefault(); if (dragCol && dragCol !== key) moveColumn(dragCol, key); setDragCol(null); setDropTarget(null); }}
                       className={cn('flex items-center gap-0.5', centered && 'justify-center')}
                     >
-                      <GripVertical className="h-3 w-3 shrink-0 text-white/40" />
+                      <GripVertical className="h-3 w-3 shrink-0 text-header-dim" />
                       <SortHeader label={col.label} hideLabel={col.hideLabel} column={key} sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
                     </div>
                   </th>
