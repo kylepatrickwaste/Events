@@ -43,7 +43,9 @@
     "search_district": "Search district…",
     "no_district_found": "No district found.",
     "select_all": "Select all",
+    "select_none": "Select none",
     "close_selected": "Close selected",
+    "charge_selected": "Charge selected",
     "selected_count": "{{count}} selected",
     "all_districts": "All districts",
     "page_info": "{{from}}–{{to}} of {{total}}",
@@ -243,6 +245,13 @@
     },
     "dismiss_these": "Dismiss these when closing",
     "failed": "The event wasn't closed. The server didn't respond."
+  },
+  "bulk_charge": {
+    "title": "Charge selected events",
+    "description": "Apply one service code, amount and quantity to {{count}} selected open events.",
+    "submit": "Charge {{count}} events",
+    "success": "{{count}} events charged",
+    "partial": "{{charged}} events charged — {{failed}} failed and are still open."
   },
   "bulk_close": {
     "title": "Close selected events",

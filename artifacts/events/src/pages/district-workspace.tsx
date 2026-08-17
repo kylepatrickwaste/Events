@@ -19,12 +19,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Settings, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, DoorOpen, Plus, Minus, GripVertical, Layers } from 'lucide-react';
+import { Search, Settings, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, CheckCheck, Square, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, DoorOpen, Plus, Minus, GripVertical, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { EventSourceGlyph, EventStatusGlyph, EventTypeGlyph } from '@/components/grid-glyphs';
-import { ChargeEventDialog, CloseEventDialog, BulkCloseDialog } from '@/components/event-action-dialogs';
+import { ChargeEventDialog, CloseEventDialog, BulkCloseDialog, BulkChargeDialog } from '@/components/event-action-dialogs';
 import { rememberDistrict } from '@/lib/selected-district';
 import {
   DropdownMenu,
@@ -62,28 +62,58 @@ const OPTIONAL_COLUMNS: ColumnDef[] = [
 
 const BASE_COLUMNS: ColumnDef[] = [
   { key: 'customer', label: 'Customer' },
-  // Status, type, vendor and severity share one cell, so a heading would only
-  // name a quarter of what is under it.
-  { key: 'type', label: 'Status / Type / Source / Severity', hideLabel: true },
   { key: 'date', label: 'Event Time' },
   { key: 'route', label: 'Vehicle' },
 ];
 const ALL_COLUMNS = [...BASE_COLUMNS, ...OPTIONAL_COLUMNS];
 /**
- * Reading order for a charge agent: who was it, where, and when -- then how the
- * event was classified. Address is still an optional column; this only fixes
- * where it lands when it is switched on.
+ * Reading order for a charge agent: who was it, where, and when. The marks
+ * column (status / type / source / severity) is no longer part of this order:
+ * it is pinned to the right edge beside the photo panel and cannot be moved.
  */
 const DEFAULT_COL_ORDER: SortColumn[] = [
   'customer', 'address', 'date',
-  'type', 'route',
+  'route',
   'qty', 'binSerial', 'stop', 'wo', 'lob', 'tabletNotes', 'chgAmt', 'prevChg', 'prevTotal',
 ];
 const BASE_KEYS = new Set<string>(BASE_COLUMNS.map(c => c.key));
+// Numeric-ish columns read better centered; everything else stays left-aligned.
+const CENTERED_KEYS = new Set<string>(['qty', 'binSerial', 'chgAmt', 'prevChg', 'prevTotal']);
+// The columns most agents actually use. Everything else starts switched off.
+const DEFAULT_VISIBLE_COLS = ['qty', 'binSerial', 'address', 'chgAmt', 'prevChg', 'prevTotal'];
+// The pre-rework default was "everything on". A legacy store holding exactly
+// that set is almost certainly the old default echoed back by a view apply or
+// an off-then-on toggle, not a deliberate choice — treat it as no choice.
+const LEGACY_ALL_ON = new Set<string>(OPTIONAL_COLUMNS.map(c => c.key));
 const VIEWS_KEY = 'grid-views';
 // Versioned: a saved order from before the columns were re-sequenced would pin
 // everyone to the old layout, since a stored order always wins over the default.
 const COL_ORDER_KEY = 'grid-col-order-v2';
+// Versioned for the same reason: v1 ('grid-columns') dates from when every
+// optional column defaulted on, so an absent v2 key means "use the new default"
+// unless the v1 value shows the user made their own pick.
+const COL_VIS_KEY = 'grid-columns-v2';
+// Pinned right-hand panel geometry. The marks cell sits immediately left of the
+// photo cell; sticky offsets have to be pixel-exact so the two form one panel.
+const PHOTO_COL_W = 160;
+const MARKS_COL_W = 104;
+
+/** Left shadow marking the edge of the frozen right-hand panel. */
+const PINNED_LEFT_SHADOW = '-4px 0 6px -2px rgba(0,0,0,0.08)';
+
+const loadVisibleCols = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(COL_VIS_KEY);
+    if (raw) return new Set(JSON.parse(raw) as string[]);
+    const legacy = localStorage.getItem('grid-columns');
+    if (legacy) {
+      const cols = JSON.parse(legacy) as string[];
+      const isStaleDefault = cols.length === LEGACY_ALL_ON.size && cols.every(k => LEGACY_ALL_ON.has(k));
+      if (!isStaleDefault) return new Set(cols);
+    }
+  } catch {}
+  return new Set(DEFAULT_VISIBLE_COLS);
+};
 const PAGE_SIZES = [25, 50, 100];
 const DEFAULT_PAGE_SIZE = 25;
 // A view saved before the columns were re-sequenced carries the old order, and a
@@ -189,7 +219,13 @@ const PREVIEW_MIN_WIDTH = 560;
  * thumbnail's frozen cell, so the whole pinned panel (close button included)
  * stays visible and clickable while the preview is open.
  */
-const previewAnchorFor = (el: HTMLElement): HTMLElement => (el.closest('td') as HTMLElement | null) ?? el;
+const previewAnchorFor = (el: HTMLElement): HTMLElement => {
+  // Anchor on the row's pinned marks cell — the left edge of the whole frozen
+  // panel — so the preview lands beside the panel rather than under it.
+  const row = el.closest('tr');
+  const marks = row?.querySelector('[data-pinned-marks]') as HTMLElement | null;
+  return marks ?? (el.closest('td') as HTMLElement | null) ?? el;
+};
 
 // Higher rank = more severe; unknown/missing severities sort last
 const SEVERITY_RANK: Record<string, number> = { severe: 2, minimal: 1 };
@@ -245,6 +281,7 @@ export default function DistrictWorkspace() {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkCloseOpen, setBulkCloseOpen] = useState(false);
+  const [bulkChargeOpen, setBulkChargeOpen] = useState(false);
   const [chargeEventId, setChargeEventId] = useState<number | null>(null);
   const [chargeNearbyPreset, setChargeNearbyPreset] = useState<number[]>([]);
   const [closeEventId, setCloseEventId] = useState<number | null>(null);
@@ -259,16 +296,13 @@ export default function DistrictWorkspace() {
   const [pageSize, setPageSize] = useState(() => initialGrid.cfg?.pageSize ?? DEFAULT_PAGE_SIZE);
   const [visibleCols, setVisibleCols] = useState<Set<string>>(() => {
     if (initialGrid.cfg) return new Set(initialGrid.cfg.visibleCols);
-    try {
-      const raw = localStorage.getItem('grid-columns');
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set(OPTIONAL_COLUMNS.map(c => c.key));
-    } catch { return new Set(OPTIONAL_COLUMNS.map(c => c.key)); }
+    return loadVisibleCols();
   });
   const toggleCol = (key: string) => {
     setVisibleCols(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
-      try { localStorage.setItem('grid-columns', JSON.stringify([...next])); } catch {}
+      try { localStorage.setItem(COL_VIS_KEY, JSON.stringify([...next])); } catch {}
       return next;
     });
   };
@@ -329,7 +363,7 @@ export default function DistrictWorkspace() {
     try { localStorage.setItem('grid-current-view', name); } catch {}
     const vis = new Set(cfg.visibleCols);
     setVisibleCols(vis);
-    try { localStorage.setItem('grid-columns', JSON.stringify([...vis])); } catch {}
+    try { localStorage.setItem(COL_VIS_KEY, JSON.stringify([...vis])); } catch {}
     setColOrderPersist(normalizeOrder(cfg.colOrder));
     setGroupByPersist(cfg.groupBy && (DEFAULT_COL_ORDER as string[]).includes(cfg.groupBy) ? (cfg.groupBy as SortColumn) : null);
     setSortColumn(cfg.sortColumn && (DEFAULT_COL_ORDER as string[]).includes(cfg.sortColumn) ? (cfg.sortColumn as SortColumn) : null);
@@ -612,6 +646,20 @@ export default function DistrictWorkspace() {
     queryClient.invalidateQueries({ queryKey: getGetDistrictSummaryQueryKey(districtId) });
   };
 
+  const handleBulkChargeDone = (chargedCount: number, failedCount: number) => {
+    setBulkChargeOpen(false);
+    setSelectedIds(new Set());
+    refreshQueue();
+    if (failedCount > 0) {
+      toast({
+        variant: 'destructive',
+        description: t('bulk_charge.partial', { charged: chargedCount, failed: failedCount }),
+      });
+    } else {
+      toast({ description: t('bulk_charge.success', { count: chargedCount }) });
+    }
+  };
+
   const handleBulkCloseSuccess = (closedCount: number) => {
     setBulkCloseOpen(false);
     setSelectedIds(new Set());
@@ -671,13 +719,6 @@ export default function DistrictWorkspace() {
             </TabsList>
           </Tabs>
 
-          {someSelected && (
-            <Button variant="destructive" size="sm" onClick={() => setBulkCloseOpen(true)}>
-              <XCircle className="h-4 w-4 mr-2" />
-              {t('district.close_selected')} ({selectedIds.size})
-            </Button>
-          )}
-
           {/* Saved views and column visibility are both "how I want this grid
               to look", so they share one menu rather than three controls. */}
           <DropdownMenu>
@@ -728,32 +769,87 @@ export default function DistrictWorkspace() {
           </DropdownMenu>
       </div>
 
-      <div
-        onDragOver={e => { if (dragCol) { e.preventDefault(); setDropTarget('groupzone'); } }}
-        onDragLeave={() => setDropTarget(prev => (prev === 'groupzone' ? null : prev))}
-        onDrop={e => { e.preventDefault(); if (dragCol) setGroupByPersist(dragCol); setDragCol(null); setDropTarget(null); }}
-        className={cn(
-          'flex shrink-0 items-center gap-2 mb-2 rounded-lg border border-dashed px-2 py-1 text-xs transition-colors',
-          dropTarget === 'groupzone' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground'
-        )}
-      >
-        <Layers className="h-3.5 w-3.5 shrink-0" />
-        {groupBy ? (
-          <span className="flex items-center gap-1 rounded-md bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 font-medium">
-            {ALL_COLUMNS.find(c => c.key === groupBy)?.label}
-            <button
-              type="button"
-              onClick={() => setGroupByPersist(null)}
-              aria-label={t('district.clear_group')}
-              title={t('district.clear_group')}
-              className="hover:text-destructive"
-            >
-              <X className="h-3 w-3" />
-            </button>
+      {/* One row: the group-by drop zone, shortened, with the bulk-action panel
+          beside it — right-aligned so it sits directly under Customize. */}
+      <div className="mb-2 flex shrink-0 flex-col sm:flex-row items-stretch gap-2">
+        <div
+          onDragOver={e => { if (dragCol) { e.preventDefault(); setDropTarget('groupzone'); } }}
+          onDragLeave={() => setDropTarget(prev => (prev === 'groupzone' ? null : prev))}
+          onDrop={e => { e.preventDefault(); if (dragCol) setGroupByPersist(dragCol); setDragCol(null); setDropTarget(null); }}
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-dashed px-2 py-1 text-xs transition-colors',
+            dropTarget === 'groupzone' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground'
+          )}
+        >
+          <Layers className="h-3.5 w-3.5 shrink-0" />
+          {groupBy ? (
+            <span className="flex items-center gap-1 rounded-md bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 font-medium">
+              {ALL_COLUMNS.find(c => c.key === groupBy)?.label}
+              <button
+                type="button"
+                onClick={() => setGroupByPersist(null)}
+                aria-label={t('district.clear_group')}
+                title={t('district.clear_group')}
+                className="hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ) : (
+            <span>{t('district.group_hint')}</span>
+          )}
+        </div>
+
+        {/* Bulk actions: one compact panel, icon-led small buttons, with the
+            selected count anchoring it. Actions stay visible but disabled with
+            nothing selected, so the entry point never disappears. */}
+        <div
+          className="flex shrink-0 items-center gap-1 rounded-lg border bg-card px-2 py-1"
+          data-testid="bulk-action-panel"
+        >
+          <span className="px-1 text-xs font-medium tabular-nums text-muted-foreground whitespace-nowrap">
+            {t('district.selected_count', { count: selectedIds.size })}
           </span>
-        ) : (
-          <span>{t('district.group_hint')}</span>
-        )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => toggleAll(true)}
+            disabled={openEvents.length === 0}
+          >
+            <CheckCheck className="h-3.5 w-3.5 mr-1" />
+            {t('district.select_all')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => toggleAll(false)}
+            disabled={!someSelected}
+          >
+            <Square className="h-3.5 w-3.5 mr-1" />
+            {t('district.select_none')}
+          </Button>
+          <Button
+            size="sm"
+            className="h-7 px-2 text-xs bg-success text-success-foreground hover:bg-success/90"
+            onClick={() => setBulkChargeOpen(true)}
+            disabled={!someSelected}
+          >
+            <DollarSign className="h-3.5 w-3.5 mr-1" />
+            {t('district.charge_selected')}
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => setBulkCloseOpen(true)}
+            disabled={!someSelected}
+          >
+            <XCircle className="h-3.5 w-3.5 mr-1" />
+            {t('district.close_selected')}
+          </Button>
+        </div>
       </div>
 
       {/* The floor matters: on a short viewport (or a phone with the keyboard up)
@@ -778,11 +874,13 @@ export default function DistrictWorkspace() {
               </th>
               {orderedVisibleCols.map(key => {
                 const col = ALL_COLUMNS.find(c => c.key === key)!;
+                const centered = CENTERED_KEYS.has(key);
                 return (
                   <th
                     key={key}
                     className={cn(
-                      'sticky top-0 z-20 px-2 py-1.5 text-left whitespace-nowrap cursor-move select-none transition-colors',
+                      'sticky top-0 z-20 px-2 py-1.5 whitespace-nowrap cursor-move select-none transition-colors',
+                      centered ? 'text-center' : 'text-left',
                       dragCol === key && 'opacity-50'
                     )}
                     style={dropTarget === key ? STICKY_HEADER_DROP : STICKY_HEADER_BG}
@@ -798,7 +896,7 @@ export default function DistrictWorkspace() {
                       onDragOver={e => { if (dragCol && dragCol !== key) { e.preventDefault(); setDropTarget(key); } }}
                       onDragLeave={() => setDropTarget(prev => (prev === key ? null : prev))}
                       onDrop={e => { e.preventDefault(); if (dragCol && dragCol !== key) moveColumn(dragCol, key); setDragCol(null); setDropTarget(null); }}
-                      className="flex items-center gap-0.5"
+                      className={cn('flex items-center gap-0.5', centered && 'justify-center')}
                     >
                       <GripVertical className="h-3 w-3 shrink-0 text-white/40" />
                       <SortHeader label={col.label} hideLabel={col.hideLabel} column={key} sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
@@ -806,15 +904,25 @@ export default function DistrictWorkspace() {
                   </th>
                 );
               })}
-              {/* Frozen both ways -- against sideways scrolling like the photo cells
-                  below it, and against vertical scrolling like the rest of the header,
-                  so it has to outrank both. */}
+              {/* The pinned pair: marks then photo. Frozen both ways -- against
+                  sideways scrolling like the cells below, and against vertical
+                  scrolling like the rest of the header, so they outrank both.
+                  Neither is draggable, droppable or sortable: they are chrome,
+                  not part of the reorderable set. */}
               <th
-                className="sticky right-0 top-0 z-30 px-2 py-2 w-[160px]"
+                className="sticky top-0 z-30 px-2 py-2"
                 style={{
                   ...STICKY_HEADER_BG,
-                  boxShadow: '-4px 0 6px -2px rgba(0,0,0,0.08), inset 0 -1px 0 hsl(var(--border))',
+                  right: PHOTO_COL_W,
+                  width: MARKS_COL_W,
+                  boxShadow: `${PINNED_LEFT_SHADOW}, inset 0 -1px 0 rgba(0, 0, 0, 0.25)`,
                 }}
+              >
+                <span className="sr-only">Status / Type / Source / Severity</span>
+              </th>
+              <th
+                className="sticky right-0 top-0 z-30 px-2 py-2"
+                style={{ ...STICKY_HEADER_BG, width: PHOTO_COL_W }}
               >
                 <span className="float-right font-semibold uppercase tracking-wider text-xs text-white pr-1">Photo</span>
               </th>
@@ -822,18 +930,18 @@ export default function DistrictWorkspace() {
           </thead>
           <tbody className="divide-y">
         {isLoadingEvents ? (
-          <tr><td colSpan={orderedVisibleCols.length + 2} className="p-4">
+          <tr><td colSpan={orderedVisibleCols.length + 3} className="p-4">
             <div className="space-y-4">
               {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
           </td></tr>
         ) : isEventsError ? (
           // The request failed — don't imply the queue is empty.
-          <tr><td colSpan={orderedVisibleCols.length + 2} className="p-4">
+          <tr><td colSpan={orderedVisibleCols.length + 3} className="p-4">
             <LoadError message={t('district.events_load_failed')} onRetry={() => void refetchEvents()} />
           </td></tr>
         ) : events?.length === 0 ? (
-          <tr><td colSpan={orderedVisibleCols.length + 2} className="p-12 text-center text-muted-foreground">
+          <tr><td colSpan={orderedVisibleCols.length + 3} className="p-12 text-center text-muted-foreground">
             <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-20" />
             <p className="text-lg">{t('district.no_events')}</p>
           </td></tr>
@@ -853,36 +961,10 @@ export default function DistrictWorkspace() {
                       </td>
                     );
                   case 'type':
-                    // How the event was classified, in one cell: the marks on top,
-                    // the severity it was graded underneath them.
-                    return (
-                      <td key={key} className="px-2 py-1">
-                        <div className="flex items-center gap-1.5">
-                          <EventStatusGlyph
-                            open={event.eventStatus === 0}
-                            openLabel={t('event.status_open')}
-                            closedLabel={t('event.status_closed')}
-                          />
-                          <EventTypeGlyph name={event.eventTypeName} />
-                          <EventSourceGlyph name={event.eventSourceName} />
-                        </div>
-                        {event.severity ? (
-                          <div className="mt-0.5">
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                'border-0 px-1.5 py-0 text-[10px]',
-                                event.severity.toLowerCase() === 'severe'
-                                  ? 'bg-destructive/10 text-destructive'
-                                  : 'bg-muted text-muted-foreground'
-                              )}
-                            >
-                              {event.severity}
-                            </Badge>
-                          </div>
-                        ) : null}
-                      </td>
-                    );
+                    // Now lives in the pinned marks cell beside the photo panel;
+                    // kept only so a layout saved while it was still a reorderable
+                    // column cannot break.
+                    return null;
                   case 'severity':
                     // Folded into the marks cell above; kept only so a layout saved
                     // while it was still a column of its own cannot break.
@@ -904,9 +986,9 @@ export default function DistrictWorkspace() {
                       </td>
                     );
                   case 'qty':
-                    return <td key={key} className="px-2 py-1 text-xs font-mono">{event.quantity ?? '—'}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs font-mono text-center">{event.quantity ?? '—'}</td>;
                   case 'binSerial':
-                    return <td key={key} className="px-2 py-1 text-xs font-mono whitespace-nowrap">{event.binSerialNumber ?? '—'}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs font-mono whitespace-nowrap text-center">{event.binSerialNumber ?? '—'}</td>;
                   case 'stop':
                     return <td key={key} className="px-2 py-1 text-xs font-mono">{event.stop ?? '—'}</td>;
                   case 'wo':
@@ -918,17 +1000,17 @@ export default function DistrictWorkspace() {
                   case 'tabletNotes':
                     return <td key={key} className="px-2 py-1 text-xs min-w-[115px]">{event.tabletNotes ?? '—'}</td>;
                   case 'chgAmt':
-                    return <td key={key} className="px-2 py-1 text-xs font-mono whitespace-nowrap">{event.chargedAmount != null ? formatCurrency(event.chargedAmount) : '—'}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs font-mono whitespace-nowrap text-center">{event.chargedAmount != null ? formatCurrency(event.chargedAmount) : '—'}</td>;
                   case 'prevChg':
-                    return <td key={key} className="px-2 py-1 text-xs font-mono">{event.prevChargeCount}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs font-mono text-center">{event.prevChargeCount}</td>;
                   case 'prevTotal':
-                    return <td key={key} className="px-2 py-1 text-xs font-mono whitespace-nowrap">{formatCurrency(event.prevChargeTotal)}</td>;
+                    return <td key={key} className="px-2 py-1 text-xs font-mono whitespace-nowrap text-center">{formatCurrency(event.prevChargeTotal)}</td>;
                 }
               };
 
               const rows: React.ReactNode[] = [];
               let prevGroup: string | null = null;
-              const colSpan = orderedVisibleCols.length + 2;
+              const colSpan = orderedVisibleCols.length + 3;
               pagedEvents?.forEach(event => {
                 if (groupBy) {
                   const gv = groupValue(groupBy, event);
@@ -936,19 +1018,22 @@ export default function DistrictWorkspace() {
                     prevGroup = gv;
                     rows.push(
                       <tr key={`group-${gv}`} className="bg-muted/50">
-                        <td colSpan={colSpan - 1} className="px-2 py-1 text-xs font-semibold">
+                        <td colSpan={colSpan - 2} className="px-2 py-1 text-xs font-semibold">
                           {ALL_COLUMNS.find(c => c.key === groupBy)?.label}: {gv}
                           <span className="ml-2 font-normal text-muted-foreground">({groupCounts?.get(gv) ?? 0})</span>
                         </td>
-                        {/* Group rows need their own frozen cell, otherwise the pinned
-                            panel has a hole at every group break and the label scrolls
-                            through it. Opaque equivalent of this row's bg-muted/50. */}
+                        {/* Group rows need their own frozen cell spanning the whole
+                            pinned panel (marks + photo), otherwise the panel has a
+                            hole at every group break and the label scrolls through
+                            it. Opaque equivalent of this row's bg-muted/50. */}
                         <td
-                          className="sticky right-0 z-10 border-l px-2 py-1 w-[160px]"
+                          colSpan={2}
+                          className="sticky right-0 z-10 border-l px-2 py-1"
                           style={{
+                            width: MARKS_COL_W + PHOTO_COL_W,
                             backgroundColor: 'hsl(var(--card))',
                             backgroundImage: 'linear-gradient(hsl(var(--muted) / 0.5), hsl(var(--muted) / 0.5))',
-                            boxShadow: '-4px 0 6px -2px rgba(0,0,0,0.08)',
+                            boxShadow: PINNED_LEFT_SHADOW,
                           }}
                         />
                       </tr>
@@ -973,23 +1058,42 @@ export default function DistrictWorkspace() {
                       )}
                     </td>
                     {orderedVisibleCols.map(key => renderCell(key, event))}
-                    <td className="sticky right-0 z-10 bg-card border-l px-2 py-1 w-[160px]" style={{boxShadow: '-4px 0 6px -2px rgba(0,0,0,0.08)'}} onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center justify-between gap-1 min-w-0">
-                        <div className="shrink-0 w-7">
-                          {event.eventStatus === 0 && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-7 w-7 p-0"
-                              onClick={() => setCloseEventId(event.id)}
-                              aria-label={t('preview.close')}
-                              title={t('preview.close')}
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
+                    {/* Pinned marks cell: the left edge of the frozen panel. It
+                        carries the divider and shadow so marks + photo read as
+                        one solid panel with no seam between them. */}
+                    <td
+                      data-pinned-marks=""
+                      className="sticky z-10 bg-card border-l px-2 py-1"
+                      style={{ right: PHOTO_COL_W, width: MARKS_COL_W, boxShadow: PINNED_LEFT_SHADOW }}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <EventStatusGlyph
+                          open={event.eventStatus === 0}
+                          openLabel={t('event.status_open')}
+                          closedLabel={t('event.status_closed')}
+                        />
+                        <EventTypeGlyph name={event.eventTypeName} />
+                        <EventSourceGlyph name={event.eventSourceName} />
+                      </div>
+                      {event.severity ? (
+                        <div className="mt-0.5">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'border-0 px-1.5 py-0 text-[10px]',
+                              event.severity.toLowerCase() === 'severe'
+                                ? 'bg-destructive/10 text-destructive'
+                                : 'bg-muted text-muted-foreground'
+                            )}
+                          >
+                            {event.severity}
+                          </Badge>
                         </div>
-                        <div className="flex items-center justify-end gap-1.5 min-w-0 overflow-hidden">
+                      ) : null}
+                    </td>
+                    <td className="sticky right-0 z-10 bg-card px-2 py-1" style={{ width: PHOTO_COL_W }} onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-between gap-1 min-w-0">
+                        <div className="flex flex-1 items-center justify-end gap-1.5 min-w-0 overflow-hidden">
                           {(event.imageUrls?.length ?? 0) > 0 && (
                             <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                               <Camera className="h-3.5 w-3.5" />
@@ -1083,6 +1187,15 @@ export default function DistrictWorkspace() {
         />
       )}
 
+      {serviceCodes && (
+        <BulkChargeDialog
+          open={bulkChargeOpen}
+          onOpenChange={setBulkChargeOpen}
+          eventIds={Array.from(selectedIds)}
+          serviceCodes={serviceCodes}
+          onDone={handleBulkChargeDone}
+        />
+      )}
       <BulkCloseDialog
         open={bulkCloseOpen}
         onOpenChange={setBulkCloseOpen}

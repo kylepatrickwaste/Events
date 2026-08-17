@@ -43,7 +43,9 @@
     "search_district": "Buscar distrito…",
     "no_district_found": "No se encontró el distrito.",
     "select_all": "Seleccionar todo",
+    "select_none": "Quitar selección",
     "close_selected": "Cerrar seleccionados",
+    "charge_selected": "Cobrar seleccionados",
     "selected_count": "{{count}} seleccionados",
     "all_districts": "Todos los distritos",
     "page_info": "{{from}}–{{to}} de {{total}}",
@@ -243,6 +245,13 @@
     },
     "dismiss_these": "Descartar estos al cerrar",
     "failed": "El evento no se cerró. El servidor no respondió."
+  },
+  "bulk_charge": {
+    "title": "Cobrar eventos seleccionados",
+    "description": "Aplicar un código de servicio, monto y cantidad a {{count}} eventos abiertos seleccionados.",
+    "submit": "Cobrar {{count}} eventos",
+    "success": "{{count}} eventos cobrados",
+    "partial": "{{charged}} eventos cobrados — {{failed}} fallaron y siguen abiertos."
   },
   "bulk_close": {
     "title": "Cerrar eventos seleccionados",

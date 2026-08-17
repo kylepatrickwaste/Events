@@ -15,4 +15,5 @@
 - [Admin-gating a shipped feature](admin-gating.md) — deleting the button leaves every endpoint open, and a break-glass admin must be matched per-request, not seeded at startup.
 - [Locale edits break Fast Refresh](i18n-hmr-invalidation.md) — editing i18n JSON leaves the page throwing "must be used within a Provider"; restart the dev server before e2e.
 - [JSX generic type args](jsx-generic-type-args.md) — `<List<Row> …>` typechecks then crashes vite:react-babel with a mangled parse error; let the generic infer.
+- [Changing a stored preference's default](stored-default-migration.md) — a stored value ≠ a user choice when code echoes defaults back; compare against the old default before migrating.
 - [Sticky cells break drag](sticky-header-drag.md) — a sticky element neither starts nor accepts a native drag; also test column reorder in BOTH directions.

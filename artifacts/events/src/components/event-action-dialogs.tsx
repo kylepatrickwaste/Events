@@ -204,6 +204,108 @@ export function BulkCloseDialog({ open, onOpenChange, eventIds, onSuccess }: {
   );
 }
 
+/**
+ * Bulk charge: one service code, amount and quantity applied to every selected
+ * open event, submitted through the existing per-event charge call. There is no
+ * bulk endpoint, so each event is charged in turn and the tally reported back.
+ */
+export function BulkChargeDialog({ open, onOpenChange, eventIds, serviceCodes, onDone }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  eventIds: number[];
+  serviceCodes: Array<{ id: number; code: string; description: string; amount: number }>;
+  onDone: (chargedCount: number, failedCount: number) => void;
+}) {
+  const { t } = useI18n();
+  const charge = useChargeEvent();
+  const [submitting, setSubmitting] = useState(false);
+
+  const form = useForm({
+    resolver: zodResolver(chargeSchema),
+    defaultValues: { serviceCodeId: '' as any, amount: 0, quantity: 1 },
+  });
+
+  const onSelectCode = (idStr: string) => {
+    const id = parseInt(idStr);
+    form.setValue('serviceCodeId', id as any);
+    const code = serviceCodes.find(c => c.id === id);
+    if (code) form.setValue('amount', code.amount);
+  };
+
+  const submit = async (data: any) => {
+    setSubmitting(true);
+    let charged = 0;
+    // Sequential on purpose: each success/failure is counted, and a burst of
+    // parallel charges would hammer the same per-event endpoint.
+    for (const eventId of eventIds) {
+      try {
+        await charge.mutateAsync({ eventId, data: { ...data, duplicateEventIds: [] } });
+        charged++;
+      } catch {
+        // counted below as a failure; the summary toast names how many
+      }
+    }
+    setSubmitting(false);
+    form.reset();
+    onDone(charged, eventIds.length - charged);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!submitting) onOpenChange(o); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('bulk_charge.title')}</DialogTitle>
+          <DialogDescription>{t('bulk_charge.description', { count: eventIds.length })}</DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(submit)} className="space-y-4">
+            <FormField control={form.control} name="serviceCodeId" render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('charge.service_code')}</FormLabel>
+                <Select onValueChange={onSelectCode} value={field.value?.toString()}>
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder={t('charge.select_code')} /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {serviceCodes.map(c => (
+                      <SelectItem key={c.id} value={c.id.toString()}>{c.code} - {c.description}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="amount" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('charge.amount')}</FormLabel>
+                  <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="quantity" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('charge.quantity')}</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={submitting} onClick={() => onOpenChange(false)}>{t('charge.cancel')}</Button>
+              <Button type="submit" disabled={submitting}>
+                {t('bulk_charge.submit', { count: eventIds.length })}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const chargeSchema = z.object({
   serviceCodeId: z.coerce.number().min(1, 'Required'),
   amount: z.coerce.number().min(0),

@@ -43,7 +43,9 @@
     "search_district": "Rechercher un district…",
     "no_district_found": "Aucun district trouvé.",
     "select_all": "Tout sélectionner",
+    "select_none": "Tout désélectionner",
     "close_selected": "Fermer la sélection",
+    "charge_selected": "Facturer la sélection",
     "selected_count": "{{count}} sélectionnés",
     "all_districts": "Tous les districts",
     "page_info": "{{from}}–{{to}} sur {{total}}",
@@ -243,6 +245,13 @@
     },
     "dismiss_these": "Rejeter ceux-ci lors de la fermeture",
     "failed": "L'événement n'a pas été fermé. Le serveur n'a pas répondu."
+  },
+  "bulk_charge": {
+    "title": "Facturer les événements sélectionnés",
+    "description": "Appliquer un code de service, un montant et une quantité à {{count}} événements ouverts sélectionnés.",
+    "submit": "Facturer {{count}} événements",
+    "success": "{{count}} événements facturés",
+    "partial": "{{charged}} événements facturés — {{failed}} ont échoué et restent ouverts."
   },
   "bulk_close": {
     "title": "Fermer les événements sélectionnés",
