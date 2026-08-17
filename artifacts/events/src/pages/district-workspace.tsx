@@ -19,12 +19,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Settings, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, CheckCheck, Square, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, DoorOpen, Plus, Minus, GripVertical, Layers } from 'lucide-react';
+import { Search, Settings, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, AlertTriangle, ChevronsUpDown, Check, CheckCheck, Square, XCircle, Camera, FileX2, ArrowUp, ArrowDown, ArrowUpDown, Images, X, Plus, Minus, GripVertical, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { EventSourceGlyph, EventStatusGlyph, EventTypeGlyph } from '@/components/grid-glyphs';
-import { ChargeEventDialog, CloseEventDialog, BulkCloseDialog, BulkChargeDialog } from '@/components/event-action-dialogs';
+import { CloseEventDialog, BulkCloseDialog, BulkChargeDialog } from '@/components/event-action-dialogs';
 import { rememberDistrict } from '@/lib/selected-district';
 import {
   DropdownMenu,
@@ -301,8 +301,6 @@ export default function DistrictWorkspace() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkCloseOpen, setBulkCloseOpen] = useState(false);
   const [bulkChargeOpen, setBulkChargeOpen] = useState(false);
-  const [chargeEventId, setChargeEventId] = useState<number | null>(null);
-  const [chargeNearbyPreset, setChargeNearbyPreset] = useState<number[]>([]);
   const [closeEventId, setCloseEventId] = useState<number | null>(null);
   const [closeNearbyPreset, setCloseNearbyPreset] = useState<number[]>([]);
   // Exactly one photo preview is open for the whole table. Thumbnails only
@@ -702,8 +700,6 @@ export default function DistrictWorkspace() {
   };
 
   const handleActionSuccess = () => {
-    setChargeEventId(null);
-    setChargeNearbyPreset([]);
     setCloseEventId(null);
     setCloseNearbyPreset([]);
     refreshQueue();
@@ -1233,8 +1229,7 @@ export default function DistrictWorkspace() {
           onPointerEnter={clearPreviewCloseTimer}
           onPointerLeave={schedulePreviewClose}
           onDismiss={closePreview}
-          onCharge={(ids) => { closePreview(); setChargeNearbyPreset(ids); setChargeEventId(previewEvent.id); }}
-          onClose={() => { closePreview(); setCloseNearbyPreset([]); setCloseEventId(previewEvent.id); }}
+          onOpenEvent={() => { closePreview(); setLocation(`/districts/${districtId}/events/${previewEvent.id}`); }}
           onCloseWithDuplicates={(ids) => { closePreview(); setCloseNearbyPreset(ids); setCloseEventId(previewEvent.id); }}
         />
       )}
@@ -1254,16 +1249,9 @@ export default function DistrictWorkspace() {
         eventIds={Array.from(selectedIds)}
         onSuccess={handleBulkCloseSuccess}
       />
-      {chargeEventId !== null && serviceCodes && (
-        <ChargeEventDialog
-          open={chargeEventId !== null}
-          onOpenChange={(o) => { if (!o) { setChargeEventId(null); setChargeNearbyPreset([]); } }}
-          eventId={chargeEventId}
-          initialCheckedNearby={chargeNearbyPreset}
-          serviceCodes={serviceCodes}
-          onSuccess={handleActionSuccess}
-        />
-      )}
+      {/* No single-event charge dialog here any more: the preview's only
+          action is Open Event, and charging happens on the event page.
+          Bulk charge still runs from the row selection above. */}
       {closeEventId !== null && (
         <CloseEventDialog
           open={closeEventId !== null}
@@ -1351,14 +1339,13 @@ const computePreviewPlacement = (anchor: HTMLElement | null): PreviewPlacement =
  * currently being previewed; swapping rows re-renders this same panel rather
  * than closing and reopening a per-row one.
  */
-function EventPhotoPreview({ event, anchorRef, onPointerEnter, onPointerLeave, onDismiss, onCharge, onClose, onCloseWithDuplicates }: {
+function EventPhotoPreview({ event, anchorRef, onPointerEnter, onPointerLeave, onDismiss, onOpenEvent, onCloseWithDuplicates }: {
   event: any;
   anchorRef: React.MutableRefObject<HTMLElement | null>;
   onPointerEnter: () => void;
   onPointerLeave: () => void;
   onDismiss: () => void;
-  onCharge: (checkedDuplicateIds: number[]) => void;
-  onClose: () => void;
+  onOpenEvent: () => void;
   onCloseWithDuplicates: (ids: number[]) => void;
 }) {
   const { t } = useI18n();
@@ -1473,8 +1460,9 @@ function EventPhotoPreview({ event, anchorRef, onPointerEnter, onPointerLeave, o
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
-        {/* Right rail: close, actions, thumbnails */}
-        <div className="flex flex-col items-center gap-2 w-20 shrink-0">
+        {/* Right rail: close, actions, thumbnails. Wide enough for the
+            Open Event label to sit on one line. */}
+        <div className="flex flex-col items-center gap-2 w-24 shrink-0">
           <button
             type="button"
             onClick={onDismiss}
@@ -1483,28 +1471,16 @@ function EventPhotoPreview({ event, anchorRef, onPointerEnter, onPointerLeave, o
           >
             <X className="h-4 w-4" />
           </button>
+          {/* The preview is for looking, not for acting: charging and
+              dismissing happen on the event page, which this opens. */}
           {isOpen && (
-            <div className="flex gap-2">
-              <Button
-                size="icon"
-                className="h-8 w-8 bg-success text-success-foreground hover:bg-success/90"
-                onClick={() => onCharge(Array.from(checkedNearby))}
-                title={t('preview.charge_customer')}
-                aria-label={t('preview.charge_customer')}
-              >
-                <DollarSign className="h-4 w-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="destructive"
-                className="h-8 w-8"
-                onClick={checkedNearby.size > 0 ? () => onCloseWithDuplicates(Array.from(checkedNearby)) : onClose}
-                title={t('preview.dismiss_event')}
-                aria-label={t('preview.dismiss_event')}
-              >
-                <DoorOpen className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              className="h-8 w-full px-2 text-xs bg-success text-success-foreground hover:bg-success/90"
+              onClick={onOpenEvent}
+            >
+              {t('preview.open_event')}
+            </Button>
           )}
           {images.length > 1 && (
             <div className="flex flex-col gap-2 overflow-y-auto max-h-[50vh] pt-1">

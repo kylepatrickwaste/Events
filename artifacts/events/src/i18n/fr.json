@@ -263,10 +263,7 @@
     "failed": "Les événements sélectionnés n'ont pas été fermés. Le serveur n'a pas répondu."
   },
   "preview": {
-    "close": "Fermer",
-    "charge": "Facturer",
-    "charge_customer": "Facturer le client",
-    "dismiss_event": "Rejeter l’événement"
+    "open_event": "Ouvrir l'événement"
   },
   "contract_accounts": {
     "title": "Comptes exclus",

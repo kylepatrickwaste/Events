@@ -263,10 +263,7 @@
     "failed": "The selected events weren't closed. The server didn't respond."
   },
   "preview": {
-    "close": "Close",
-    "charge": "Charge",
-    "charge_customer": "Charge Customer",
-    "dismiss_event": "Dismiss Event"
+    "open_event": "Open Event"
   },
   "contract_accounts": {
     "title": "Excluded Accounts",
