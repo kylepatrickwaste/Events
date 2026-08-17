@@ -10,6 +10,7 @@ import { ServerStatusProvider } from '@/hooks/use-server-status';
 import Home from '@/pages/home';
 import DistrictWorkspace from '@/pages/district-workspace';
 import EventDetail from '@/pages/event-detail';
+import Admin from '@/pages/admin';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/districts/:districtId" component={DistrictWorkspace} />
         <Route path="/districts/:districtId/events/:eventId" component={EventDetail} />
+        <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
       </Switch>
     </Shell>

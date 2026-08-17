@@ -9,7 +9,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { Check, ChevronsUpDown, ChevronLeft, UserRound } from 'lucide-react';
+import { Check, ChevronsUpDown, ChevronLeft, UserRound, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n';
 import { useServerStatus } from '@/hooks/use-server-status';
@@ -205,6 +205,35 @@ function ApiStatusDot() {
   );
 }
 
+/**
+ * Way into the administration page, next to the profile it was carved out of.
+ * Only administrators are offered it — the page itself repeats the check, and
+ * the API is the only place that can actually refuse.
+ */
+function HeaderAdminLink() {
+  const { t } = useI18n();
+  const { data: user } = useCurrentUser();
+  const [onAdmin] = useRoute('/admin');
+
+  if (user?.role?.toLowerCase() !== 'admin') return null;
+
+  return (
+    <Link
+      href="/admin"
+      className={cn(
+        'flex shrink-0 items-center rounded-md p-1.5 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        onAdmin ? 'bg-accent text-accent-foreground' : 'text-muted-foreground',
+      )}
+      title={t('admin.open')}
+      aria-label={t('admin.open')}
+      aria-current={onAdmin ? 'page' : undefined}
+      data-testid="header-admin-link"
+    >
+      <ShieldCheck className="h-4 w-4" />
+    </Link>
+  );
+}
+
 export function Header() {
   const { t } = useI18n();
 
@@ -227,6 +256,7 @@ export function Header() {
           <HeaderDistrictSwitcher />
         </div>
         <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-4">
+          <HeaderAdminLink />
           <HeaderUserName />
           <ApiStatusDot />
         </div>

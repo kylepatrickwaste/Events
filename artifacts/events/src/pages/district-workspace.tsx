@@ -25,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { EventSourceGlyph, EventStatusGlyph, EventTypeGlyph } from '@/components/grid-glyphs';
 import { ChargeEventDialog, CloseEventDialog, BulkCloseDialog } from '@/components/event-action-dialogs';
-import { OPEN_EXCLUDED_ACCOUNTS_EVENT } from '@/lib/excluded-accounts';
+import { rememberDistrict } from '@/lib/selected-district';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -164,7 +164,6 @@ const loadInitialGridState = () => {
   if (!views[currentView]) currentView = '';
   return { views, currentView, cfg: currentView ? views[currentView] : null };
 };
-import { ContractAccountsDialog } from '@/components/contract-accounts-dialog';
 import { LoadError } from '@/components/load-error';
 import { NearbyClusterPicker, suggestedDuplicateIds } from '@/components/nearby-cluster-picker';
 
@@ -250,7 +249,6 @@ export default function DistrictWorkspace() {
   const [chargeNearbyPreset, setChargeNearbyPreset] = useState<number[]>([]);
   const [closeEventId, setCloseEventId] = useState<number | null>(null);
   const [closeNearbyPreset, setCloseNearbyPreset] = useState<number[]>([]);
-  const [contractAccountsOpen, setContractAccountsOpen] = useState(false);
   // Exactly one photo preview is open for the whole table. Thumbnails only
   // report hover/click; this controller decides which event is previewed.
   const [previewEventId, setPreviewEventId] = useState<number | null>(null);
@@ -375,11 +373,9 @@ export default function DistrictWorkspace() {
     setCurrentView('');
   };
 
-  useEffect(() => {
-    const handler = () => setContractAccountsOpen(true);
-    window.addEventListener(OPEN_EXCLUDED_ACCOUNTS_EVENT, handler);
-    return () => window.removeEventListener(OPEN_EXCLUDED_ACCOUNTS_EVENT, handler);
-  }, []);
+  // The administration page has a tab of settings for the district you are
+  // working in, and no district in its own URL to work that out from.
+  useEffect(() => { rememberDistrict(districtId); }, [districtId]);
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(() => {
     const sc = initialGrid.cfg?.sortColumn;
     return sc && (DEFAULT_COL_ORDER as string[]).includes(sc) ? (sc as SortColumn) : null;
@@ -1087,12 +1083,6 @@ export default function DistrictWorkspace() {
         />
       )}
 
-      <ContractAccountsDialog
-        open={contractAccountsOpen}
-        onOpenChange={setContractAccountsOpen}
-        districtId={districtId}
-        onUnflagged={refreshQueue}
-      />
       <BulkCloseDialog
         open={bulkCloseOpen}
         onOpenChange={setBulkCloseOpen}
