@@ -23,14 +23,22 @@ Static T-SQL scripts for bootstrapping the Route Events database on Microsoft SQ
 
 | District | Events | Make-up |
 |----------|--------|---------|
-| Vancouver (`2010`, id 1) | **110** | 14 base event specs, 4 duplicate-cluster events, and 92 volume rows (SECTION 4B) — 26 Extra / 24 Overloaded / 16 Contamination / 12 Blocked Container / 14 Not Out, spread across all four event sources, 60 open / 17 closed / 15 charged, 44 distinct customers, accounts and addresses, and 6 two-vendor duplicate pairs. |
-| Vancouver-Minimal (`2010-M`, id 2) | 14 | Mirror of the 14 base Vancouver specs, severity forced to `Minimal`. |
-| Cascade Disposal (`2012`, id 3) | 2 | One duplicate cluster. |
-| Houston (`5120`, id 20) | 7 | Two duplicate clusters plus two Samsara-sourced events. |
+| Vancouver (`2010`) | **110** | 14 base event specs, 4 duplicate-cluster events, and 92 volume rows (SECTION 4B) — 26 Extra / 24 Overloaded / 16 Contamination / 12 Blocked Container / 14 Not Out, spread across all four event sources, 60 open / 17 closed / 15 charged, 44 distinct customers, accounts and addresses, and 6 two-vendor duplicate pairs. |
+| Vancouver-Minimal (`2010-M`) | 14 | Mirror of the 14 base Vancouver specs, severity forced to `Minimal`. |
+| Cascade Disposal (`2012`) | 2 | One duplicate cluster. |
+| Houston (`5120`) | 7 | Two duplicate clusters plus two Samsara-sourced events. |
 
 Every SECTION 4B row fills each column the workspace grid renders (quantity, bin serial, stop, WO#, address, LOB, tablet notes, bill area, RMO status, customer, customer-since, event time, vehicle, route) and carries both a primary photo and a photo array, so the grid hover preview and the detail gallery agree. Closed and charged rows have matching close/charge/note `EventActions`, and 24 accounts carry prior charge history so the event-detail statistics section is populated.
 
 Both scripts are **idempotent** — they can be re-run safely on an already-populated database using `IF NOT EXISTS` / `IF OBJECT_ID` guards throughout.
+
+## Running against a database that already has data
+
+`02_insert_mock_data.sql` never hard-codes a district `Id`. Districts are matched on `Number` (`2010`, `2010-M`, `2012`, `5120`), and every route event, service code and charge action resolves its district through that number. This matters because the API seeds its own district list at start-up on an empty database, and those rows carry different identity values — `2011 OREGON PAPER FIBER` occupies id 2, for instance. An id-based guard would find a row already sitting there, skip its insert, and silently attach this script's events to the wrong district.
+
+A district that already exists is left untouched: its name, region and hauling system belong to whoever created it. Only `2010-M` is genuinely new on an API-seeded database. If any of the four districts is missing after SECTION 2, the script throws rather than inserting events with a NULL district.
+
+Route events this script owns are tagged with a `[seed:district-demo]-…` or `DUPSEED-…` `ExternalId`, so they never collide with rows the API's own seeder inserted — those stay in place. Expect the district's total to be the API's rows **plus** the counts above. To get exactly the counts above, delete the pre-existing rows first, or start from an empty database.
 
 ## Timestamps
 

@@ -15,6 +15,14 @@
 -- Idempotent: every INSERT block is guarded with IF NOT EXISTS so the
 -- script can be re-run safely.
 --
+-- Safe on a database that is already populated. Districts are matched on
+-- Number, never on a hard-coded Id, so this runs correctly against a
+-- database the API's own start-up seeder created -- where the districts
+-- carry entirely different identity values -- as well as against an empty
+-- one. Route events already present are left alone; this script only adds
+-- its own rows, which are all tagged with a '[seed:district-demo]' or
+-- 'DUPSEED-' ExternalId.
+--
 -- Timestamps are computed relative to GETUTCDATE() at execution time,
 -- so "minsAgo / daysAgo" values remain realistic on any run date.
 --
@@ -27,6 +35,12 @@ GO
 -- ============================================================
 -- SECTION 1 — Lookup tables
 -- ============================================================
+
+-- Unlike Districts below, the lookup tables DO pin their Ids. The API's
+-- own start-up seeder assigns these exact values to these exact names, so
+-- pinning them keeps this script and the API in agreement instead of
+-- creating a second 'Extra' under a different Id. Id 4 on EventSources is
+-- free in an API-seeded database, which is where Samsara lands.
 
 -- ---- EventTypes (IDs 1-5) ---------------------------------
 SET IDENTITY_INSERT dbo.EventTypes ON;
@@ -63,64 +77,83 @@ GO
 -- ============================================================
 -- SECTION 2 — Districts
 -- ============================================================
-SET IDENTITY_INSERT dbo.Districts ON;
+-- Districts are matched on Number, never on Id. A database seeded by the
+-- API's own start-up routine already holds the full district list under
+-- different identity values -- 2011 sits on Id 2, where this script's
+-- Vancouver Minimal used to be assumed -- so an Id-based guard would skip
+-- the insert and quietly hang this script's events off someone else's
+-- district. Number is the stable key, and every reference below resolves
+-- through it.
+--
+-- A district that is already present is left exactly as it is: its name,
+-- region and hauling system belong to whoever created it.
 
--- id=1  Vancouver (2010)
-IF NOT EXISTS (SELECT 1 FROM dbo.Districts WHERE Id = 1)
-    INSERT INTO dbo.Districts (Id, Number, Name, Region, HaulingSystem, Active)
-    VALUES (1, N'2010', N'VANCOUVER', N'Western', 1, 1);
+-- 2010  Vancouver
+IF NOT EXISTS (SELECT 1 FROM dbo.Districts WHERE Number = N'2010')
+    INSERT INTO dbo.Districts (Number, Name, Region, HaulingSystem, Active)
+    VALUES (N'2010', N'VANCOUVER', N'Western', 1, 1);
 
--- id=2  Vancouver Minimal (2010-M) — twin district, identical service area, all events shown as Minimal severity
-IF NOT EXISTS (SELECT 1 FROM dbo.Districts WHERE Id = 2)
-    INSERT INTO dbo.Districts (Id, Number, Name, Region, HaulingSystem, Active)
-    VALUES (2, N'2010-M', N'VANCOUVER MINIMAL', N'Western', 1, 1);
+-- 2010-M  Vancouver Minimal — twin district, identical service area, all events shown as Minimal severity
+IF NOT EXISTS (SELECT 1 FROM dbo.Districts WHERE Number = N'2010-M')
+    INSERT INTO dbo.Districts (Number, Name, Region, HaulingSystem, Active)
+    VALUES (N'2010-M', N'VANCOUVER MINIMAL', N'Western', 1, 1);
 
--- id=3  Cascade Disposal (2012)
-IF NOT EXISTS (SELECT 1 FROM dbo.Districts WHERE Id = 3)
-    INSERT INTO dbo.Districts (Id, Number, Name, Region, HaulingSystem, Active)
-    VALUES (3, N'2012', N'CASCADE DISPOSAL', N'Western', 1, 1);
+-- 2012  Cascade Disposal
+IF NOT EXISTS (SELECT 1 FROM dbo.Districts WHERE Number = N'2012')
+    INSERT INTO dbo.Districts (Number, Name, Region, HaulingSystem, Active)
+    VALUES (N'2012', N'CASCADE DISPOSAL', N'Western', 1, 1);
 
--- id=20 Houston (5120)
-IF NOT EXISTS (SELECT 1 FROM dbo.Districts WHERE Id = 20)
-    INSERT INTO dbo.Districts (Id, Number, Name, Region, HaulingSystem, Active)
-    VALUES (20, N'5120', N'HOUSTON', N'Southern', 1, 1);
+-- 5120  Houston
+IF NOT EXISTS (SELECT 1 FROM dbo.Districts WHERE Number = N'5120')
+    INSERT INTO dbo.Districts (Number, Name, Region, HaulingSystem, Active)
+    VALUES (N'5120', N'HOUSTON', N'Southern', 1, 1);
+GO
 
-SET IDENTITY_INSERT dbo.Districts OFF;
+-- Every district this script writes to must exist by now. Stop here rather
+-- than let the NULL from a missed lookup fail 133 inserts one at a time.
+IF EXISTS (
+    SELECT 1 FROM (VALUES (N'2010'), (N'2010-M'), (N'2012'), (N'5120')) AS Wanted(Number)
+    WHERE NOT EXISTS (SELECT 1 FROM dbo.Districts d WHERE d.Number = Wanted.Number)
+)
+BEGIN
+    -- Leading semicolon: THROW requires the preceding statement to be terminated.
+    ;THROW 50001, 'Seed aborted: one or more of districts 2010, 2010-M, 2012, 5120 is missing.', 1;
+END
 GO
 
 -- ============================================================
--- SECTION 3 — Service codes (district 1 and 2)
+-- SECTION 3 — Service codes (districts 2010 and 2010-M)
 -- ============================================================
 
 -- District 1 (2010)
-IF NOT EXISTS (SELECT 1 FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'EXTRA-COM')
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'EXTRA-COM')
     INSERT INTO dbo.ServiceCodes (DistrictId, Code, Description, Amount, Active)
-    VALUES (1, N'EXTRA-COM', N'Extra pickup - Commercial', 70.0000, 1);
+    VALUES ((SELECT Id FROM dbo.Districts WHERE Number = N'2010'), N'EXTRA-COM', N'Extra pickup - Commercial', 70.0000, 1);
 
-IF NOT EXISTS (SELECT 1 FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'CONTAM')
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'CONTAM')
     INSERT INTO dbo.ServiceCodes (DistrictId, Code, Description, Amount, Active)
-    VALUES (1, N'CONTAM', N'Contamination charge', 90.0000, 1);
+    VALUES ((SELECT Id FROM dbo.Districts WHERE Number = N'2010'), N'CONTAM', N'Contamination charge', 90.0000, 1);
 
-IF NOT EXISTS (SELECT 1 FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'OVERLOAD')
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'OVERLOAD')
     INSERT INTO dbo.ServiceCodes (DistrictId, Code, Description, Amount, Active)
-    VALUES (1, N'OVERLOAD', N'Overloaded container charge', 60.0000, 1);
+    VALUES ((SELECT Id FROM dbo.Districts WHERE Number = N'2010'), N'OVERLOAD', N'Overloaded container charge', 60.0000, 1);
 
 -- District 2 (2010-M)
-IF NOT EXISTS (SELECT 1 FROM dbo.ServiceCodes WHERE DistrictId = 2 AND Code = N'EXTRA-COM')
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M') AND Code = N'EXTRA-COM')
     INSERT INTO dbo.ServiceCodes (DistrictId, Code, Description, Amount, Active)
-    VALUES (2, N'EXTRA-COM', N'Extra pickup - Commercial', 70.0000, 1);
+    VALUES ((SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), N'EXTRA-COM', N'Extra pickup - Commercial', 70.0000, 1);
 
-IF NOT EXISTS (SELECT 1 FROM dbo.ServiceCodes WHERE DistrictId = 2 AND Code = N'CONTAM')
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M') AND Code = N'CONTAM')
     INSERT INTO dbo.ServiceCodes (DistrictId, Code, Description, Amount, Active)
-    VALUES (2, N'CONTAM', N'Contamination charge', 90.0000, 1);
+    VALUES ((SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), N'CONTAM', N'Contamination charge', 90.0000, 1);
 
-IF NOT EXISTS (SELECT 1 FROM dbo.ServiceCodes WHERE DistrictId = 2 AND Code = N'OVERLOAD')
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M') AND Code = N'OVERLOAD')
     INSERT INTO dbo.ServiceCodes (DistrictId, Code, Description, Amount, Active)
-    VALUES (2, N'OVERLOAD', N'Overloaded container charge', 60.0000, 1);
+    VALUES ((SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), N'OVERLOAD', N'Overloaded container charge', 60.0000, 1);
 GO
 
 -- ============================================================
--- SECTION 4 — RouteEvents: district 2010 (id=1)
+-- SECTION 4 — RouteEvents: district 2010 (Vancouver)
 --
 -- External-id format: [seed:district-demo]-2010-{key}
 -- Account format:     2010-{suffix}
@@ -138,7 +171,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'[seed:district-demo]-2010-c1-wv',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'[seed:district-demo]-2010-c1-wv',
         DATEADD(minute, -132, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.6387, -122.6615,
         N'7720 NE VANCOUVER MALL DR, VANCOUVER, WA',
@@ -160,7 +193,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 2, N'[seed:district-demo]-2010-c1-3e',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 2, N'[seed:district-demo]-2010-c1-3e',
         DATEADD(minute, -129, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.63872, -122.66148,
         N'7720 NE VANCOUVER MALL DR, VANCOUVER, WA',
@@ -182,7 +215,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-c2-wv',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-c2-wv',
         DATEADD(minute, -425, GETUTCDATE()),
         N'2010-121 FEL', N'VA108', 45.628, -122.674,
         N'3311 MAIN ST, VANCOUVER, WA',
@@ -204,7 +237,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'[seed:district-demo]-2010-c2-3e',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'[seed:district-demo]-2010-c2-3e',
         DATEADD(minute, -423, GETUTCDATE()),
         N'2010-121 FEL', N'VA108', 45.62803, -122.67395,
         N'3311 MAIN ST, VANCOUVER, WA',
@@ -226,7 +259,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 1, N'[seed:district-demo]-2010-c3-wv',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 1, N'[seed:district-demo]-2010-c3-wv',
         DATEADD(minute, -1510, GETUTCDATE()),
         N'2010-127 REL', N'VR310', 45.6512, -122.6021,
         N'9812 NE FOURTH PLAIN BLVD, VANCOUVER, WA',
@@ -248,7 +281,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 2, N'[seed:district-demo]-2010-c3-3e',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 2, N'[seed:district-demo]-2010-c3-3e',
         DATEADD(second, -90450, GETUTCDATE()),
         N'2010-127 REL', N'VR310', 45.65123, -122.60205,
         N'9812 NE FOURTH PLAIN BLVD, VANCOUVER, WA',
@@ -270,7 +303,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 1, N'[seed:district-demo]-2010-s1',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 1, N'[seed:district-demo]-2010-s1',
         DATEADD(minute, -220, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.6231, -122.6698,
         N'415 W 8TH ST, VANCOUVER, WA',
@@ -292,7 +325,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 2, N'[seed:district-demo]-2010-s2',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 2, N'[seed:district-demo]-2010-s2',
         DATEADD(minute, -2930, GETUTCDATE()),
         N'2010-133 RSL', N'VR122', 45.6119, -122.5567,
         N'11605 SE MILL PLAIN BLVD, VANCOUVER, WA',
@@ -314,7 +347,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 3, N'[seed:district-demo]-2010-s3',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 3, N'[seed:district-demo]-2010-s3',
         DATEADD(minute, -95, GETUTCDATE()),
         N'2010-140 FEL', N'VA301', 45.6448, -122.6402,
         N'5000 E 18TH ST, VANCOUVER, WA',
@@ -336,7 +369,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'[seed:district-demo]-2010-s4',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'[seed:district-demo]-2010-s4',
         DATEADD(minute, -1740, GETUTCDATE()),
         N'2010-121 FEL', N'VA108', 45.6055, -122.6811,
         N'100 COLUMBIA WAY, VANCOUVER, WA',
@@ -358,7 +391,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 3, N'[seed:district-demo]-2010-s5',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 3, N'[seed:district-demo]-2010-s5',
         DATEADD(minute, -4310, GETUTCDATE()),
         N'2010-127 REL', N'VR310', 45.6591, -122.6939,
         N'2921 NW LOWER RIVER RD, VANCOUVER, WA',
@@ -380,7 +413,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 2, N'[seed:district-demo]-2010-s6',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 2, N'[seed:district-demo]-2010-s6',
         DATEADD(minute, -305, GETUTCDATE()),
         N'2010-140 FEL', N'VA301', 45.6172, -122.6533,
         N'700 SE COLUMBIA SHORES BLVD, VANCOUVER, WA',
@@ -402,7 +435,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 3, N'[seed:district-demo]-2010-s7',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 3, N'[seed:district-demo]-2010-s7',
         DATEADD(minute, -2650, GETUTCDATE()),
         N'2010-133 RSL', N'VR122', 45.6702, -122.5519,
         N'14508 NE 20TH AVE, VANCOUVER, WA',
@@ -424,7 +457,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'[seed:district-demo]-2010-s8',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'[seed:district-demo]-2010-s8',
         DATEADD(minute, -55, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.6329, -122.5989,
         N'8802 MILL PLAIN BLVD, VANCOUVER, WA',
@@ -478,7 +511,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 4, N'[seed:district-demo]-2010-v01',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 4, N'[seed:district-demo]-2010-v01',
         DATEADD(minute, -7928, GETUTCDATE()),
         N'2010-121 FEL', N'VA108', 45.62845, -122.68491,
         N'1305 W 12TH ST, VANCOUVER, WA',
@@ -502,7 +535,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'[seed:district-demo]-2010-v02',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'[seed:district-demo]-2010-v02',
         DATEADD(minute, -4225, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.62481, -122.66050,
         N'612 E RESERVE ST, VANCOUVER, WA',
@@ -526,7 +559,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 2, N'[seed:district-demo]-2010-v03',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 2, N'[seed:district-demo]-2010-v03',
         DATEADD(minute, -366, GETUTCDATE()),
         N'2010-121 FEL', N'VA108', 45.62683, -122.67607,
         N'610 ESTHER ST, VANCOUVER, WA',
@@ -550,7 +583,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 3, N'[seed:district-demo]-2010-v04',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 3, N'[seed:district-demo]-2010-v04',
         DATEADD(minute, -7442, GETUTCDATE()),
         N'2010-145 FEL', N'VA108', 45.62746, -122.67249,
         N'901 C ST, VANCOUVER, WA',
@@ -574,7 +607,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 3, N'[seed:district-demo]-2010-v05',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 3, N'[seed:district-demo]-2010-v05',
         DATEADD(minute, -12007, GETUTCDATE()),
         N'2010-140 FEL', N'VA301', 45.63226, -122.65759,
         N'1206 E RESERVE ST, VANCOUVER, WA',
@@ -598,7 +631,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 2, N'[seed:district-demo]-2010-v06',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 2, N'[seed:district-demo]-2010-v06',
         DATEADD(minute, -3984, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.60893, -122.57762,
         N'1101 SE TECH CENTER DR, VANCOUVER, WA',
@@ -622,7 +655,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 2, N'[seed:district-demo]-2010-v07',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 2, N'[seed:district-demo]-2010-v07',
         DATEADD(minute, -8293, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.63366, -122.72671,
         N'3103 NW LOWER RIVER RD, VANCOUVER, WA',
@@ -646,7 +679,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 4, N'[seed:district-demo]-2010-v08',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 4, N'[seed:district-demo]-2010-v08',
         DATEADD(minute, -3291, GETUTCDATE()),
         N'2010-145 FEL', N'VA406', 45.70749, -122.66117,
         N'2211 NE 139TH ST, VANCOUVER, WA',
@@ -670,7 +703,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'[seed:district-demo]-2010-v09',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'[seed:district-demo]-2010-v09',
         DATEADD(minute, -8904, GETUTCDATE()),
         N'2010-152 REL', N'VR215', 45.69825, -122.71023,
         N'2508 NW 119TH ST, VANCOUVER, WA',
@@ -694,7 +727,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 3, N'[seed:district-demo]-2010-v10',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 3, N'[seed:district-demo]-2010-v10',
         DATEADD(minute, -3090, GETUTCDATE()),
         N'2010-127 REL', N'VR310', 45.67234, -122.62497,
         N'3405 NE 78TH ST, VANCOUVER, WA',
@@ -718,7 +751,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 3, N'[seed:district-demo]-2010-v11',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 3, N'[seed:district-demo]-2010-v11',
         DATEADD(minute, -14243, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.66148, -122.63813,
         N'4207 NE ST JOHNS RD, VANCOUVER, WA',
@@ -742,7 +775,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 4, N'[seed:district-demo]-2010-v12',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 4, N'[seed:district-demo]-2010-v12',
         DATEADD(minute, -3862, GETUTCDATE()),
         N'2010-171 FEL', N'VA604', 45.61680, -122.55067,
         N'12100 SE 5TH ST, VANCOUVER, WA',
@@ -766,7 +799,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 1, N'[seed:district-demo]-2010-v13',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 1, N'[seed:district-demo]-2010-v13',
         DATEADD(minute, -6647, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.67101, -122.55451,
         N'11002 NE 117TH AVE, VANCOUVER, WA',
@@ -790,7 +823,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 2, N'[seed:district-demo]-2010-v14',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 2, N'[seed:district-demo]-2010-v14',
         DATEADD(minute, -1022, GETUTCDATE()),
         N'2010-145 FEL', N'VA108', 45.63000, -122.67082,
         N'900 WASHINGTON ST, VANCOUVER, WA',
@@ -814,7 +847,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 2, N'[seed:district-demo]-2010-v15',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 2, N'[seed:district-demo]-2010-v15',
         DATEADD(minute, -3429, GETUTCDATE()),
         N'2010-145 FEL', N'VA406', 45.70783, -122.64919,
         N'2525 NE 139TH ST, VANCOUVER, WA',
@@ -838,7 +871,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-v16',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-v16',
         DATEADD(minute, -273, GETUTCDATE()),
         N'2010-171 FEL', N'VA604', 45.62025, -122.57342,
         N'9500 SE MILL PLAIN BLVD, VANCOUVER, WA',
@@ -862,7 +895,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 2, N'[seed:district-demo]-2010-v17',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 2, N'[seed:district-demo]-2010-v17',
         DATEADD(minute, -925, GETUTCDATE()),
         N'2010-140 FEL', N'VA301', 45.65926, -122.58900,
         N'8800 NE 62ND AVE, VANCOUVER, WA',
@@ -886,7 +919,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 1, N'[seed:district-demo]-2010-v18',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 1, N'[seed:district-demo]-2010-v18',
         DATEADD(minute, -821, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.66689, -122.59679,
         N'9800 NE 76TH ST, VANCOUVER, WA',
@@ -910,7 +943,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 2, N'[seed:district-demo]-2010-v19',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 2, N'[seed:district-demo]-2010-v19',
         DATEADD(minute, -2531, GETUTCDATE()),
         N'2010-152 REL', N'VR215', 45.68010, -122.66135,
         N'7317 NE HIGHWAY 99, VANCOUVER, WA',
@@ -934,7 +967,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'[seed:district-demo]-2010-v20',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'[seed:district-demo]-2010-v20',
         DATEADD(minute, -5718, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.65873, -122.70217,
         N'5401 NW FRUIT VALLEY RD, VANCOUVER, WA',
@@ -961,7 +994,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-v21',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-v21',
         DATEADD(minute, -157, GETUTCDATE()),
         N'2010-171 FEL', N'VA604', 45.61874, -122.53929,
         N'13215 SE MILL PLAIN BLVD, VANCOUVER, WA',
@@ -985,7 +1018,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 4, N'[seed:district-demo]-2010-v22',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 4, N'[seed:district-demo]-2010-v22',
         DATEADD(minute, -16899, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.61032, -122.57511,
         N'1498 SE TECH CENTER PL, VANCOUVER, WA',
@@ -1009,7 +1042,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 4, N'[seed:district-demo]-2010-v23',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 4, N'[seed:district-demo]-2010-v23',
         DATEADD(minute, -645, GETUTCDATE()),
         N'2010-140 FEL', N'VA301', 45.63656, -122.65580,
         N'1600 E 20TH ST, VANCOUVER, WA',
@@ -1033,7 +1066,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 1, N'[seed:district-demo]-2010-v24',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 1, N'[seed:district-demo]-2010-v24',
         DATEADD(minute, -1174, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.66085, -122.62992,
         N'4211 NE MINNEHAHA ST, VANCOUVER, WA',
@@ -1057,7 +1090,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 3, N'[seed:district-demo]-2010-v25',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 3, N'[seed:district-demo]-2010-v25',
         DATEADD(minute, -342, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.65503, -122.70158,
         N'3600 NW ST JOHNS RD, VANCOUVER, WA',
@@ -1081,7 +1114,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'[seed:district-demo]-2010-v26',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'[seed:district-demo]-2010-v26',
         DATEADD(minute, -15010, GETUTCDATE()),
         N'2010-145 FEL', N'VA108', 45.62829, -122.67635,
         N'1005 ESTHER ST, VANCOUVER, WA',
@@ -1105,7 +1138,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 2, N'[seed:district-demo]-2010-v27',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 2, N'[seed:district-demo]-2010-v27',
         DATEADD(minute, -6101, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.64100, -122.60025,
         N'8700 NE VANCOUVER MALL DR, VANCOUVER, WA',
@@ -1129,7 +1162,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 2, N'[seed:district-demo]-2010-v28',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 2, N'[seed:district-demo]-2010-v28',
         DATEADD(minute, -451, GETUTCDATE()),
         N'2010-152 REL', N'VR418', 45.59768, -122.57846,
         N'9105 SE EVERGREEN HWY, VANCOUVER, WA',
@@ -1153,7 +1186,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-v29',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-v29',
         DATEADD(minute, -743, GETUTCDATE()),
         N'2010-152 REL', N'VR215', 45.67103, -122.68260,
         N'1201 NW 78TH ST, VANCOUVER, WA',
@@ -1177,7 +1210,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 4, N'[seed:district-demo]-2010-v30',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 4, N'[seed:district-demo]-2010-v30',
         DATEADD(minute, -79, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.75413, -122.66627,
         N'17402 NE DELFEL RD, RIDGEFIELD, WA',
@@ -1201,7 +1234,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 2, N'[seed:district-demo]-2010-v31',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 2, N'[seed:district-demo]-2010-v31',
         DATEADD(minute, -2132, GETUTCDATE()),
         N'2010-127 REL', N'VR310', 45.63985, -122.67151,
         N'2506 MAIN ST, VANCOUVER, WA',
@@ -1225,7 +1258,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-v32',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-v32',
         DATEADD(minute, -7752, GETUTCDATE()),
         N'2010-121 FEL', N'VA108', 45.63715, -122.69187,
         N'2801 W 24TH ST, VANCOUVER, WA',
@@ -1249,7 +1282,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-v33',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-v33',
         DATEADD(minute, -2682, GETUTCDATE()),
         N'2010-145 FEL', N'VA108', 45.63503, -122.67258,
         N'1900 MAIN ST, VANCOUVER, WA',
@@ -1273,7 +1306,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'[seed:district-demo]-2010-v34',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'[seed:district-demo]-2010-v34',
         DATEADD(minute, -680, GETUTCDATE()),
         N'2010-171 FEL', N'VA604', 45.66568, -122.54834,
         N'12009 NE 99TH ST, VANCOUVER, WA',
@@ -1297,7 +1330,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 4, N'[seed:district-demo]-2010-v35',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 4, N'[seed:district-demo]-2010-v35',
         DATEADD(minute, -558, GETUTCDATE()),
         N'2010-171 FEL', N'VA604', 45.60265, -122.50319,
         N'3510 SE 164TH AVE, VANCOUVER, WA',
@@ -1321,7 +1354,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-v36',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-v36',
         DATEADD(minute, -4736, GETUTCDATE()),
         N'2010-127 REL', N'VR310', 45.61004, -122.56328,
         N'1301 SE ELLSWORTH RD, VANCOUVER, WA',
@@ -1345,7 +1378,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'[seed:district-demo]-2010-v37',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'[seed:district-demo]-2010-v37',
         DATEADD(minute, -3702, GETUTCDATE()),
         N'2010-133 RSL', N'VR122', 45.66600, -122.61871,
         N'7304 NE 47TH AVE, VANCOUVER, WA',
@@ -1369,7 +1402,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 1, N'[seed:district-demo]-2010-v38',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 1, N'[seed:district-demo]-2010-v38',
         DATEADD(minute, -5190, GETUTCDATE()),
         N'2010-133 RSL', N'VR122', 45.66635, -122.63995,
         N'2914 NE 68TH ST, VANCOUVER, WA',
@@ -1393,7 +1426,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 2, N'[seed:district-demo]-2010-v39',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 2, N'[seed:district-demo]-2010-v39',
         DATEADD(minute, -966, GETUTCDATE()),
         N'2010-158 RSL', N'VR418', 45.60942, -122.51163,
         N'15414 SE 20TH ST, VANCOUVER, WA',
@@ -1417,7 +1450,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 3, N'[seed:district-demo]-2010-v40',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 3, N'[seed:district-demo]-2010-v40',
         DATEADD(minute, -9120, GETUTCDATE()),
         N'2010-133 RSL', N'VR122', 45.68455, -122.64230,
         N'10112 NE 22ND AVE, VANCOUVER, WA',
@@ -1444,7 +1477,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-v41',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-v41',
         DATEADD(minute, -8612, GETUTCDATE()),
         N'2010-158 RSL', N'VR418', 45.64589, -122.56357,
         N'5719 NE 105TH AVE, VANCOUVER, WA',
@@ -1468,7 +1501,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 3, N'[seed:district-demo]-2010-v42',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 3, N'[seed:district-demo]-2010-v42',
         DATEADD(minute, -844, GETUTCDATE()),
         N'2010-158 RSL', N'VR418', 45.63397, -122.53048,
         N'13519 NE 28TH ST, VANCOUVER, WA',
@@ -1492,7 +1525,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 2, N'[seed:district-demo]-2010-v43',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 2, N'[seed:district-demo]-2010-v43',
         DATEADD(minute, -4470, GETUTCDATE()),
         N'2010-133 RSL', N'VR215', 45.67335, -122.70351,
         N'4508 NW BERNIE DR, VANCOUVER, WA',
@@ -1516,7 +1549,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-v44',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-v44',
         DATEADD(minute, -123, GETUTCDATE()),
         N'2010-158 RSL', N'VR418', 45.66260, -122.52077,
         N'8210 NE 152ND AVE, VANCOUVER, WA',
@@ -1540,7 +1573,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 2, N'[seed:district-demo]-2010-v45',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 2, N'[seed:district-demo]-2010-v45',
         DATEADD(minute, -1089, GETUTCDATE()),
         N'2010-121 FEL', N'VA108', 45.62883, -122.68568,
         N'1305 W 12TH ST, VANCOUVER, WA',
@@ -1564,7 +1597,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 2, N'[seed:district-demo]-2010-v46',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 2, N'[seed:district-demo]-2010-v46',
         DATEADD(minute, -5417, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.62520, -122.66109,
         N'612 E RESERVE ST, VANCOUVER, WA',
@@ -1588,7 +1621,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 3, N'[seed:district-demo]-2010-v47',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 3, N'[seed:district-demo]-2010-v47',
         DATEADD(minute, -7093, GETUTCDATE()),
         N'2010-121 FEL', N'VA108', 45.62639, -122.67491,
         N'610 ESTHER ST, VANCOUVER, WA',
@@ -1612,7 +1645,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'[seed:district-demo]-2010-v48',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'[seed:district-demo]-2010-v48',
         DATEADD(minute, -2243, GETUTCDATE()),
         N'2010-145 FEL', N'VA108', 45.62714, -122.67153,
         N'901 C ST, VANCOUVER, WA',
@@ -1636,7 +1669,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 1, N'[seed:district-demo]-2010-v49',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 1, N'[seed:district-demo]-2010-v49',
         DATEADD(minute, -9761, GETUTCDATE()),
         N'2010-140 FEL', N'VA301', 45.63185, -122.65850,
         N'1206 E RESERVE ST, VANCOUVER, WA',
@@ -1660,7 +1693,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'[seed:district-demo]-2010-v50',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'[seed:district-demo]-2010-v50',
         DATEADD(minute, -1427, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.60808, -122.57756,
         N'1101 SE TECH CENTER DR, VANCOUVER, WA',
@@ -1684,7 +1717,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 2, N'[seed:district-demo]-2010-v51',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 2, N'[seed:district-demo]-2010-v51',
         DATEADD(minute, -4149, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.63461, -122.72611,
         N'3103 NW LOWER RIVER RD, VANCOUVER, WA',
@@ -1708,7 +1741,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'[seed:district-demo]-2010-v52',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'[seed:district-demo]-2010-v52',
         DATEADD(minute, -242, GETUTCDATE()),
         N'2010-145 FEL', N'VA406', 45.70749, -122.66110,
         N'2211 NE 139TH ST, VANCOUVER, WA',
@@ -1732,7 +1765,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 3, N'[seed:district-demo]-2010-v53',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 3, N'[seed:district-demo]-2010-v53',
         DATEADD(minute, -1589, GETUTCDATE()),
         N'2010-152 REL', N'VR215', 45.69761, -122.70950,
         N'2508 NW 119TH ST, VANCOUVER, WA',
@@ -1756,7 +1789,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'[seed:district-demo]-2010-v54',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'[seed:district-demo]-2010-v54',
         DATEADD(minute, -1747, GETUTCDATE()),
         N'2010-127 REL', N'VR310', 45.67156, -122.62469,
         N'3405 NE 78TH ST, VANCOUVER, WA',
@@ -1780,7 +1813,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 3, N'[seed:district-demo]-2010-v55',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 3, N'[seed:district-demo]-2010-v55',
         DATEADD(minute, -3537, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.66172, -122.63936,
         N'4207 NE ST JOHNS RD, VANCOUVER, WA',
@@ -1804,7 +1837,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-v56',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-v56',
         DATEADD(minute, -9526, GETUTCDATE()),
         N'2010-171 FEL', N'VA604', 45.61692, -122.55055,
         N'12100 SE 5TH ST, VANCOUVER, WA',
@@ -1828,7 +1861,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'[seed:district-demo]-2010-v57',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'[seed:district-demo]-2010-v57',
         DATEADD(minute, -2445, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.67053, -122.55436,
         N'11002 NE 117TH AVE, VANCOUVER, WA',
@@ -1852,7 +1885,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'[seed:district-demo]-2010-v58',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'[seed:district-demo]-2010-v58',
         DATEADD(minute, -11414, GETUTCDATE()),
         N'2010-145 FEL', N'VA108', 45.63000, -122.67068,
         N'900 WASHINGTON ST, VANCOUVER, WA',
@@ -1876,7 +1909,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 3, N'[seed:district-demo]-2010-v59',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 3, N'[seed:district-demo]-2010-v59',
         DATEADD(minute, -13272, GETUTCDATE()),
         N'2010-145 FEL', N'VA406', 45.70885, -122.64815,
         N'2525 NE 139TH ST, VANCOUVER, WA',
@@ -1900,7 +1933,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'[seed:district-demo]-2010-v60',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'[seed:district-demo]-2010-v60',
         DATEADD(minute, -6480, GETUTCDATE()),
         N'2010-171 FEL', N'VA604', 45.61973, -122.57334,
         N'9500 SE MILL PLAIN BLVD, VANCOUVER, WA',
@@ -1927,7 +1960,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 2, N'[seed:district-demo]-2010-v61',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 2, N'[seed:district-demo]-2010-v61',
         DATEADD(minute, -323, GETUTCDATE()),
         N'2010-140 FEL', N'VA301', 45.66043, -122.58798,
         N'8800 NE 62ND AVE, VANCOUVER, WA',
@@ -1951,7 +1984,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 2, N'[seed:district-demo]-2010-v62',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 2, N'[seed:district-demo]-2010-v62',
         DATEADD(minute, -1215, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.66701, -122.59732,
         N'9800 NE 76TH ST, VANCOUVER, WA',
@@ -1975,7 +2008,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'[seed:district-demo]-2010-v63',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'[seed:district-demo]-2010-v63',
         DATEADD(minute, -181, GETUTCDATE()),
         N'2010-152 REL', N'VR215', 45.67944, -122.66246,
         N'7317 NE HIGHWAY 99, VANCOUVER, WA',
@@ -1999,7 +2032,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 3, N'[seed:district-demo]-2010-v64',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 3, N'[seed:district-demo]-2010-v64',
         DATEADD(minute, -25, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.65897, -122.70314,
         N'5401 NW FRUIT VALLEY RD, VANCOUVER, WA',
@@ -2023,7 +2056,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 2, N'[seed:district-demo]-2010-v65',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 2, N'[seed:district-demo]-2010-v65',
         DATEADD(minute, -101, GETUTCDATE()),
         N'2010-171 FEL', N'VA604', 45.61808, -122.53922,
         N'13215 SE MILL PLAIN BLVD, VANCOUVER, WA',
@@ -2047,7 +2080,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 1, N'[seed:district-demo]-2010-v66',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 1, N'[seed:district-demo]-2010-v66',
         DATEADD(minute, -1281, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.61017, -122.57391,
         N'1498 SE TECH CENTER PL, VANCOUVER, WA',
@@ -2071,7 +2104,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 1, N'[seed:district-demo]-2010-v67',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 1, N'[seed:district-demo]-2010-v67',
         DATEADD(minute, -1345, GETUTCDATE()),
         N'2010-140 FEL', N'VA301', 45.63544, -122.65580,
         N'1600 E 20TH ST, VANCOUVER, WA',
@@ -2095,7 +2128,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 2, N'[seed:district-demo]-2010-v68',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 2, N'[seed:district-demo]-2010-v68',
         DATEADD(minute, -1519, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.65951, -122.63009,
         N'4211 NE MINNEHAHA ST, VANCOUVER, WA',
@@ -2119,7 +2152,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 4, N'[seed:district-demo]-2010-v69',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 4, N'[seed:district-demo]-2010-v69',
         DATEADD(minute, -3156, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.65594, -122.70130,
         N'3600 NW ST JOHNS RD, VANCOUVER, WA',
@@ -2143,7 +2176,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 2, N'[seed:district-demo]-2010-v70',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 2, N'[seed:district-demo]-2010-v70',
         DATEADD(minute, -15872, GETUTCDATE()),
         N'2010-145 FEL', N'VA108', 45.62815, -122.67541,
         N'1005 ESTHER ST, VANCOUVER, WA',
@@ -2167,7 +2200,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 1, N'[seed:district-demo]-2010-v71',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 1, N'[seed:district-demo]-2010-v71',
         DATEADD(minute, -207, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.64104, -122.60122,
         N'8700 NE VANCOUVER MALL DR, VANCOUVER, WA',
@@ -2191,7 +2224,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 1, N'[seed:district-demo]-2010-v72',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 1, N'[seed:district-demo]-2010-v72',
         DATEADD(minute, -2764, GETUTCDATE()),
         N'2010-152 REL', N'VR418', 45.59775, -122.57858,
         N'9105 SE EVERGREEN HWY, VANCOUVER, WA',
@@ -2215,7 +2248,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 1, N'[seed:district-demo]-2010-v73',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 1, N'[seed:district-demo]-2010-v73',
         DATEADD(minute, -524, GETUTCDATE()),
         N'2010-152 REL', N'VR215', 45.67053, -122.68229,
         N'1201 NW 78TH ST, VANCOUVER, WA',
@@ -2239,7 +2272,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 1, N'[seed:district-demo]-2010-v74',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 1, N'[seed:district-demo]-2010-v74',
         DATEADD(minute, -10211, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.75468, -122.66679,
         N'17402 NE DELFEL RD, RIDGEFIELD, WA',
@@ -2263,7 +2296,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'[seed:district-demo]-2010-v75',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'[seed:district-demo]-2010-v75',
         DATEADD(minute, -220, GETUTCDATE()),
         N'2010-127 REL', N'VR310', 45.64042, -122.67141,
         N'2506 MAIN ST, VANCOUVER, WA',
@@ -2287,7 +2320,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 3, N'[seed:district-demo]-2010-v76',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 3, N'[seed:district-demo]-2010-v76',
         DATEADD(minute, -297, GETUTCDATE()),
         N'2010-121 FEL', N'VA108', 45.63712, -122.69169,
         N'2801 W 24TH ST, VANCOUVER, WA',
@@ -2311,7 +2344,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-v77',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-v77',
         DATEADD(minute, -54, GETUTCDATE()),
         N'2010-145 FEL', N'VA108', 45.63469, -122.67310,
         N'1900 MAIN ST, VANCOUVER, WA',
@@ -2335,7 +2368,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'[seed:district-demo]-2010-v78',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'[seed:district-demo]-2010-v78',
         DATEADD(minute, -2963, GETUTCDATE()),
         N'2010-171 FEL', N'VA604', 45.66466, -122.54820,
         N'12009 NE 99TH ST, VANCOUVER, WA',
@@ -2359,7 +2392,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-v79',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-v79',
         DATEADD(minute, -2048, GETUTCDATE()),
         N'2010-171 FEL', N'VA604', 45.60366, -122.50335,
         N'3510 SE 164TH AVE, VANCOUVER, WA',
@@ -2383,7 +2416,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 4, 3, N'[seed:district-demo]-2010-v80',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 4, 3, N'[seed:district-demo]-2010-v80',
         DATEADD(minute, -1869, GETUTCDATE()),
         N'2010-127 REL', N'VR310', 45.60966, -122.56313,
         N'1301 SE ELLSWORTH RD, VANCOUVER, WA',
@@ -2410,7 +2443,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'[seed:district-demo]-2010-d4-wv',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'[seed:district-demo]-2010-d4-wv',
         DATEADD(minute, -187, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.60830, -122.57710,
         N'1101 SE TECH CENTER DR, VANCOUVER, WA',
@@ -2434,7 +2467,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 2, N'[seed:district-demo]-2010-d4-3e',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 2, N'[seed:district-demo]-2010-d4-3e',
         DATEADD(minute, -185, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.60833, -122.57712,
         N'1101 SE TECH CENTER DR, VANCOUVER, WA',
@@ -2458,7 +2491,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-d5-wv',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-d5-wv',
         DATEADD(minute, -640, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.67080, -122.55510,
         N'11002 NE 117TH AVE, VANCOUVER, WA',
@@ -2482,7 +2515,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'[seed:district-demo]-2010-d5-3e',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'[seed:district-demo]-2010-d5-3e',
         DATEADD(minute, -637, GETUTCDATE()),
         N'2010-163 ROL', N'RO101', 45.67083, -122.55512,
         N'11002 NE 117TH AVE, VANCOUVER, WA',
@@ -2506,7 +2539,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 1, N'[seed:district-demo]-2010-d6-wv',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 1, N'[seed:district-demo]-2010-d6-wv',
         DATEADD(minute, -1265, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.60960, -122.57440,
         N'1498 SE TECH CENTER PL, VANCOUVER, WA',
@@ -2530,7 +2563,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 2, 2, N'[seed:district-demo]-2010-d6-3e',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 2, 2, N'[seed:district-demo]-2010-d6-3e',
         DATEADD(minute, -1263, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.60963, -122.57442,
         N'1498 SE TECH CENTER PL, VANCOUVER, WA',
@@ -2554,7 +2587,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'[seed:district-demo]-2010-d7-wv',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'[seed:district-demo]-2010-d7-wv',
         DATEADD(minute, -2480, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.64040, -122.60080,
         N'8700 NE VANCOUVER MALL DR, VANCOUVER, WA',
@@ -2578,7 +2611,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 2, N'[seed:district-demo]-2010-d7-3e',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 2, N'[seed:district-demo]-2010-d7-3e',
         DATEADD(minute, -2477, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.64043, -122.60082,
         N'8700 NE VANCOUVER MALL DR, VANCOUVER, WA',
@@ -2602,7 +2635,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'[seed:district-demo]-2010-d8-wv',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'[seed:district-demo]-2010-d8-wv',
         DATEADD(minute, -4055, GETUTCDATE()),
         N'2010-171 FEL', N'VA604', 45.66520, -122.54770,
         N'12009 NE 99TH ST, VANCOUVER, WA',
@@ -2626,7 +2659,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'[seed:district-demo]-2010-d8-3e',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'[seed:district-demo]-2010-d8-3e',
         DATEADD(minute, -4053, GETUTCDATE()),
         N'2010-171 FEL', N'VA604', 45.66523, -122.54772,
         N'12009 NE 99TH ST, VANCOUVER, WA',
@@ -2650,7 +2683,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 1, N'[seed:district-demo]-2010-d9-wv',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 1, N'[seed:district-demo]-2010-d9-wv',
         DATEADD(minute, -5720, GETUTCDATE()),
         N'2010-158 RSL', N'VR418', 45.63350, -122.53120,
         N'13519 NE 28TH ST, VANCOUVER, WA',
@@ -2674,7 +2707,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 5, 2, N'[seed:district-demo]-2010-d9-3e',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 5, 2, N'[seed:district-demo]-2010-d9-3e',
         DATEADD(minute, -5717, GETUTCDATE()),
         N'2010-158 RSL', N'VR418', 45.63353, -122.53122,
         N'13519 NE 28TH ST, VANCOUVER, WA',
@@ -2692,7 +2725,7 @@ GO
 
 
 -- ============================================================
--- SECTION 5 — RouteEvents: district 2010-M (id=2)
+-- SECTION 5 — RouteEvents: district 2010-M (Vancouver Minimal)
 --
 -- Identical dataset; severity is overridden to 'Minimal' for all events.
 -- External-id: [seed:district-demo]-2010-M-{key}
@@ -2708,7 +2741,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 3, 1, N'[seed:district-demo]-2010-M-c1-wv',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 3, 1, N'[seed:district-demo]-2010-M-c1-wv',
         DATEADD(minute, -132, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.6387, -122.6615,
         N'7720 NE VANCOUVER MALL DR, VANCOUVER, WA',
@@ -2730,7 +2763,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 3, 2, N'[seed:district-demo]-2010-M-c1-3e',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 3, 2, N'[seed:district-demo]-2010-M-c1-3e',
         DATEADD(minute, -129, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.63872, -122.66148,
         N'7720 NE VANCOUVER MALL DR, VANCOUVER, WA',
@@ -2752,7 +2785,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 1, 1, N'[seed:district-demo]-2010-M-c2-wv',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 1, 1, N'[seed:district-demo]-2010-M-c2-wv',
         DATEADD(minute, -425, GETUTCDATE()),
         N'2010-121 FEL', N'VA108', 45.628, -122.674,
         N'3311 MAIN ST, VANCOUVER, WA',
@@ -2774,7 +2807,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 1, 2, N'[seed:district-demo]-2010-M-c2-3e',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 1, 2, N'[seed:district-demo]-2010-M-c2-3e',
         DATEADD(minute, -423, GETUTCDATE()),
         N'2010-121 FEL', N'VA108', 45.62803, -122.67395,
         N'3311 MAIN ST, VANCOUVER, WA',
@@ -2796,7 +2829,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 2, 1, N'[seed:district-demo]-2010-M-c3-wv',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 2, 1, N'[seed:district-demo]-2010-M-c3-wv',
         DATEADD(minute, -1510, GETUTCDATE()),
         N'2010-127 REL', N'VR310', 45.6512, -122.6021,
         N'9812 NE FOURTH PLAIN BLVD, VANCOUVER, WA',
@@ -2818,7 +2851,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 2, 2, N'[seed:district-demo]-2010-M-c3-3e',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 2, 2, N'[seed:district-demo]-2010-M-c3-3e',
         DATEADD(second, -90450, GETUTCDATE()),
         N'2010-127 REL', N'VR310', 45.65123, -122.60205,
         N'9812 NE FOURTH PLAIN BLVD, VANCOUVER, WA',
@@ -2840,7 +2873,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 4, 1, N'[seed:district-demo]-2010-M-s1',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 4, 1, N'[seed:district-demo]-2010-M-s1',
         DATEADD(minute, -220, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.6231, -122.6698,
         N'415 W 8TH ST, VANCOUVER, WA',
@@ -2862,7 +2895,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 5, 2, N'[seed:district-demo]-2010-M-s2',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 5, 2, N'[seed:district-demo]-2010-M-s2',
         DATEADD(minute, -2930, GETUTCDATE()),
         N'2010-133 RSL', N'VR122', 45.6119, -122.5567,
         N'11605 SE MILL PLAIN BLVD, VANCOUVER, WA',
@@ -2884,7 +2917,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 1, 3, N'[seed:district-demo]-2010-M-s3',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 1, 3, N'[seed:district-demo]-2010-M-s3',
         DATEADD(minute, -95, GETUTCDATE()),
         N'2010-140 FEL', N'VA301', 45.6448, -122.6402,
         N'5000 E 18TH ST, VANCOUVER, WA',
@@ -2906,7 +2939,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 3, 1, N'[seed:district-demo]-2010-M-s4',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 3, 1, N'[seed:district-demo]-2010-M-s4',
         DATEADD(minute, -1740, GETUTCDATE()),
         N'2010-121 FEL', N'VA108', 45.6055, -122.6811,
         N'100 COLUMBIA WAY, VANCOUVER, WA',
@@ -2928,7 +2961,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 2, 3, N'[seed:district-demo]-2010-M-s5',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 2, 3, N'[seed:district-demo]-2010-M-s5',
         DATEADD(minute, -4310, GETUTCDATE()),
         N'2010-127 REL', N'VR310', 45.6591, -122.6939,
         N'2921 NW LOWER RIVER RD, VANCOUVER, WA',
@@ -2950,7 +2983,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 4, 2, N'[seed:district-demo]-2010-M-s6',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 4, 2, N'[seed:district-demo]-2010-M-s6',
         DATEADD(minute, -305, GETUTCDATE()),
         N'2010-140 FEL', N'VA301', 45.6172, -122.6533,
         N'700 SE COLUMBIA SHORES BLVD, VANCOUVER, WA',
@@ -2972,7 +3005,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 5, 3, N'[seed:district-demo]-2010-M-s7',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 5, 3, N'[seed:district-demo]-2010-M-s7',
         DATEADD(minute, -2650, GETUTCDATE()),
         N'2010-133 RSL', N'VR122', 45.6702, -122.5519,
         N'14508 NE 20TH AVE, VANCOUVER, WA',
@@ -2994,7 +3027,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        2, 1, 2, N'[seed:district-demo]-2010-M-s8',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M'), 1, 2, N'[seed:district-demo]-2010-M-s8',
         DATEADD(minute, -55, GETUTCDATE()),
         N'2010-118 FEL', N'VA204', 45.6329, -122.5989,
         N'8802 MILL PLAIN BLVD, VANCOUVER, WA',
@@ -3027,7 +3060,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'DUPSEED-2010-A
         CustomerName, AccountNumber, Quantity, ImageUrl, ImageUrls,
         Severity, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 1, N'DUPSEED-2010-A1',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 1, N'DUPSEED-2010-A1',
         CONVERT(DATETIMEOFFSET,
             CONVERT(VARCHAR(10), GETUTCDATE(), 120) + 'T08:12:00+00:00', 126),
         N'2010-118 FEL', N'VA204', 45.6339, -122.6031,
@@ -3045,7 +3078,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'DUPSEED-2010-A
         CustomerName, AccountNumber, Quantity, ImageUrl, ImageUrls,
         Severity, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 1, 2, N'DUPSEED-2010-A2',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 1, 2, N'DUPSEED-2010-A2',
         DATEADD(minute, 2, CONVERT(DATETIMEOFFSET,
             CONVERT(VARCHAR(10), GETUTCDATE(), 120) + 'T08:12:00+00:00', 126)),
         N'2010-121 REL', N'VA204', 45.6341, -122.6032,
@@ -3064,7 +3097,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'DUPSEED-2010-B
         CustomerName, AccountNumber, Quantity, ImageUrl, ImageUrls,
         Severity, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 2, N'DUPSEED-2010-B1',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 2, N'DUPSEED-2010-B1',
         CONVERT(DATETIMEOFFSET,
             CONVERT(VARCHAR(10), DATEADD(day, -1, GETUTCDATE()), 120) + 'T10:41:00+00:00', 126),
         N'2010-121 REL', N'VR310', 45.6205, -122.6721,
@@ -3082,7 +3115,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'DUPSEED-2010-B
         CustomerName, AccountNumber, Quantity, ImageUrl, ImageUrls,
         Severity, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        1, 3, 1, N'DUPSEED-2010-B2',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2010'), 3, 1, N'DUPSEED-2010-B2',
         DATEADD(minute, 3, CONVERT(DATETIMEOFFSET,
             CONVERT(VARCHAR(10), DATEADD(day, -1, GETUTCDATE()), 120) + 'T10:41:00+00:00', 126)),
         N'2010-118 FEL', N'VR310', 45.6202, -122.6719,
@@ -3101,7 +3134,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'DUPSEED-2012-A
         CustomerName, AccountNumber, Quantity, ImageUrl, ImageUrls,
         Severity, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        3, 1, 1, N'DUPSEED-2012-A1',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2012'), 1, 1, N'DUPSEED-2012-A1',
         CONVERT(DATETIMEOFFSET,
             CONVERT(VARCHAR(10), GETUTCDATE(), 120) + 'T09:27:00+00:00', 126),
         N'2012-207 FEL', N'BD102', 44.0582, -121.3011,
@@ -3119,7 +3152,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'DUPSEED-2012-A
         CustomerName, AccountNumber, Quantity, ImageUrl, ImageUrls,
         Severity, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        3, 1, 2, N'DUPSEED-2012-A2',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'2012'), 1, 2, N'DUPSEED-2012-A2',
         DATEADD(minute, 2, CONVERT(DATETIMEOFFSET,
             CONVERT(VARCHAR(10), GETUTCDATE(), 120) + 'T09:27:00+00:00', 126)),
         N'2012-211 FEL', N'BD102', 44.05845, -121.3009,
@@ -3138,7 +3171,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'DUPSEED-5120-A
         CustomerName, AccountNumber, Quantity, ImageUrl, ImageUrls,
         Severity, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        20, 3, 1, N'DUPSEED-5120-A1',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'5120'), 3, 1, N'DUPSEED-5120-A1',
         CONVERT(DATETIMEOFFSET,
             CONVERT(VARCHAR(10), GETUTCDATE(), 120) + 'T07:58:00+00:00', 126),
         N'5120-2302 FEL', N'NY605', 29.7433, -95.3921,
@@ -3156,7 +3189,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'DUPSEED-5120-A
         CustomerName, AccountNumber, Quantity, ImageUrl, ImageUrls,
         Severity, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        20, 3, 2, N'DUPSEED-5120-A2',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'5120'), 3, 2, N'DUPSEED-5120-A2',
         DATEADD(minute, 2, CONVERT(DATETIMEOFFSET,
             CONVERT(VARCHAR(10), GETUTCDATE(), 120) + 'T07:58:00+00:00', 126)),
         N'5120-2311 FEL', N'NY605', 29.7435, -95.3918,
@@ -3174,7 +3207,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'DUPSEED-5120-A
         CustomerName, AccountNumber, Quantity, ImageUrl, ImageUrls,
         Severity, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        20, 3, 1, N'DUPSEED-5120-A3',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'5120'), 3, 1, N'DUPSEED-5120-A3',
         DATEADD(minute, 3, CONVERT(DATETIMEOFFSET,
             CONVERT(VARCHAR(10), GETUTCDATE(), 120) + 'T07:58:00+00:00', 126)),
         N'5120-2315 REL', N'NY605', 29.7431, -95.3920,
@@ -3193,7 +3226,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'DUPSEED-5120-B
         CustomerName, AccountNumber, Quantity, ImageUrl, ImageUrls,
         Severity, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        20, 1, 2, N'DUPSEED-5120-B1',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'5120'), 1, 2, N'DUPSEED-5120-B1',
         CONVERT(DATETIMEOFFSET,
             CONVERT(VARCHAR(10), DATEADD(day, -1, GETUTCDATE()), 120) + 'T12:06:00+00:00', 126),
         N'5120-2311 FEL', N'RC201', 29.8171, -95.4009,
@@ -3211,7 +3244,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'DUPSEED-5120-B
         CustomerName, AccountNumber, Quantity, ImageUrl, ImageUrls,
         Severity, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        20, 1, 1, N'DUPSEED-5120-B2',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'5120'), 1, 1, N'DUPSEED-5120-B2',
         DATEADD(minute, 3, CONVERT(DATETIMEOFFSET,
             CONVERT(VARCHAR(10), DATEADD(day, -1, GETUTCDATE()), 120) + 'T12:06:00+00:00', 126)),
         N'5120-2309 FEL', N'RC201', 29.8174, -95.4011,
@@ -3289,7 +3322,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'EXTRA-COM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'EXTRA-COM'),
            70.0000, 2.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Kyle.Patrick', DATEADD(minute, -380, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-c2-wv';
@@ -3327,7 +3360,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 2 AND Code = N'EXTRA-COM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M') AND Code = N'EXTRA-COM'),
            70.0000, 2.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Kyle.Patrick', DATEADD(minute, -380, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-M-c2-wv';
@@ -3524,7 +3557,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'OVERLOAD'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'OVERLOAD'),
            60.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Kyle.Patrick', DATEADD(minute, -1695, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-s4';
@@ -3564,7 +3597,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 2 AND Code = N'OVERLOAD'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M') AND Code = N'OVERLOAD'),
            60.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Kyle.Patrick', DATEADD(minute, -1695, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-M-s4';
@@ -3650,7 +3683,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'EXTRA-COM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'EXTRA-COM'),
            70.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Kyle.Patrick', DATEADD(minute, -10, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-s8';
@@ -3690,7 +3723,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 2 AND Code = N'EXTRA-COM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010-M') AND Code = N'EXTRA-COM'),
            70.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Kyle.Patrick', DATEADD(minute, -10, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-M-s8';
@@ -3712,7 +3745,7 @@ END
 GO
 
 -- ============================================================
--- SECTION 7 — Samsara-sourced events (district 20, Houston)
+-- SECTION 7 — Samsara-sourced events (district 5120, Houston)
 --
 -- The Samsara camera vendor had no events of its own, so its mark
 -- never appeared in the grid. These two rows give it a presence in
@@ -3730,7 +3763,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        20, 2, 4, N'[seed:district-demo]-5120-sam-1',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'5120'), 2, 4, N'[seed:district-demo]-5120-sam-1',
         DATEADD(minute, -96, GETUTCDATE()),
         N'5120-2311 FEL', N'RC201', 29.8612, -95.3982,
         N'8820 AIRLINE DR, HOUSTON, TX',
@@ -3752,7 +3785,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.RouteEvents WHERE ExternalId = N'[seed:district
         Lob, RmoStatus, Quantity, ImageUrl, ImageUrls,
         Severity, CustomerSince, EventStatus, DateClosed, ClosedBy, CustomerRoutes
     ) VALUES (
-        20, 1, 4, N'[seed:district-demo]-5120-sam-2',
+        (SELECT Id FROM dbo.Districts WHERE Number = N'5120'), 1, 4, N'[seed:district-demo]-5120-sam-2',
         DATEADD(minute, -211, GETUTCDATE()),
         N'5120-2309 FEL', N'NY109', 29.8894, -95.4121,
         N'4403 NORTH FWY, HOUSTON, TX',
@@ -3800,7 +3833,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'EXTRA-COM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'EXTRA-COM'),
            70.0000, 4.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Marcus.Lee', DATEADD(minute, -4180, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v02';
@@ -3825,7 +3858,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'OVERLOAD'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'OVERLOAD'),
            60.0000, 1.50, N'REFUNDED', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Marcus.Lee', DATEADD(minute, -3939, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v06';
@@ -3894,7 +3927,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'OVERLOAD'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'OVERLOAD'),
            60.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Priya.Raman', DATEADD(minute, -14198, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v11';
@@ -3919,7 +3952,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'EXTRA-COM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'EXTRA-COM'),
            70.0000, 4.00, N'REFUNDED', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Dana.Whitfield', DATEADD(minute, -3817, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v12';
@@ -3944,7 +3977,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'CONTAM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'CONTAM'),
            90.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Sofia.Alvarez', DATEADD(minute, -6602, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v13';
@@ -3969,7 +4002,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'EXTRA-COM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'EXTRA-COM'),
            70.0000, 2.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Dana.Whitfield', DATEADD(minute, -228, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v16';
@@ -3997,7 +4030,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'CONTAM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'CONTAM'),
            90.0000, 1.00, NULL, N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Sofia.Alvarez', DATEADD(minute, -880, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v17';
@@ -4022,7 +4055,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'OVERLOAD'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'OVERLOAD'),
            60.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Sofia.Alvarez', DATEADD(minute, -16854, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v22';
@@ -4047,7 +4080,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'CONTAM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'CONTAM'),
            90.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Dana.Whitfield', DATEADD(minute, -1129, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v24';
@@ -4138,7 +4171,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'EXTRA-COM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'EXTRA-COM'),
            70.0000, 2.00, N'REFUNDED', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Kyle.Patrick', DATEADD(minute, -3657, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v37';
@@ -4367,7 +4400,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'EXTRA-COM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'EXTRA-COM'),
            70.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Dana.Whitfield', DATEADD(minute, -197, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v52';
@@ -4414,7 +4447,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'OVERLOAD'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'OVERLOAD'),
            60.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Sofia.Alvarez', DATEADD(minute, -2400, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v57';
@@ -4483,7 +4516,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'CONTAM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'CONTAM'),
            90.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Priya.Raman', DATEADD(minute, -252, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v76';
@@ -4508,7 +4541,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'OVERLOAD'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'OVERLOAD'),
            60.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Priya.Raman', DATEADD(minute, -2918, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v78';
@@ -4533,7 +4566,7 @@ IF NOT EXISTS (
 )
     INSERT INTO dbo.EventActions (RouteEventId, ActionType, IsFinal, ServiceCodeId, ChargeAmount, ChargeQuantity, PaymentStatus, Notes, BilledStatementNumber, CreatedBy, DateCreated)
     SELECT re.Id, N'charge', 1,
-           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = 1 AND Code = N'EXTRA-COM'),
+           (SELECT Id FROM dbo.ServiceCodes WHERE DistrictId = (SELECT Id FROM dbo.Districts WHERE Number = N'2010') AND Code = N'EXTRA-COM'),
            70.0000, 1.00, N'PAID', N'Overage charge applied to account.',
            N'[seed:district-demo]', N'Marcus.Lee', DATEADD(minute, -2003, GETUTCDATE())
     FROM dbo.RouteEvents re WHERE ExternalId = N'[seed:district-demo]-2010-v79';
