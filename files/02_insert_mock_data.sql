@@ -78,12 +78,13 @@ GO
 -- SECTION 2 — Districts
 -- ============================================================
 -- Districts are matched on Number, never on Id. A database seeded by the
--- API's own start-up routine already holds the full district list under
--- different identity values -- 2011 sits on Id 2, where this script's
--- Vancouver Minimal used to be assumed -- so an Id-based guard would skip
--- the insert and quietly hang this script's events off someone else's
--- district. Number is the stable key, and every reference below resolves
--- through it.
+-- API's own start-up routine holds twenty districts, and Id 2 there is
+-- 2011 OREGON PAPER FIBER -- exactly where this script used to assume
+-- Vancouver Minimal. An Id-based guard would find that row, skip its own
+-- insert, and quietly hang fourteen events off someone else's district.
+-- (2010, 2012 and 5120 happen to land on the same Ids either way; 2010-M
+-- is the one that moves. Matching on Number costs nothing and removes the
+-- whole class of collision.) Every reference below resolves through it.
 --
 -- A district that is already present is left exactly as it is: its name,
 -- region and hauling system belong to whoever created it.
@@ -109,15 +110,18 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Districts WHERE Number = N'5120')
     VALUES (N'5120', N'HOUSTON', N'Southern', 1, 1);
 GO
 
--- Every district this script writes to must exist by now. Stop here rather
--- than let the NULL from a missed lookup fail 133 inserts one at a time.
+-- Every district this script writes to must now exist exactly once. The
+-- lookups below are scalar subqueries: a missing Number yields NULL and
+-- fails 133 inserts one at a time, and a duplicated Number makes the
+-- subquery itself an error. Schema does not enforce Number uniqueness, so
+-- check it here and stop with one clear message instead.
 IF EXISTS (
     SELECT 1 FROM (VALUES (N'2010'), (N'2010-M'), (N'2012'), (N'5120')) AS Wanted(Number)
-    WHERE NOT EXISTS (SELECT 1 FROM dbo.Districts d WHERE d.Number = Wanted.Number)
+    WHERE (SELECT COUNT(*) FROM dbo.Districts d WHERE d.Number = Wanted.Number) <> 1
 )
 BEGIN
     -- Leading semicolon: THROW requires the preceding statement to be terminated.
-    ;THROW 50001, 'Seed aborted: one or more of districts 2010, 2010-M, 2012, 5120 is missing.', 1;
+    ;THROW 50001, 'Seed aborted: each of districts 2010, 2010-M, 2012 and 5120 must exist exactly once in dbo.Districts.', 1;
 END
 GO
 

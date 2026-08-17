@@ -34,9 +34,11 @@ Both scripts are **idempotent** — they can be re-run safely on an already-popu
 
 ## Running against a database that already has data
 
-`02_insert_mock_data.sql` never hard-codes a district `Id`. Districts are matched on `Number` (`2010`, `2010-M`, `2012`, `5120`), and every route event, service code and charge action resolves its district through that number. This matters because the API seeds its own district list at start-up on an empty database, and those rows carry different identity values — `2011 OREGON PAPER FIBER` occupies id 2, for instance. An id-based guard would find a row already sitting there, skip its insert, and silently attach this script's events to the wrong district.
+`02_insert_mock_data.sql` never hard-codes a district `Id`. Districts are matched on `Number` (`2010`, `2010-M`, `2012`, `5120`), and every route event, service code and charge action resolves its district through that number.
 
-A district that already exists is left untouched: its name, region and hauling system belong to whoever created it. Only `2010-M` is genuinely new on an API-seeded database. If any of the four districts is missing after SECTION 2, the script throws rather than inserting events with a NULL district.
+This matters because the API seeds its own twenty-district list at start-up on an empty database, and `2011 OREGON PAPER FIBER` lands on id 2 — exactly where this script used to assume Vancouver-Minimal. An id-based guard finds that row, skips its own insert, and silently attaches fourteen events to Oregon Paper Fiber. (`2010`, `2012` and `5120` happen to get the same ids either way; `2010-M` is the one that moves.)
+
+A district that already exists is left untouched: its name, region and hauling system belong to whoever created it. Only `2010-M` is genuinely new on an API-seeded database. Before inserting any events the script checks that each of the four numbers resolves to exactly one district row and throws if not — `Districts.Number` carries no uniqueness constraint, and a duplicate would make the lookups fail one row at a time.
 
 Route events this script owns are tagged with a `[seed:district-demo]-…` or `DUPSEED-…` `ExternalId`, so they never collide with rows the API's own seeder inserted — those stay in place. Expect the district's total to be the API's rows **plus** the counts above. To get exactly the counts above, delete the pre-existing rows first, or start from an empty database.
 

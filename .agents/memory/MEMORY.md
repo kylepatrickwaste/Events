@@ -1,5 +1,6 @@
 - [Orval/zod codegen compat](orval-zod-compat.md) — keep number coercion in orval config (zod v3 vs `zod.int()`), and never mix path+query params on one operation (TS2308).
 - [Post-merge seed scripts](post-merge-seeds.md) — merged seed-data tasks need their `lib/db` seed script run manually or users see empty data.
+- [Seed scripts and natural keys](seed-scripts-natural-keys.md) — hard-coded parent Ids silently attach rows to the wrong parent when two seeders disagree; resolve by natural key.
 - [.NET API cutover](dotnet-api-cutover.md) — no backend runs in this repl; a GitHub push IS the deploy, confirmed by polling `buildNumber` on healthz.
 - [Route parity ≠ behavior parity](backend-cutover-parity.md) — matching operationIds to controllers proves nothing; sweep every endpoint before a cutover.
 - [SQL Server case-only renames](sqlserver-case-rename.md) — `districts` and `Districts` are one object; detect a legacy schema by a legacy column, not by table name.
