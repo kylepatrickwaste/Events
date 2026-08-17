@@ -767,7 +767,11 @@ export default function DistrictWorkspace() {
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col bg-card border rounded-xl overflow-hidden shadow-sm">
+      {/* The floor matters: on a short viewport (or a phone with the keyboard up)
+          the stacked filters would otherwise squeeze the grid to nothing. Below
+          it the page simply outgrows the shell and <main> scrolls, which beats
+          a frozen toolbar sitting on top of an invisible grid. */}
+      <div className="flex min-h-[16rem] flex-1 flex-col bg-card border rounded-xl overflow-hidden shadow-sm">
         {/* The one scrolling region on the page: the filters, the group-by bar,
             the column headers and the pager all hold their place. */}
         <div className="min-h-0 flex-1 overflow-auto">
