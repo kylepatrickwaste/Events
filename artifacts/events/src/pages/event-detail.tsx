@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRoute, useLocation, Link } from 'wouter';
 import {
   useGetEvent, getGetEventQueryKey,
@@ -23,14 +22,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import {
-  ChevronLeft, ChevronRight,
+  ChevronLeft,
   MapPin,
   Clock,
   Camera,
   AlertTriangle,
   DollarSign,
   Mail,
-  XCircle, X,
+  XCircle,
   Copy,
   CheckCircle2,
   Send,
@@ -89,7 +88,6 @@ export default function EventDetailWorkspace() {
   // Exactly one nearby photo preview is open for the whole table; the photo
   // cells only report hover and this controller decides which one is shown.
   const [previewNearbyId, setPreviewNearbyId] = useState<number | null>(null);
-  const previewAnchorRef = useRef<HTMLElement | null>(null);
   const previewOpenTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -112,18 +110,18 @@ export default function EventDetailWorkspace() {
     previewCloseTimer.current = setTimeout(() => setPreviewNearbyId(null), NEARBY_PREVIEW_CLOSE_DELAY);
   };
 
-  // Hovering the thumbnail: swap instantly when a preview is already open,
-  // otherwise wait out the open delay. The trigger is the photo cell rather
-  // than the row, so reading a row or ticking its box never puts a picture on
-  // screen -- only reaching for the photo does.
-  const handleNearbyPhotoEnter = (id: number, hasPhoto: boolean, cell: HTMLElement) => {
+  // Hovering the thumbnail lifts that row's photo into the viewer above the
+  // table: swap instantly when one is already showing, otherwise wait out the
+  // open delay. The trigger is the photo cell rather than the row, so reading a
+  // row or ticking its box never disturbs the viewer -- only reaching for the
+  // photo does.
+  const handleNearbyPhotoEnter = (id: number, hasPhoto: boolean) => {
     clearPreviewOpenTimer();
     clearPreviewCloseTimer();
     if (!hasPhoto) {
       setPreviewNearbyId(null);
       return;
     }
-    previewAnchorRef.current = cell;
     if (previewNearbyId !== null) {
       setPreviewNearbyId(id);
       return;
@@ -188,8 +186,12 @@ export default function EventDetailWorkspace() {
     );
   }
 
+  // The previewed row is looked up from the current data, so a refetch that
+  // drops the row (or a photo) takes the preview with it.
+  const previewNearby = event.nearbyEvents?.find(n => n.id === previewNearbyId) ?? null;
+  const previewNearbyImages = previewNearby ? nearbyPhotos(previewNearby) : [];
   const images = event.imageUrls?.length ? event.imageUrls : (event.imageUrl ? [event.imageUrl] : []);
-  const displayImage = hoveredImage || selectedImage || images[0];
+  const displayImage = previewNearbyImages[0] || hoveredImage || selectedImage || images[0];
 
   const formatOffset = (seconds: number) => {
     const abs = Math.abs(seconds);
@@ -198,10 +200,6 @@ export default function EventDetailWorkspace() {
     return t(`event.nearby.offset_min_${dir}` as any, { m: Math.floor(abs / 60) });
   };
 
-  // The previewed row is looked up from the current data, so a refetch that
-  // drops the row (or a photo) takes the preview with it.
-  const previewNearby = event.nearbyEvents?.find(n => n.id === previewNearbyId) ?? null;
-  const previewNearbyImages = previewNearby ? nearbyPhotos(previewNearby) : [];
 
   // No back control on this page: the shell header's customer-name link points
   // at this same district grid, so the page starts straight at the card.
@@ -270,6 +268,19 @@ export default function EventDetailWorkspace() {
                 <div className="text-muted-foreground flex flex-col items-center">
                   <Camera className="h-12 w-12 mb-2 opacity-20" />
                   <span>{t('event.no_photo')}</span>
+                </div>
+              )}
+              {previewNearby && previewNearbyImages.length > 0 && (
+                <div className="absolute left-2 top-2 flex items-center gap-2 rounded-md bg-background/90 px-2 py-1 text-xs font-medium shadow-sm backdrop-blur-sm">
+                  <span className="max-w-[16rem] truncate">
+                    {t('event.nearby.viewing', { name: previewNearby.customerName ?? '—' })}
+                  </span>
+                  {previewNearbyImages.length > 1 && (
+                    <span className="flex items-center gap-1 tabular-nums text-muted-foreground">
+                      <Camera className="h-3 w-3" />
+                      {previewNearbyImages.length}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -355,7 +366,7 @@ export default function EventDetailWorkspace() {
                             <td
                               className="px-2 py-1"
                               data-nearby-photo=""
-                              onMouseEnter={e => handleNearbyPhotoEnter(nearby.id, photos.length > 0, e.currentTarget)}
+                              onMouseEnter={() => handleNearbyPhotoEnter(nearby.id, photos.length > 0)}
                               onMouseLeave={scheduleNearbyPreviewClose}
                             >
                               <Link href={`/districts/${districtId}/events/${nearby.id}`}>
@@ -377,17 +388,6 @@ export default function EventDetailWorkspace() {
               )}
             </CardContent>
           </Card>
-          {previewNearby && previewNearbyImages.length > 0 && (
-            <NearbyPhotoPreview
-              images={previewNearbyImages}
-              alt={`${previewNearby.customerName ?? ''} photo preview`}
-              anchorRef={previewAnchorRef}
-              rowId={previewNearby.id}
-              onPointerEnter={clearPreviewCloseTimer}
-              onPointerLeave={scheduleNearbyPreviewClose}
-              onDismiss={closeNearbyPreview}
-            />
-          )}
         </div>
 
         {/* Right Column: Timeline */}
@@ -983,174 +983,4 @@ function CloseDialog({ open, onOpenChange, eventId, event, checkedNearby, onSucc
 
 const NEARBY_PREVIEW_OPEN_DELAY = 150;
 
-const NEARBY_PREVIEW_GAP = 12;
-
-const NEARBY_PREVIEW_MIN_WIDTH = 320;
-
-/**
- * The single enlarged photo for whichever nearby row is hovered. Rendered into
- * <body> so the table's own overflow can't clip it, and non-interactive: the
- * pointer never has to reach the panel, so moving between rows only swaps the
- * image inside a panel that is already open.
- */
-function NearbyPhotoPreview({ images, alt, anchorRef, rowId, onPointerEnter, onPointerLeave, onDismiss }: {
-  images: string[];
-  alt: string;
-  anchorRef: React.MutableRefObject<HTMLElement | null>;
-  rowId: number;
-  onPointerEnter: () => void;
-  onPointerLeave: () => void;
-  onDismiss: () => void;
-}) {
-  const { t } = useI18n();
-  const multiple = images.length > 1;
-  const [placement, setPlacement] = useState<NearbyPreviewPlacement>(
-    () => computeNearbyPreviewPlacement(anchorRef.current, multiple)
-  );
-  const [index, setIndex] = useState(0);
-
-  // A different row is a different set of photos, so start back at the first
-  // one instead of holding whatever index the previous row was showing.
-  useEffect(() => { setIndex(0); }, [rowId]);
-
-  useLayoutEffect(() => {
-    const measure = () => setPlacement(computeNearbyPreviewPlacement(anchorRef.current, multiple));
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-    // Re-measured per row: the rows share a photo column, but the anchor cell
-    // itself changes as the pointer moves down the table.
-  }, [anchorRef, rowId, multiple]);
-
-  // The interactive panel sits over the row cells beneath it and stays open
-  // while hovered, so the pointer alone can't always get out of its way.
-  useEffect(() => {
-    if (!multiple) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onDismiss(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [multiple, onDismiss]);
-
-  const current = images[Math.min(index, images.length - 1)];
-  const step = (delta: number) => setIndex(i => (i + delta + images.length) % images.length);
-
-  return createPortal(
-    <div
-      // With one photo there is nothing to click, so the panel stays
-      // transparent to the pointer and can never steal hover from the table.
-      // With several, the pointer has to be able to reach the controls, so it
-      // becomes interactive and holds itself open while hovered.
-      onMouseEnter={multiple ? onPointerEnter : undefined}
-      onMouseLeave={multiple ? onPointerLeave : undefined}
-      className={cn(
-        'fixed z-[60] rounded-lg border bg-background p-2 shadow-2xl animate-in fade-in-0 zoom-in-95',
-        multiple ? 'pointer-events-auto' : 'pointer-events-none',
-        placement.mode === 'center' && 'left-1/2 top-1/2 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2'
-      )}
-      style={placement.mode === 'beside'
-        ? { right: placement.right, top: placement.top, width: placement.width }
-        : undefined}
-      data-testid="nearby-photo-preview"
-      data-preview-nearby-id={rowId}
-    >
-      <div className="relative aspect-video w-full overflow-hidden rounded bg-muted">
-        <img
-          key={current}
-          src={current}
-          alt={alt}
-          className="h-full w-full object-contain"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-        />
-        {multiple && (
-          <>
-            <button
-              type="button"
-              onClick={() => step(-1)}
-              aria-label={t('event.nearby.prev_photo')}
-              className="absolute left-1 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-1 shadow transition-colors hover:bg-background"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => step(1)}
-              aria-label={t('event.nearby.next_photo')}
-              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-1 shadow transition-colors hover:bg-background"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={onDismiss}
-              aria-label={t('event.nearby.close_preview')}
-              className="absolute right-1 top-1 rounded-full bg-background/80 p-1 shadow transition-colors hover:bg-background"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-            <span className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-medium tabular-nums">
-              {index + 1} / {images.length}
-            </span>
-          </>
-        )}
-      </div>
-      {multiple && (
-        <div className="mt-2 flex gap-1.5 overflow-x-auto" data-testid="nearby-preview-thumbnails">
-          {images.map((url, i) => (
-            <button
-              key={url + i}
-              type="button"
-              onMouseEnter={() => setIndex(i)}
-              onFocus={() => setIndex(i)}
-              onClick={() => setIndex(i)}
-              className={cn(
-                'h-10 w-14 shrink-0 overflow-hidden rounded border-2 transition-colors',
-                i === index ? 'border-primary' : 'border-transparent hover:border-muted-foreground/40'
-              )}
-            >
-              <img src={url} alt={`${alt} ${i + 1}`} className="h-full w-full object-cover" />
-            </button>
-          ))}
-        </div>
-      )}
-    </div>,
-    document.body
-  );
-}
-
-/**
- * Place the panel to the left of the hovered row's photo cell and vertically
- * centred on that row, clamped so it always stays fully on screen.
- */
-const computeNearbyPreviewPlacement = (anchor: HTMLElement | null, hasStrip: boolean): NearbyPreviewPlacement => {
-  if (!anchor || !anchor.isConnected) return { mode: 'center' };
-  // clientWidth, not innerWidth: a fixed element is laid out against the
-  // viewport minus the scrollbar.
-  const viewportWidth = document.documentElement.clientWidth;
-  const viewportHeight = document.documentElement.clientHeight;
-  const cell = anchor.getBoundingClientRect();
-  const right = Math.max(NEARBY_PREVIEW_GAP, viewportWidth - cell.left + NEARBY_PREVIEW_GAP);
-  const available = viewportWidth - right - NEARBY_PREVIEW_GAP;
-  if (available < NEARBY_PREVIEW_MIN_WIDTH) return { mode: 'center' };
-  const width = Math.min(NEARBY_PREVIEW_MAX_WIDTH, available);
-  // The panel is a 16:9 photo plus its padding, and the thumbnail strip when
-  // there is more than one photo; knowing the height up front lets us keep it
-  // inside the viewport without measuring after paint.
-  const height = Math.round((width * 9) / 16) + 16 + (hasStrip ? NEARBY_PREVIEW_STRIP_HEIGHT : 0);
-  const top = Math.min(
-    Math.max(cell.top + cell.height / 2 - height / 2, NEARBY_PREVIEW_GAP),
-    Math.max(NEARBY_PREVIEW_GAP, viewportHeight - height - NEARBY_PREVIEW_GAP)
-  );
-  return { mode: 'beside', right, top, width };
-};
-
-const NEARBY_PREVIEW_MAX_WIDTH = 448;
-
-/** Thumbnail strip: 40px of thumbnail plus the margin above it. */
-const NEARBY_PREVIEW_STRIP_HEIGHT = 48;
-
 const NEARBY_PREVIEW_CLOSE_DELAY = 220;
-
-/** Where the enlarged nearby photo sits relative to the hovered row. */
-type NearbyPreviewPlacement =
-  | { mode: 'beside'; right: number; top: number; width: number }
-  | { mode: 'center' };

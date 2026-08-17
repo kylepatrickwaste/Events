@@ -153,6 +153,7 @@
       "past_days_90": "Últimos 90 Días"
     },
     "nearby": {
+    "viewing": "Cercano — {{name}}",
       "prev_photo": "Foto anterior",
       "close_preview": "Cerrar vista previa",
       "next_photo": "Foto siguiente",

@@ -153,6 +153,7 @@
       "past_days_90": "Past 90 Days"
     },
     "nearby": {
+    "viewing": "Nearby — {{name}}",
       "prev_photo": "Previous photo",
       "close_preview": "Close preview",
       "next_photo": "Next photo",
