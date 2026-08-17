@@ -85,11 +85,37 @@ const VIEWS_KEY = 'grid-views';
 // Versioned: a saved order from before the columns were re-sequenced would pin
 // everyone to the old layout, since a stored order always wins over the default.
 const COL_ORDER_KEY = 'grid-col-order-v2';
+const PAGE_SIZES = [25, 50, 100];
+const DEFAULT_PAGE_SIZE = 25;
 // A view saved before the columns were re-sequenced carries the old order, and a
 // view's order wins over the default -- so an old view would quietly undo the new
 // layout. Stamping the version lets us keep everything else the view remembers
 // and drop only its stale ordering.
 const VIEW_CONFIG_VERSION = 2;
+
+/**
+ * The opaque twin of `bg-muted/40`. A header cell that stays put while rows
+ * slide under it cannot use a translucent tint -- the rows would show through.
+ * Painting the same muted tint as a gradient over an opaque card base gives an
+ * identical colour that nothing bleeds through. The inset shadow stands in for
+ * the row's bottom border, which a sticky cell would otherwise leave behind.
+ */
+const STICKY_HEADER_BG: React.CSSProperties = {
+  backgroundColor: 'hsl(var(--card))',
+  backgroundImage: 'linear-gradient(hsl(var(--muted) / 0.4), hsl(var(--muted) / 0.4))',
+  boxShadow: 'inset 0 -1px 0 hsl(var(--border))',
+};
+
+/**
+ * Same, tinted for the column a drag is hovering over. The tint has to carry the
+ * whole signal on its own -- over an opaque grey base a 15% wash reads as almost
+ * nothing -- so it is stronger than a normal hover state and adds an edge.
+ */
+const STICKY_HEADER_DROP: React.CSSProperties = {
+  ...STICKY_HEADER_BG,
+  backgroundImage: 'linear-gradient(hsl(var(--primary) / 0.3), hsl(var(--primary) / 0.3))',
+  boxShadow: 'inset 2px 0 0 hsl(var(--primary)), inset 0 -1px 0 hsl(var(--border))',
+};
 
 type ViewConfig = {
   v: number;
@@ -119,7 +145,7 @@ const sanitizeConfig = (cfg: unknown): ViewConfig | null => {
     groupBy: typeof c.groupBy === 'string' ? c.groupBy : null,
     sortColumn: typeof c.sortColumn === 'string' ? c.sortColumn : null,
     sortDirection: c.sortDirection === 'desc' ? 'desc' : 'asc',
-    pageSize: typeof c.pageSize === 'number' && [10, 25, 50, 100].includes(c.pageSize) ? c.pageSize : 10,
+    pageSize: typeof c.pageSize === 'number' && PAGE_SIZES.includes(c.pageSize) ? c.pageSize : DEFAULT_PAGE_SIZE,
   };
 };
 
@@ -239,7 +265,7 @@ export default function DistrictWorkspace() {
   const previewOpenTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(() => initialGrid.cfg?.pageSize ?? 10);
+  const [pageSize, setPageSize] = useState(() => initialGrid.cfg?.pageSize ?? DEFAULT_PAGE_SIZE);
   const [visibleCols, setVisibleCols] = useState<Set<string>>(() => {
     if (initialGrid.cfg) return new Set(initialGrid.cfg.visibleCols);
     try {
@@ -289,8 +315,13 @@ export default function DistrictWorkspace() {
 
   const moveColumn = (from: SortColumn, to: SortColumn) => {
     if (from === to) return;
+    // Take the target's index before the dragged column is removed. Looking it
+    // up afterwards always inserts ahead of the target, which makes a drag one
+    // place to the right land the column back where it started.
+    const toIdx = colOrder.indexOf(to);
+    if (toIdx < 0) return;
     const next = colOrder.filter(k => k !== from);
-    next.splice(next.indexOf(to), 0, from);
+    next.splice(toIdx, 0, from);
     setColOrderPersist(next);
   };
 
@@ -312,7 +343,7 @@ export default function DistrictWorkspace() {
     setGroupByPersist(cfg.groupBy && (DEFAULT_COL_ORDER as string[]).includes(cfg.groupBy) ? (cfg.groupBy as SortColumn) : null);
     setSortColumn(cfg.sortColumn && (DEFAULT_COL_ORDER as string[]).includes(cfg.sortColumn) ? (cfg.sortColumn as SortColumn) : null);
     setSortDirection(cfg.sortDirection === 'desc' ? 'desc' : 'asc');
-    if ([10, 25, 50, 100].includes(cfg.pageSize)) setPageSize(cfg.pageSize);
+    if (PAGE_SIZES.includes(cfg.pageSize)) setPageSize(cfg.pageSize);
     setPage(1);
   };
 
@@ -553,6 +584,17 @@ export default function DistrictWorkspace() {
 
   useEffect(() => () => { clearPreviewOpenTimer(); clearPreviewCloseTimer(); }, []);
 
+  // The rows scroll under the pointer now, so a preview left open would end up
+  // showing the photos of whichever row slid into its place. Capture, because
+  // scroll events from the grid container do not bubble.
+  useEffect(() => {
+    if (previewEventId === null) return;
+    const onScroll = () => closePreview();
+    window.addEventListener('scroll', onScroll, true);
+    return () => window.removeEventListener('scroll', onScroll, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewEventId]);
+
   // Never leave a preview orphaned when its row leaves the page (pagination,
   // filtering, sorting or a refetch that drops the event).
   useEffect(() => {
@@ -597,8 +639,8 @@ export default function DistrictWorkspace() {
   };
 
   return (
-    <div className="w-full py-3 px-4">
-      <div className="flex flex-col sm:flex-row items-center gap-2 mb-3 w-full">
+    <div className="flex h-full w-full flex-col py-3 px-4">
+      <div className="flex flex-col sm:flex-row items-center gap-2 mb-3 w-full shrink-0">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -702,7 +744,7 @@ export default function DistrictWorkspace() {
         onDragLeave={() => setDropTarget(prev => (prev === 'groupzone' ? null : prev))}
         onDrop={e => { e.preventDefault(); if (dragCol) setGroupByPersist(dragCol); setDragCol(null); setDropTarget(null); }}
         className={cn(
-          'flex items-center gap-2 mb-2 rounded-lg border border-dashed px-2 py-1 text-xs transition-colors',
+          'flex shrink-0 items-center gap-2 mb-2 rounded-lg border border-dashed px-2 py-1 text-xs transition-colors',
           dropTarget === 'groupzone' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground'
         )}
       >
@@ -725,12 +767,14 @@ export default function DistrictWorkspace() {
         )}
       </div>
 
-      <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="flex min-h-0 flex-1 flex-col bg-card border rounded-xl overflow-hidden shadow-sm">
+        {/* The one scrolling region on the page: the filters, the group-by bar,
+            the column headers and the pager all hold their place. */}
+        <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <th className="px-2 py-1.5 w-8 text-left">
+            <tr className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <th className="sticky top-0 z-20 px-2 py-1.5 w-8 text-left" style={STICKY_HEADER_BG}>
                 <Checkbox
                   checked={allOpenSelected}
                   onCheckedChange={(c) => toggleAll(c === true)}
@@ -743,34 +787,39 @@ export default function DistrictWorkspace() {
                 return (
                   <th
                     key={key}
-                    draggable
-                    onDragStart={e => { setDragCol(key); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', key); }}
-                    onDragEnd={() => { setDragCol(null); setDropTarget(null); }}
-                    onDragOver={e => { if (dragCol && dragCol !== key) { e.preventDefault(); setDropTarget(key); } }}
-                    onDrop={e => { e.preventDefault(); if (dragCol && dragCol !== key) moveColumn(dragCol, key); setDragCol(null); setDropTarget(null); }}
                     className={cn(
-                      'px-2 py-1.5 text-left whitespace-nowrap cursor-move select-none transition-colors',
-                      dropTarget === key && 'bg-primary/15',
+                      'sticky top-0 z-20 px-2 py-1.5 text-left whitespace-nowrap cursor-move select-none transition-colors',
                       dragCol === key && 'opacity-50'
                     )}
+                    style={dropTarget === key ? STICKY_HEADER_DROP : STICKY_HEADER_BG}
                   >
-                    <div className="flex items-center gap-0.5">
+                    {/* Both halves of the drag live on this inner div rather than on
+                        the cell. The header cells have to stay sticky to hold their
+                        place while rows scroll, and a sticky element neither starts a
+                        native drag nor receives one. */}
+                    <div
+                      draggable
+                      onDragStart={e => { setDragCol(key); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', key); }}
+                      onDragEnd={() => { setDragCol(null); setDropTarget(null); }}
+                      onDragOver={e => { if (dragCol && dragCol !== key) { e.preventDefault(); setDropTarget(key); } }}
+                      onDragLeave={() => setDropTarget(prev => (prev === key ? null : prev))}
+                      onDrop={e => { e.preventDefault(); if (dragCol && dragCol !== key) moveColumn(dragCol, key); setDragCol(null); setDropTarget(null); }}
+                      className="flex items-center gap-0.5"
+                    >
                       <GripVertical className="h-3 w-3 opacity-25 shrink-0" />
                       <SortHeader label={col.label} hideLabel={col.hideLabel} column={key} sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} />
                     </div>
                   </th>
                 );
               })}
-              {/* Opaque background: the header row's bg-muted/40 is translucent, so a
-                  frozen cell using it would let scrolled columns show through. Painting
-                  the same muted tint as a gradient layer over an opaque card base gives
-                  an identical colour that nothing can bleed through. */}
+              {/* Frozen both ways -- against sideways scrolling like the photo cells
+                  below it, and against vertical scrolling like the rest of the header,
+                  so it has to outrank both. */}
               <th
-                className="sticky right-0 z-10 border-l px-2 py-2 w-[160px]"
+                className="sticky right-0 top-0 z-30 border-l px-2 py-2 w-[160px]"
                 style={{
-                  backgroundColor: 'hsl(var(--card))',
-                  backgroundImage: 'linear-gradient(hsl(var(--muted) / 0.4), hsl(var(--muted) / 0.4))',
-                  boxShadow: '-4px 0 6px -2px rgba(0,0,0,0.08)',
+                  ...STICKY_HEADER_BG,
+                  boxShadow: '-4px 0 6px -2px rgba(0,0,0,0.08), inset 0 -1px 0 hsl(var(--border))',
                 }}
               >
                 <span className="float-right font-semibold uppercase tracking-wider text-xs text-muted-foreground pr-1">Photo</span>
@@ -990,7 +1039,7 @@ export default function DistrictWorkspace() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[10, 25, 50, 100].map(n => (
+                  {PAGE_SIZES.map(n => (
                     <SelectItem key={n} value={String(n)}>{t('district.per_page', { n })}</SelectItem>
                   ))}
                 </SelectContent>

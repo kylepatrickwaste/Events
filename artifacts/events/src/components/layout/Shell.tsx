@@ -237,10 +237,13 @@ export function Header() {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-background">
+    // Viewport-height shell: pages that want a frozen toolbar and headers size
+    // themselves to `h-full` and scroll their own region, while ordinary pages
+    // just scroll <main> as they always did.
+    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
       <DevelopmentBanner />
       <Header />
-      <main className="flex-1">
+      <main className="flex-1 min-h-0 overflow-y-auto">
         {children}
       </main>
       <ApiUnreachableDialog />
