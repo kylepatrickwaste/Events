@@ -62,10 +62,9 @@ const OPTIONAL_COLUMNS: ColumnDef[] = [
 
 const BASE_COLUMNS: ColumnDef[] = [
   { key: 'customer', label: 'Customer' },
-  // Status, type and vendor share one cell of marks, so a heading would only
-  // name a third of what is under it.
-  { key: 'type', label: 'Status / Type / Source', hideLabel: true },
-  { key: 'severity', label: 'Severity' },
+  // Status, type, vendor and severity share one cell, so a heading would only
+  // name a quarter of what is under it.
+  { key: 'type', label: 'Status / Type / Source / Severity', hideLabel: true },
   { key: 'date', label: 'Event Time' },
   { key: 'route', label: 'Vehicle' },
 ];
@@ -77,7 +76,7 @@ const ALL_COLUMNS = [...BASE_COLUMNS, ...OPTIONAL_COLUMNS];
  */
 const DEFAULT_COL_ORDER: SortColumn[] = [
   'customer', 'address', 'date',
-  'type', 'severity', 'route',
+  'type', 'route',
   'qty', 'binSerial', 'stop', 'wo', 'lob', 'tabletNotes', 'chgAmt', 'prevChg', 'prevTotal',
 ];
 const BASE_KEYS = new Set<string>(BASE_COLUMNS.map(c => c.key));
@@ -91,7 +90,7 @@ const DEFAULT_PAGE_SIZE = 25;
 // view's order wins over the default -- so an old view would quietly undo the new
 // layout. Stamping the version lets us keep everything else the view remembers
 // and drop only its stale ordering.
-const VIEW_CONFIG_VERSION = 2;
+const VIEW_CONFIG_VERSION = 3;
 
 /**
  * The opaque twin of `bg-muted/40`. A header cell that stays put while rows
@@ -863,6 +862,8 @@ export default function DistrictWorkspace() {
                       </td>
                     );
                   case 'type':
+                    // How the event was classified, in one cell: the marks on top,
+                    // the severity it was graded underneath them.
                     return (
                       <td key={key} className="px-2 py-1">
                         <div className="flex items-center gap-1.5">
@@ -874,28 +875,27 @@ export default function DistrictWorkspace() {
                           <EventTypeGlyph name={event.eventTypeName} />
                           <EventSourceGlyph name={event.eventSourceName} />
                         </div>
+                        {event.severity ? (
+                          <div className="mt-0.5">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'border-0 px-1.5 py-0 text-[10px]',
+                                event.severity.toLowerCase() === 'severe'
+                                  ? 'bg-destructive/10 text-destructive'
+                                  : 'bg-muted text-muted-foreground'
+                              )}
+                            >
+                              {event.severity}
+                            </Badge>
+                          </div>
+                        ) : null}
                       </td>
                     );
                   case 'severity':
-                    return (
-                      <td key={key} className="px-2 py-1">
-                        {event.severity ? (
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              'border-0 px-1.5 py-0 text-[10px]',
-                              event.severity.toLowerCase() === 'severe'
-                                ? 'bg-destructive/10 text-destructive'
-                                : 'bg-muted text-muted-foreground'
-                            )}
-                          >
-                            {event.severity}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    );
+                    // Folded into the marks cell above; kept only so a layout saved
+                    // while it was still a column of its own cannot break.
+                    return null;
                   case 'date':
                     return (
                       <td key={key} className="px-2 py-1 whitespace-nowrap">
