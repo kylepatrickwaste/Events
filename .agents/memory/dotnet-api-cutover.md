@@ -3,7 +3,7 @@ name: .NET API is the only backend, hosted off-platform
 description: Route Events has no backend in the repl; the frontend calls an externally hosted ASP.NET Core API that auto-deploys from GitHub.
 ---
 
-The frontend calls `https://api.kpcf.us` directly via a single `setBaseUrl()` call.
+The frontend calls `https://events.kpcf.us` directly via a single `setBaseUrl()` call.
 There is no backend service in this workspace and no local fallback.
 
 **Why:** the Express/Postgres backend was removed once the ASP.NET Core app
