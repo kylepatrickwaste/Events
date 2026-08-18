@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "Eventos de Ruta",
+    "title": "Eventos de Ruta 2.0",
     "welcome": "Bienvenido de nuevo",
     "select_district": "Seleccione un distrito para comenzar",
     "search_districts": "Buscar distritos...",
@@ -63,22 +63,22 @@
     "cancel": "Cancelar",
     "events_load_failed": "No se pudieron cargar los eventos: el servidor no respondió. La cola no está vacía.",
     "home_confirm_title": "¿Establecer distrito principal?",
-    "home_confirm_body": "¿Abrir {{district}} automáticamente la próxima vez que entres a Route Events?",
+    "home_confirm_body": "¿Abrir {{district}} automáticamente la próxima vez que entres a Route Events 2.0?",
     "home_confirm_action": "Establecer como principal",
     "clear_home_title": "¿Quitar el distrito principal?",
-    "clear_home_body": "Route Events mostrará el selector de distritos en tu próxima visita.",
+    "clear_home_body": "Route Events 2.0 mostrará el selector de distritos en tu próxima visita.",
     "clear_home_action": "Quitar",
     "home_failed_toast": "No se pudo guardar tu distrito principal"
   },
   "profile": {
     "title": "Tu perfil",
-    "description": "Cambia el nombre que muestra Route Events, el distrito con el que abre y la apariencia de la aplicación.",
+    "description": "Cambia el nombre que muestra Route Events 2.0, el distrito con el que abre y la apariencia de la aplicación.",
     "ad_login": "Cuenta de Windows",
     "preferred_name": "Nombre preferido",
     "preferred_name_placeholder": "p. ej. Kyle Patrick",
     "preferred_name_hint": "Déjalo en blanco para mostrar el nombre de tu cuenta de Windows.",
     "home_district": "Distrito principal",
-    "home_district_hint": "Route Events se abrirá directamente en este distrito. Bórralo para elegir un distrito en cada visita.",
+    "home_district_hint": "Route Events 2.0 se abrirá directamente en este distrito. Bórralo para elegir un distrito en cada visita.",
     "no_home_district": "Sin distrito principal",
     "search_district": "Buscar por número, nombre o región…",
     "use_typed_district": "Usar el número de distrito «{{number}}»",
@@ -277,7 +277,7 @@
   },
   "connection": {
     "unreachable_title": "No se puede conectar con el servidor",
-    "unreachable_description": "Route Events no puede conectarse con el servidor en este momento, por lo que no se pueden cargar ni actualizar los eventos. Es posible que el servidor esté caído o que su red lo esté bloqueando.",
+    "unreachable_description": "Route Events 2.0 no puede conectarse con el servidor en este momento, por lo que no se pueden cargar ni actualizar los eventos. Es posible que el servidor esté caído o que su red lo esté bloqueando.",
     "unreachable_hint": "Seguimos comprobando automáticamente: este mensaje desaparecerá en cuanto el servidor responda.",
     "retry": "Reintentar",
     "checking": "Comprobando…",

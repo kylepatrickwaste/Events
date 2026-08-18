@@ -1,6 +1,6 @@
-# Route Events
+# Route Events 2.0
 
-Rebuilt Waste Connections "Route Events" web app: district staff pick a hauling district, review camera-captured route events (extras, contamination, etc.), then charge accounts, send emails, add notes, or close events. UI supports English, Spanish, and French and is responsive.
+Rebuilt Waste Connections "Route Events 2.0" web app: district staff pick a hauling district, review camera-captured route events (extras, contamination, etc.), then charge accounts, send emails, add notes, or close events. UI supports English, Spanish, and French and is responsive.
 
 ## Run & Operate
 
