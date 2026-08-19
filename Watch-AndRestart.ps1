@@ -10,7 +10,8 @@ param(
     [string]$RepoRoot   = $PSScriptRoot,
     [string]$ApiProject = "artifacts\dotnet-api\src\Events.Api\Events.Api.csproj",
     [string]$Branch     = "main",
-    [int]   $PollSeconds = 30
+    [int]   $PollSeconds = 30,
+    [int]   $Port        = 53025
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,18 +33,36 @@ function Get-LocalCommit {
 }
 
 function Start-Api {
-    Write-Status "Starting API  (dotnet run)..." "Green"
+    Write-Status "Starting API on port $Port  (dotnet run)..." "Green"
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName  = "dotnet"
-    $psi.Arguments = "run --project `"$ApiProject`""
+    $psi.Arguments = "run --project `"$ApiProject`" --urls `"http://0.0.0.0:$Port`""
     $psi.WorkingDirectory = $RepoRoot
     $psi.UseShellExecute = $false
+    # PORT is set for THIS child process only — it does not leak to the shell
+    # or to other dev APIs running on the machine.
+    $psi.EnvironmentVariables["PORT"] = "$Port"
     # Inherit the parent console so you see API output in this window
     $psi.RedirectStandardOutput = $false
     $psi.RedirectStandardError  = $false
     $proc = [System.Diagnostics.Process]::Start($psi)
     Write-Status "API started  (PID $($proc.Id))" "Green"
     return $proc
+}
+
+function Stop-StrayOnPort {
+    # `dotnet run` launches the real server (ApiServer.exe / Events.Api.exe) as a
+    # GRANDCHILD. If the watcher is Ctrl+C'd, that grandchild can be orphaned and
+    # keep holding the port AND a lock on the build-output .exe — which makes the
+    # next `dotnet run` fail to build (MSB3021) so the API silently never starts.
+    # Kill whatever is listening on our port. Scoped to $Port, so the other dev
+    # APIs you run on different ports are left alone.
+    $strays = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+              Select-Object -ExpandProperty OwningProcess -Unique
+    foreach ($procId in $strays) {
+        Write-Status "Killing stray process holding port $Port (PID $procId)..." "Yellow"
+        taskkill /PID $procId /T /F 2>&1 | Out-Null
+    }
 }
 
 function Stop-Api([System.Diagnostics.Process]$proc) {
@@ -54,6 +73,9 @@ function Stop-Api([System.Diagnostics.Process]$proc) {
         $proc.WaitForExit(5000) | Out-Null
         Write-Status "API stopped." "Yellow"
     }
+    # Belt-and-suspenders: if the tree kill missed the orphaned grandchild,
+    # clear anyone still holding the port so the next build can write the .exe.
+    Stop-StrayOnPort
 }
 
 function Pull-Latest {
@@ -68,6 +90,10 @@ function Pull-Latest {
 # ── main loop ────────────────────────────────────────────────────────────────
 
 Write-Status "Watcher starting. Repo: $RepoRoot  Branch: $Branch  Poll: ${PollSeconds}s" "White"
+
+# Clear any orphan left by a previous watcher that was Ctrl+C'd — it holds the
+# port and the build-output lock, which would make this run's build fail silently.
+Stop-StrayOnPort
 
 # Start the API immediately on launch
 $apiProcess = Start-Api
